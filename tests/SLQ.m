@@ -124,7 +124,7 @@ while 1
     iter = iter+1;
 end
 endt = cputime;
-disp(['SLQ solved within ',num2str(iter),' iterations'])
+disp(['SLQ found the optimal control input within ',num2str(iter),' iterations'])
 disp(['Elapsed execution time: ',num2str(endt-init),' seconds'])
 
 figure(1)
