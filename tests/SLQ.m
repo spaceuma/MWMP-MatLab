@@ -126,6 +126,8 @@ end
 endt = cputime;
 disp(['SLQ found the optimal control input within ',num2str(iter),' iterations'])
 disp(['Elapsed execution time: ',num2str(endt-init),' seconds'])
+iu = cumsum(u);
+disp(['Total force applied: ',num2str(iu(end)),' N*s'])
 
 figure(1)
 plot(t,x(1,:))
