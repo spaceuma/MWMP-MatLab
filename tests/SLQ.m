@@ -37,7 +37,7 @@ x0(2,end) = vf;
 u0 = zeros(1,size(t,2));
 
 % SLQR algorithm
-iter = 0;
+iter = 1;
 while 1   
     % Forward integrate system equations
     for i = 2:size(t,2)
