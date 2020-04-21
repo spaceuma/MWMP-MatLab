@@ -1,10 +1,10 @@
 function [T01, T02, T03, T04 ,T05] = directo5(q)
     % Modelo cinematico directo
-    a1 = 0.20;
-    a2 = 0.15;
-    a3 = 0.10;
-    a4 = 0.02;
-    a5 = 0.04;
+    global a1;
+    global a2;
+    global a3;
+    global a4;
+    global a5;
 
 
     T01=[cos(q(1)) -sin(q(1)) 0 cos(q(1))*a1 ;

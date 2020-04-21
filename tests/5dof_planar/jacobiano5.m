@@ -1,10 +1,11 @@
-function J = jacobiano4(q)
+function J = jacobiano5(q)
     % Calculo del jacobiano geometrico
-    a1 = 0.20;
-    a2 = 0.15;
-    a3 = 0.10;
-    a4 = 0.02;
-    a5 = 0.04;
+    global a1;
+    global a2;
+    global a3;
+    global a4;
+    global a5;
+
 
     p0 = [0;
           0;

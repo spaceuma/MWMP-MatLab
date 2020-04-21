@@ -1,21 +1,27 @@
 init = cputime;
 % System properties
+global a1;
 a1 = 0.20;
+global a2;
 a2 = 0.15;
+global a3;
 a3 = 0.10;
-a4 = 0.02;
+global a4;
+a4 = 0.05;
+global a5;
 a5 = 0.04;
+
 
 
 % Constraints 
 ti = 0;
 xei = 0.24;
-yei = 0.02;
+yei = 0.05;
 thetai = 0;
 
 tf = 15;
-xef = 0.2;
-yef = 0.2;
+xef = 0.3;
+yef = 0.3;
 thetaf = pi/2;
  
 dt = 0.1;
@@ -79,9 +85,9 @@ while 1
          0 0 0 0 0 0 0 0;
          0 0 0 0 0 0 0 0];
      
-    Qend = [1000000 0 0 0 0 0 0 0;
-            0 1000000 0 0 0 0 0 0;
-            0 0 1000000 0 0 0 0 0;
+    Qend = [100000 0 0 0 0 0 0 0;
+            0 100000 0 0 0 0 0 0;
+            0 0 100000 0 0 0 0 0;
             0 0 0 0 0 0 0 0;
             0 0 0 0 0 0 0 0;
             0 0 0 0 0 0 0 0;
@@ -90,7 +96,7 @@ while 1
         
     R = [1 0 0 0 0;
          0 1 0 0 0;
-         0 0 1 0 0;
+         0 0 20 0 0;
          0 0 0 1 0;
          0 0 0 0 1];
 
@@ -211,7 +217,7 @@ disp(['Total acc applied joint 4: ',num2str(iu(end)),' m/s^2'])
 iu = cumsum(abs(u(5,:)));
 disp(['Total acc applied joint 5: ',num2str(iu(end)),' m/s^2'])
 
-figure()
+figure(2)
 plot(t,x)
 title('Evolution of the state', 'interpreter', ...
 'latex','fontsize',18)
@@ -235,7 +241,7 @@ title('State of the manipulator', 'interpreter', ...
 legend('Initial configuration','Final configuration','End effector trajectory', 'interpreter', ...
     'latex','fontsize',18)
 
-figure()
+figure(3)
 plot(t,u)
 title('Actuating acc (u)','interpreter','latex')
 xlabel('t(s)','interpreter','latex')
@@ -244,5 +250,6 @@ legend('$Joint 1$','$Joint 2$','$Joint 3$','$Joint 4$','$Joint 5$', 'interpreter
 'latex','fontsize',18)
 hold on
 
+sim('dof5_planar',15);
 
 
