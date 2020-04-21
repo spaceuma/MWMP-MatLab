@@ -1,2 +1,5 @@
 
 *.asv
+tests/5dof_planar/slprj/sim/varcache/dof5_planar/varInfo.mat
+tests/5dof_planar/slprj/sim/varcache/dof5_planar/tmwinternal/simulink_cache.xml
+tests/5dof_planar/slprj/sim/varcache/dof5_planar/checksumOfCache.mat
