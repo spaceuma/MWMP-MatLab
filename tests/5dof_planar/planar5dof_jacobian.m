@@ -64,10 +64,10 @@ iter = 1;
 while 1   
     % Forward integrate system equations
     for i = 2:size(t,2)
+        x(4:8,i) = x(4:8,i-1) + u(:,i-1)*dt;   
         q(:,i) = q(:,i-1) + x(4:8,i-1)*dt;
         Jac(:,:,i-1) = jacobiano5(q(:,i-1));
-        x(1:3,i) = x(1:3,i-1) + Jac(:,:,i-1)*x(4:8,i-1)*dt;       
-        x(4:8,i) = x(4:8,i-1) + u(:,i-1)*dt;       
+        x(1:3,i) = x(1:3,i-1) + Jac(:,:,i-1)*x(4:8,i-1)*dt;           
     end
     Jac(:,:,end) = jacobiano5(q(:,end));
     
@@ -171,10 +171,10 @@ while 1
         for n = 1:size(alfa,2)
             u = uk + alfa(n)*uh;
             for i = 2:size(t,2)
+                x(4:8,i) = x(4:8,i-1) + u(:,i-1)*dt;
                 q(:,i) = q(:,i-1) + x(4:8,i-1)*dt;
                 Jac(:,:,i-1) = jacobiano5(q(:,i-1));
-                x(1:3,i) = x(1:3,i-1) + Jac(:,:,i-1)*x(4:8,i-1)*dt;       
-                x(4:8,i) = x(4:8,i-1) + u(:,i-1)*dt; 
+                x(1:3,i) = x(1:3,i-1) + Jac(:,:,i-1)*x(4:8,i-1)*dt; 
             end
             J(n) = 1/2*(x(:,end)-x0(:,end)).'*Qend*(x(:,end)-x0(:,end));
             for i = 1:size(t,2)-1
@@ -203,6 +203,14 @@ while 1
     title('State of the manipulator', 'interpreter', ...
     'latex','fontsize',18)   
 end
+
+for i = 2:size(t,2)
+    x(4:8,i) = x(4:8,i-1) + u(:,i-1)*dt;
+    q(:,i) = q(:,i-1) + x(4:8,i-1)*dt;
+    Jac(:,:,i-1) = jacobiano5(q(:,i-1));
+    x(1:3,i) = x(1:3,i-1) + Jac(:,:,i-1)*x(4:8,i-1)*dt;               
+end
+
 endt = cputime;
 disp(['SLQ found the optimal control input within ',num2str(iter-1),' iterations'])
 disp(['Elapsed execution time: ',num2str(endt-init),' seconds'])
@@ -228,7 +236,6 @@ ylabel('$\theta (rad)$', 'interpreter', 'latex','fontsize',18)
 grid
 
 figure(1)
-hold off;
 hold off;
 [T01, T02, T03, T04, T05] = directo5(q(:,1));
 plot([0 T01(1,4) T02(1,4) T03(1,4) T04(1,4) T05(1,4)],[0 T01(2,4) T02(2,4) T03(2,4) T04(2,4) T05(2,4)]);
