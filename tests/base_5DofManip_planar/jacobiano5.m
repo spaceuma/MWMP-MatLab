@@ -28,7 +28,7 @@ function J = jacobiano5(q)
     p5 = [a1*cos(q(1))+a2*cos(q(1)+q(2))+a3*cos(q(1)+q(2)...
           +q(3))+a4*cos(q(1)+q(2)+q(3)+q(4))+a5*cos(q(1)+q(2)+q(3)+q(4)+q(5));
           a1*sin(q(1))+a2*sin(q(1)+q(2))+a3*sin(q(1)+q(2)...
-          +q(3))+a4*sin(q(1)+q(2)+q(3)+q(4))+a5*cos(q(1)+q(2)+q(3)+q(4)+q(5));
+          +q(3))+a4*sin(q(1)+q(2)+q(3)+q(4))+a5*sin(q(1)+q(2)+q(3)+q(4)+q(5));
           0];  
       
     z = [0;

@@ -9,7 +9,7 @@ function [Tc0, Tc1, Tc2, Tc3, Tc4 ,Tc5] = directo5(q, x)
     Tc0 = [1 0 0 x;
            0 1 0 0;
            0 0 1 0;
-           0 0 0 0];
+           0 0 0 1];
     
     T01=[cos(q(1)) -sin(q(1)) 0 cos(q(1))*a1;
          sin(q(1)) cos(q(1))  0 sin(q(1))*a1;
