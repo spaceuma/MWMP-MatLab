@@ -21,3 +21,37 @@ tests/base_5DofManip_planar/base_dof5Manip_planar.slxc
 tests/base_5DofManip_planar/slprj/sim/varcache/base_dof5Manip_planar/checksumOfCache.mat
 tests/base_5DofManip_planar/slprj/sim/varcache/base_dof5Manip_planar/tmwinternal/simulink_cache.xml
 tests/base_5DofManip_planar/slprj/sim/varcache/base_dof5Manip_planar/varInfo.mat
+*.pdf
+tests/mass_spring_damper/slq_discrete_equality.m
+tests/mass_spring_damper/slq_discrete_unconstrained.m
+tests/sherpa_tt_fmm/Comparativa fmm-slq/halfs_1_iso.png
+tests/sherpa_tt_fmm/Comparativa fmm-slq/halfs_1_up.png
+tests/sherpa_tt_fmm/Comparativa fmm-slq/halfs_fail.png
+tests/sherpa_tt_fmm/Comparativa fmm-slq/multiple_1_iso.png
+tests/sherpa_tt_fmm/Comparativa fmm-slq/multiple_1_up.png
+tests/sherpa_tt_fmm/Comparativa fmm-slq/multiple_2_iso.png
+tests/sherpa_tt_fmm/Comparativa fmm-slq/multiple_2_up.png
+tests/sherpa_tt_fmm/Comparativa fmm-slq/single_1_iso.png
+tests/sherpa_tt_fmm/Comparativa fmm-slq/single_1_up.png
+tests/sherpa_tt_fmm/Comparativa fmm-slq/single_2_iso.png
+tests/sherpa_tt_fmm/Comparativa fmm-slq/single_2_up.png
+tests/sherpa_tt_simpleBase/slprj/sim/varcache/simulink_sherpa_tt_simpleBase/checksumOfCache.mat
+tests/sherpa_tt_simpleBase/slprj/sim/varcache/simulink_sherpa_tt_simpleBase/tmwinternal/simulink_cache.xml
+tests/sherpa_tt_simpleBase/slprj/sim/varcache/simulink_sherpa_tt_simpleBase/varInfo.mat
+tests/sherpa_tt_limits/slprj/sim/varcache/simulink_sherpa_tt_simpleBase/checksumOfCache.mat
+tests/sherpa_tt_limits/slprj/sim/varcache/simulink_sherpa_tt_simpleBase/tmwinternal/simulink_cache.xml
+tests/sherpa_tt_limits/slprj/sim/varcache/simulink_sherpa_tt_simpleBase/varInfo.mat
+tests/sherpa_tt_limits/Comparativa fmm-slq/halfs_1_iso.png
+tests/sherpa_tt_limits/Comparativa fmm-slq/halfs_1_up.png
+tests/sherpa_tt_limits/Comparativa fmm-slq/halfs_fail.png
+tests/sherpa_tt_limits/Comparativa fmm-slq/multiple_1_iso.png
+tests/sherpa_tt_limits/Comparativa fmm-slq/multiple_1_up.png
+tests/sherpa_tt_limits/Comparativa fmm-slq/multiple_2_iso.png
+tests/sherpa_tt_limits/Comparativa fmm-slq/multiple_2_up.png
+tests/sherpa_tt_limits/Comparativa fmm-slq/single_1_iso.png
+tests/sherpa_tt_limits/Comparativa fmm-slq/single_1_up.png
+tests/sherpa_tt_limits/Comparativa fmm-slq/single_2_iso.png
+tests/sherpa_tt_limits/Comparativa fmm-slq/single_2_up.png
+tests/sherpa_tt_fmm/slprj/sim/varcache/simulink_sherpa_tt_simpleBase/checksumOfCache.mat
+tests/sherpa_tt_fmm/slprj/sim/varcache/simulink_sherpa_tt_simpleBase/tmwinternal/simulink_cache.xml
+tests/sherpa_tt_fmm/slprj/sim/varcache/simulink_sherpa_tt_simpleBase/varInfo.mat

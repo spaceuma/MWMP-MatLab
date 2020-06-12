@@ -117,10 +117,6 @@ while 1
     
     % Quadratize cost function along the trajectory
     Q = zeros(size(x,1),size(x,1),size(t,2));
-    for i = 1:size(t,2)
-        Q(7,7,i) = getCost(xB(i),yB(i))/10000000000000000;
-        Q(8,8,i) = Q(7,7,i);
-    end
      
     Qend = zeros(size(x,1),size(x,1));
     Qend(1,1) = 1000000;
@@ -314,6 +310,6 @@ legend('x displacement','y displacement','$Joint 1$','$Joint 2$',...
        'latex','fontsize',18)
 hold on
 
-sim('simulink_sherpa_tt_simpleBase',15);
+% sim('simulink_sherpa_tt_simpleBase',15);
 
 
