@@ -1,4 +1,7 @@
 addpath('../../../ARES-DyMu_matlab/Global Path Planning/functions')
+addpath('../../maps')
+addpath('../../models')
+addpath('../../costs')
 
 init = cputime;
 % System properties
@@ -47,7 +50,7 @@ pitchef = pi;
 yawef = 0;
 
 % FMM to compute reference path
-load('obstMap','obstMap')
+load('obstMap2','obstMap')
 dilatedObstMap = dilateObstMap(obstMap, safetyDistance, mapResolution);
 distMap = mapResolution*bwdist(dilatedObstMap);
 costMap = 1./distMap;

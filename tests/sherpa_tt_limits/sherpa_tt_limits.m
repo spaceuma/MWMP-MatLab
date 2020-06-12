@@ -1,4 +1,7 @@
 addpath('../../../ARES-DyMu_matlab/Global Path Planning/functions')
+addpath('../../maps')
+addpath('../../models')
+addpath('../../costs')
 
 tic
 % System properties
@@ -46,8 +49,8 @@ rollei = 0;
 pitchei = pi;
 yawei = 0;
 
-xef = 1.8;
-yef = 8.9;
+xef = 2.5;
+yef = 8.4;
 zef = 0.2;
 rollef = 0;
 pitchef = pi;
@@ -66,7 +69,7 @@ lc = 0.5;
 maxIter = 1000;
 
 % FMM to compute totalCostMap
-load('obstMap2','obstMap')
+load('obstMap3','obstMap')
 dilatedObstMap = dilateObstMap(obstMap, safetyDistance, mapResolution);
 distMap = mapResolution*bwdist(dilatedObstMap);
 costMap = 1./distMap;
