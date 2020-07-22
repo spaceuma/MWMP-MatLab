@@ -23,20 +23,20 @@ xB0 = 2;
 yB0 = 2.5;
 yawB0 = -pi/2;
 
-xBf = 8;
+xBf = 1;
 yBf = 8.5;
-yawBf = -pi/4;
+yawBf = -pi/2;
 
 tf = 15;
 dt = 0.2;
 t = 0:dt:tf;
 
 fc = 1000000; % Final state cost, 1000000
-foc = 0; % Final orientation cost, 1000000
+foc = 1000000; % Final orientation cost, 1000000
 tc = 0.11; % Total cost map cost, 0.11
 bc = 0.1; % Base actuation cost, 2
 dc = 0.2; % Steering cost, 2
-sm = 5; % Influence of turns into final speed, tune till convergence
+sm = 6; % Influence of turns into final speed, tune till convergence
 
 
 maxIter = 1000;
@@ -326,6 +326,11 @@ while 1
           [TWB(2,4) TW1(2,4) TWB(2,4) TW2(2,4) TWB(2,4) TW3(2,4) TWB(2,4) TW4(2,4)],...
           [TWB(3,4) TW1(3,4) TWB(3,4) TW2(3,4) TWB(3,4) TW3(3,4) TWB(3,4) TW4(3,4)], 'Color', 'r', 'LineWidth', 2.5);
     hold on;
+    contourf(X,Y,dilatedObstMap+obstMap);
+    
+    quiver3(TWB(1,4), TWB(2,4), TWB(3,4), -sin(x(3,1))/2, cos(x(3,1))/2, 0, 'Color', 'r', 'LineWidth', 2, 'MaxHeadSize', 0.7)
+    quiver3(TWB(1,4), TWB(2,4), TWB(3,4), cos(x(3,1))/2, sin(x(3,1))/2, 0, 'Color', 'g', 'LineWidth', 2, 'MaxHeadSize', 0.7)
+    quiver3(TWB(1,4), TWB(2,4), TWB(3,4), 0, 0, 1/2, 'Color', 'c', 'LineWidth', 2, 'MaxHeadSize', 0.7)  
     TWB = getTraslation([x(1,end),x(2,end),0.645])*getZRot(x(3,end));
     TW1 = TWB*TB1;
     TW2 = TWB*TB2;
@@ -334,9 +339,12 @@ while 1
     plot3([TWB(1,4) TW1(1,4) TWB(1,4) TW2(1,4) TWB(1,4) TW3(1,4) TWB(1,4) TW4(1,4)],...
               [TWB(2,4) TW1(2,4) TWB(2,4) TW2(2,4) TWB(2,4) TW3(2,4) TWB(2,4) TW4(2,4)],...
               [TWB(3,4) TW1(3,4) TWB(3,4) TW2(3,4) TWB(3,4) TW3(3,4) TWB(3,4) TW4(3,4)], 'Color', 'r', 'LineWidth', 2.5);
+
+    quiver3(TWB(1,4), TWB(2,4), TWB(3,4), -sin(x(3,end))/2, cos(x(3,end))/2, 0, 'Color', 'r', 'LineWidth', 2, 'MaxHeadSize', 0.7)
+    quiver3(TWB(1,4), TWB(2,4), TWB(3,4), cos(x(3,end))/2, sin(x(3,end))/2, 0, 'Color', 'g', 'LineWidth', 2, 'MaxHeadSize', 0.7)
+    quiver3(TWB(1,4), TWB(2,4), TWB(3,4), 0, 0, 1/2, 'Color', 'c', 'LineWidth', 2, 'MaxHeadSize', 0.7)
     daspect([1 1 1])
-    contourf(X,Y,dilatedObstMap+obstMap);
-    plot3(x(1,:),x(2,:),0.645*ones(size(x(1,:))), 'LineWidth', 5)
+    plot3(x(1,:),x(2,:),0.645*ones(size(x(1,:))), 'Color', [0.9290, 0.6940, 0.1250], 'LineWidth', 5)
     title('Mobile robot trajectories', 'interpreter', ...
     'latex','fontsize',18)
     plot3(xBf,yBf,0.645*ones(size(x(1,:))), 'MarkerSize', 20, 'Marker', '.', 'Color', 'c')
@@ -387,9 +395,13 @@ TW2 = TWB*TB2;
 TW3 = TWB*TB3;
 TW4 = TWB*TB4;
 plot3([TWB(1,4) TW1(1,4) TWB(1,4) TW2(1,4) TWB(1,4) TW3(1,4) TWB(1,4) TW4(1,4)],...
-          [TWB(2,4) TW1(2,4) TWB(2,4) TW2(2,4) TWB(2,4) TW3(2,4) TWB(2,4) TW4(2,4)],...
-          [TWB(3,4) TW1(3,4) TWB(3,4) TW2(3,4) TWB(3,4) TW3(3,4) TWB(3,4) TW4(3,4)], 'Color', 'r', 'LineWidth', 2.5);
+      [TWB(2,4) TW1(2,4) TWB(2,4) TW2(2,4) TWB(2,4) TW3(2,4) TWB(2,4) TW4(2,4)],...
+      [TWB(3,4) TW1(3,4) TWB(3,4) TW2(3,4) TWB(3,4) TW3(3,4) TWB(3,4) TW4(3,4)], 'Color', 'r', 'LineWidth', 2.5);
 hold on;
+contourf(X,Y,dilatedObstMap+obstMap);
+quiver3(TWB(1,4), TWB(2,4), TWB(3,4), -sin(x(3,1))/2, cos(x(3,1))/2, 0, 'Color', 'r', 'LineWidth', 2, 'MaxHeadSize', 0.7)
+quiver3(TWB(1,4), TWB(2,4), TWB(3,4), cos(x(3,1))/2, sin(x(3,1))/2, 0, 'Color', 'g', 'LineWidth', 2, 'MaxHeadSize', 0.7)
+quiver3(TWB(1,4), TWB(2,4), TWB(3,4), 0, 0, 1/2, 'Color', 'c', 'LineWidth', 2, 'MaxHeadSize', 0.7)  
 TWB = getTraslation([x(1,end),x(2,end),0.645])*getZRot(x(3,end));
 TW1 = TWB*TB1;
 TW2 = TWB*TB2;
@@ -398,24 +410,33 @@ TW4 = TWB*TB4;
 plot3([TWB(1,4) TW1(1,4) TWB(1,4) TW2(1,4) TWB(1,4) TW3(1,4) TWB(1,4) TW4(1,4)],...
           [TWB(2,4) TW1(2,4) TWB(2,4) TW2(2,4) TWB(2,4) TW3(2,4) TWB(2,4) TW4(2,4)],...
           [TWB(3,4) TW1(3,4) TWB(3,4) TW2(3,4) TWB(3,4) TW3(3,4) TWB(3,4) TW4(3,4)], 'Color', 'r', 'LineWidth', 2.5);
+
+quiver3(TWB(1,4), TWB(2,4), TWB(3,4), -sin(x(3,end))/2, cos(x(3,end))/2, 0, 'Color', 'r', 'LineWidth', 2, 'MaxHeadSize', 0.7)
+quiver3(TWB(1,4), TWB(2,4), TWB(3,4), cos(x(3,end))/2, sin(x(3,end))/2, 0, 'Color', 'g', 'LineWidth', 2, 'MaxHeadSize', 0.7)
+quiver3(TWB(1,4), TWB(2,4), TWB(3,4), 0, 0, 1/2, 'Color', 'c', 'LineWidth', 2, 'MaxHeadSize', 0.7)
 daspect([1 1 1])
-contourf(X,Y,dilatedObstMap+obstMap);
-map = [0 0.6   0
-   0.6 0.3 0
-   0.6 0   0];
-colormap(map);
-plot3(x(1,:),x(2,:),0.645*ones(size(x(1,:))), 'LineWidth', 5)
+plot3(x(1,:),x(2,:),0.645*ones(size(x(1,:))), 'Color', [0.9290, 0.6940, 0.1250], 'LineWidth', 5)
 title('Mobile robot trajectories', 'interpreter', ...
-'latex','fontsize',18) 
+'latex','fontsize',18)
 plot3(xBf,yBf,0.645*ones(size(x(1,:))), 'MarkerSize', 20, 'Marker', '.', 'Color', 'c')
 
 hold off
 
 
-
 figure(2)
-plot(t,x(4:6,:))
+plot(t,x(1:3,:))
 title('Evolution of the state (A)', 'interpreter', ...
+'latex','fontsize',18)
+legend('$x_{c}$','$y_{c}$','$yaw_c$', 'interpreter', ...
+'latex','fontsize',18)
+xlabel('$t (s)$', 'interpreter', 'latex','fontsize',18)
+%ylabel('$\theta^. (rad)$', 'interpreter', 'latex','fontsize',18)
+grid
+hold off
+
+figure(3)
+plot(t,x(4:6,:))
+title('Evolution of the state (B)', 'interpreter', ...
 'latex','fontsize',18)
 legend('$x_{c}^.$','$y_{c}^.$','$\omega_c$', 'interpreter', ...
 'latex','fontsize',18)
@@ -424,9 +445,9 @@ xlabel('$t (s)$', 'interpreter', 'latex','fontsize',18)
 grid
 hold off
 
-figure(3)
+figure(4)
 plot(t,x(7:10,:))
-title('Evolution of the state (B)', 'interpreter', ...
+title('Evolution of the state (C)', 'interpreter', ...
 'latex','fontsize',18)
 legend('$\theta_{d1}$','$\theta_{d2}$','$\theta_{d3}$','$\theta_{d4}$',...
 'interpreter','latex','fontsize',18)
@@ -435,7 +456,7 @@ xlabel('$t (s)$', 'interpreter', 'latex','fontsize',18)
 grid
 hold off
 
-figure(4)
+figure(5)
 plot(t,u)
 title('Actuating control input (u)','interpreter','latex')
 xlabel('t(s)','interpreter','latex')
