@@ -6,10 +6,18 @@ function b = getSimpleLogBarrierCost(x, threshold, t, greater)
     
     if greater == 0
         g = x-threshold;
-        b = -1./t*log10(-g);
+        if(x < threshold)
+            b = -1./t*log10(-g);
+        else
+            b = -(2./t*log10(1e-5) + abs(1./t*log10(-g)));
+        end
     else
         g = threshold-x;
-        b = -1./t*log10(-g);
+        if(x > threshold)            
+            b = -1./t*log10(-g);
+        else
+            b = -(2./t*log10(1e-5) + abs(1./t*log10(-g)));
+        end
     end
 
 end

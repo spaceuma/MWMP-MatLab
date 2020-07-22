@@ -2,6 +2,8 @@ addpath('../../../ARES-DyMu_matlab/Global Path Planning/functions')
 addpath('../../maps')
 addpath('../../models')
 addpath('../../costs')
+ 
+clear
 
 tic
 % System properties
@@ -49,7 +51,7 @@ rollei = 0;
 pitchei = pi;
 yawei = 0;
 
-xef = 2.5;
+xef = 5.5;
 yef = 8.4;
 zef = 0.2;
 rollef = 0;
@@ -60,19 +62,20 @@ tf = 15;
 dt = 0.5;
 t = 0:dt:tf;
 
-fc = 1000000;
-oc = 0.11;
-bc = 2;
-ac = 60;
-lc = 0.5;
+fc = 1000000; % Final state cost, 1000000
+tc = 0.11; % Total cost map cost, 0.11
+bc = 2; % Base actuation cost, 2
+ac = 60; % Arm actuation cost, 60
+lc = 0.5; % Joints limits cost, 0.5
+oc = 0.0; % Obstacles limits cost, 0.0
 
 maxIter = 1000;
 
 % FMM to compute totalCostMap
-load('obstMap3','obstMap')
+load('obstMap2','obstMap')
 dilatedObstMap = dilateObstMap(obstMap, safetyDistance, mapResolution);
-distMap = mapResolution*bwdist(dilatedObstMap);
-costMap = 1./distMap;
+distRiskMap = mapResolution*bwdist(dilatedObstMap);
+costMap = 1./distRiskMap;
 costMap = costMap./min(min(costMap));
 
 distMap = mapResolution*bwdist(obstMap);
@@ -89,11 +92,22 @@ iGoal = [round(xef/mapResolution)+1 round(yef/mapResolution)+1];
 
 % Quadratizing totalCostMap
 totalCostMap(totalCostMap == Inf) = NaN;
-[gBCMx, gBCMy] = calculateGradient(mapResolution*totalCostMap);
+[gTCMx, gTCMy] = calculateGradient(mapResolution*totalCostMap);
 
 tau = 0.5;
 [referencePath,~,~,~] = getPathGDM(totalCostMap,iInit,iGoal,tau);
 referencePath = (referencePath-1)*mapResolution;
+
+% Generating obst log cost map
+tLog = 10;
+obstLogCostMap = zeros(size(distMap));
+for i = 1:size(distMap,1)
+    for j = 1:size(distMap,2)
+        obstLogCostMap(j,i) = getSimpleLogBarrierCost(distMap(j,i),safetyDistance,tLog,1);
+    end
+end
+
+[gOLCMx, gOLCMy] = calculateMapGradient(obstLogCostMap);
 
 % State vectors
 x = zeros(26,size(t,2));
@@ -288,11 +302,11 @@ while 1
 
     
     % Total cost map cost
-    Ox = zeros(size(Q,1),size(t,2)); 
+    Tcmx = zeros(size(Q,1),size(t,2)); 
     for i = 1:size(t,2)-1
-        [Ox(13,i), Ox(14,i)] = getGradientTotalCost(x(10,i), x(11,i), mapResolution, gBCMx, gBCMy);
-        Ox(13,i) = oc*Ox(13,i);
-        Ox(14,i) = oc*Ox(14,i);
+        [Tcmx(13,i), Tcmx(14,i)] = getGradientTotalCost(x(10,i), x(11,i), mapResolution, gTCMx, gTCMy);
+        Tcmx(13,i) = tc*Tcmx(13,i);
+        Tcmx(14,i) = tc*Tcmx(14,i);
     end
     
     % Joints limits cost
@@ -306,9 +320,16 @@ while 1
         Jdx(15:20,i) = lc.*getGradientLogBarrierCost(x(15:20,i),armJointsLimits(:,1),tLog,1);
     end
 
+    % Obstacles limits cost
+    Ox = zeros(size(Q,1),size(t,2));
+    for i = 1:size(t,2)-1
+        [Ox(10,i), Ox(11,i)] = getGradientTotalCost(x(10,i), x(11,i), mapResolution, gOLCMx, gOLCMy);
+        Ox(10,i) = oc*Ox(10,i);
+        Ox(11,i) = oc*Ox(11,i);
+    end
     
     P(:,:,end) = Qend;
-    s(:,:,end) = -Qend*xh0(:,end) + Ox(:,end) + Jux(:,end) + Jdx(:,end);
+    s(:,:,end) = -Qend*xh0(:,end) + Tcmx(:,end) + Jux(:,end) + Jdx(:,end) + Ox(:,end);
     
     xh = zeros(size(x,1),size(t,2));
     uh = zeros(size(u,1),size(t,2));
@@ -327,7 +348,8 @@ while 1
         M(:,:,i) = inv(eye(size(B,1)) + B(:,:,i)*inv(R)*B(:,:,i).'*P(:,:,i+1));
         P(:,:,i) = Q(:,:,i) + A(:,:,i).'*P(:,:,i+1)*M(:,:,i)*A(:,:,i);
         s(:,:,i) = A(:,:,i).'*(eye(size(Q,1)) - P(:,:,i+1)*M(:,:,i)*B(:,:,i)*inv(R)*B(:,:,i).')*s(:,:,i+1)+...
-            A(:,:,i).'*P(:,:,i+1)*M(:,:,i)*B(:,:,i)*uh0(:,i) - Q(:,:,i)*xh0(:,i) + Ox(:,i) + Jux(:,i) + Jdx(:,i);
+            A(:,:,i).'*P(:,:,i+1)*M(:,:,i)*B(:,:,i)*uh0(:,i) - Q(:,:,i)*xh0(:,i)...
+            + Tcmx(:,i) + Jux(:,i) + Jdx(:,i) + Ox(:,i);
     end
     
     % Solve forward
@@ -367,15 +389,17 @@ while 1
                 x(21:26,i) = x(21:26,i-1) + u(3:8,i-1)*dt; 
             end
             J(n) = 1/2*(x(:,end)-x0(:,end)).'*Qend*(x(:,end)-x0(:,end))...
-                + oc*getTotalCost(x(10,end), x(11,end), mapResolution, totalCostMap)...
+                + tc*getTotalCost(x(10,end), x(11,end), mapResolution, totalCostMap)...
                 + lc*sum(getSimpleLogBarrierCost(x(15:20,end),armJointsLimits(:,2),tLog,0))...
-                + lc*sum(getSimpleLogBarrierCost(x(15:20,end),armJointsLimits(:,2),tLog,1));
+                + lc*sum(getSimpleLogBarrierCost(x(15:20,end),armJointsLimits(:,2),tLog,1))...
+                + oc*getTotalCost(x(10,end), x(11,end), mapResolution, obstLogCostMap);
             for i = 1:size(t,2)-1
                 J(n) = J(n) + 1/2*((x(:,i)-x0(:,i)).'*Q(:,:,i)*(x(:,i)-x0(:,i))...
                     + (u(:,i)-u0(:,i)).'*R*(u(:,i)-u0(:,i)))...
-                    + oc*getTotalCost(x(10,i), x(11,i), mapResolution, totalCostMap)...
+                    + tc*getTotalCost(x(10,i), x(11,i), mapResolution, totalCostMap)...
                     + lc*sum(getSimpleLogBarrierCost(x(15:20,i),armJointsLimits(:,2),tLog,0))...
-                    + lc*sum(getSimpleLogBarrierCost(x(15:20,i),armJointsLimits(:,2),tLog,1));
+                    + lc*sum(getSimpleLogBarrierCost(x(15:20,i),armJointsLimits(:,2),tLog,1))...
+                    + oc*getTotalCost(x(10,i), x(11,i), mapResolution, obstLogCostMap);
             end            
         end
         [mincost, ind] = min(J);
@@ -425,9 +449,11 @@ while 1
     plot3(x(10,1:end-1),x(11,1:end-1),x(12,1:end-1), 'LineWidth', 5)
     title('Mobile manipulator trajectories', 'interpreter', ...
     'latex','fontsize',18)
+    plot3(xef,yef,zef, 'MarkerSize', 20, 'Marker', '.', 'Color', 'c')
+
     hold off;
 
-    disp(['Iteration number ',num2str(iter-1)])
+%     disp(['Iteration number ',num2str(iter-1)])
 
 end
 
@@ -443,6 +469,25 @@ for i = 2:size(t,2)
     x(13:14,i) = x(13:14,i-1) + u(1:2,i-1)*dt; 
     x(15:20,i) = x(15:20,i-1) + x(21:26,i-1)*dt;
     x(21:26,i) = x(21:26,i-1) + u(3:8,i-1)*dt; 
+    
+    if(x(15,i) < armJointsLimits(1,1) || x(15,i) > armJointsLimits(1,2))
+        disp('WARNING: Arm joint 1 is violating its position limits at waypoint ',num2str(i));
+    end
+    if(x(16,i) < armJointsLimits(2,1) || x(16,i) > armJointsLimits(2,2))
+        disp('WARNING: Arm joint 2 is violating its position limits at waypoint ',num2str(i));
+    end
+    if(x(17,i) < armJointsLimits(3,1) || x(17,i) > armJointsLimits(3,2))
+        disp('WARNING: Arm joint 3 is violating its position limits at waypoint ',num2str(i));
+    end
+    if(x(18,i) < armJointsLimits(4,1) || x(18,i) > armJointsLimits(4,2))
+        disp('WARNING: Arm joint 4 is violating its position limits at waypoint ',num2str(i));
+    end
+    if(x(19,i) < armJointsLimits(5,1) || x(19,i) > armJointsLimits(5,2))
+        disp('WARNING: Arm joint 5 is violating its position limits at waypoint ',num2str(i));
+    end
+    if(x(20,i) < armJointsLimits(6,1) || x(20,i) > armJointsLimits(6,2))
+        disp('WARNING: Arm joint 6 is violating its position limits at waypoint ',num2str(i));
+    end
 end
 
 toc
@@ -499,6 +544,7 @@ colormap(map);
 plot3(x(1,:),x(2,:),x(3,:), 'LineWidth', 5)
 plot3(x(10,1:end-1),x(11,1:end-1),x(12,1:end-1), 'LineWidth', 5)
 plot3(referencePath(:,1),referencePath(:,2), zB0*ones(size(referencePath,1),2), 'LineWidth', 5)
+plot3(xef,yef,zef, 'MarkerSize', 20, 'Marker', '.', 'Color', 'c')
 title('Mobile manipulator trajectories', 'interpreter', ...
 'latex','fontsize',18) 
 hold off
@@ -536,6 +582,7 @@ legend('$\theta_1$','$\theta_2$',...
        '$\theta_3$','$\theta_4$','$\theta_5$','$\theta_6$', 'interpreter', ...
        'latex','fontsize',18)
 hold off
+
 % figure(4)
 % contourf(gBCMx)
 % figure(2)

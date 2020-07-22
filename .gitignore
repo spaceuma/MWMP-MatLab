@@ -55,3 +55,6 @@ tests/sherpa_tt_limits/Comparativa fmm-slq/single_2_up.png
 tests/sherpa_tt_fmm/slprj/sim/varcache/simulink_sherpa_tt_simpleBase/checksumOfCache.mat
 tests/sherpa_tt_fmm/slprj/sim/varcache/simulink_sherpa_tt_simpleBase/tmwinternal/simulink_cache.xml
 tests/sherpa_tt_fmm/slprj/sim/varcache/simulink_sherpa_tt_simpleBase/varInfo.mat
+tests/simple_base/slprj/sim/varcache/simulink_sherpa_tt_simpleBase/checksumOfCache.mat
+tests/simple_base/slprj/sim/varcache/simulink_sherpa_tt_simpleBase/tmwinternal/simulink_cache.xml
+tests/simple_base/slprj/sim/varcache/simulink_sherpa_tt_simpleBase/varInfo.mat

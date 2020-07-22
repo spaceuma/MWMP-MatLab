@@ -6,10 +6,20 @@ function bx = getGradientLogBarrierCost(x, threshold, t, greater)
     
     if greater == 0
         g = x-threshold;
-        bx = 1./(t*(-g)*log(10));
+        if(x < threshold)
+            bx = 1./(t*(-g)*log(10));
+        else
+            bx = 1./(t*(-g)*log(10));
+%             bx = 1./(t*(1e-3)*log(10));
+        end
     else
         g = threshold-x;
-        bx = -1./(t*(-g)*log(10));
+        if(x > threshold)
+            bx = -1./(t*(-g)*log(10));
+        else
+            bx = -1./(t*(-g)*log(10));
+%             bx = -1./(t*(1e-3)*log(10));
+        end
     end
 
 end
