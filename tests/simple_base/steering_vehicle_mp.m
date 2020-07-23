@@ -23,12 +23,12 @@ xB0 = 2;
 yB0 = 2.5;
 yawB0 = -pi/2;
 
-xBf = 6;
+xBf = 8;
 yBf = 8.5;
 yawBf = -pi/2;
 
 tf = 15;
-dt = 0.5;
+dt = 0.2;
 t = 0:dt:tf;
 
 fc = 1000000; % Final state cost, 1000000
@@ -36,10 +36,11 @@ foc = 0; % Final orientation cost, 1000000
 tc = 0.11; % Total cost map cost, 0.11
 bc = 0.1; % Base actuation cost, 2
 dc = 0.2; % Steering cost, 2
-sm = 6; % Influence of turns into final speed, tune till convergence
+sm = 6; % Influence of diff turns into final speed, tune till convergence
+sm2 = 50; % Influence of steer turns into final speed, tune till convergence
 
 
-maxIter = 1000;
+maxIter = 150;
 
 % FMM to compute totalCostMap
 load('obstMap2','obstMap')
@@ -118,7 +119,7 @@ while 1
         x(1,i) = x(1,i-1) + cos(x(3,i-1))*x(4,i-1)*dt - sin(x(3,i-1))*x(5,i-1)*dt;
         x(2,i) = x(2,i-1) + sin(x(3,i-1))*x(4,i-1)*dt + cos(x(3,i-1))*x(5,i-1)*dt;
         x(3,i) = x(3,i-1) + x(6,i-1)*dt;
-        x(4,i) = - 1/2*(sin(x(7,i-1))*u(1,i-1)+sin(x(9,i-1))*u(2,i-1));
+        x(4,i) = - r/2*(sin(x(7,i-1))*u(1,i-1)+sin(x(9,i-1))*u(2,i-1));
         x(5,i) = r/2*(cos(x(7,i-1))*u(1,i-1) + cos(x(9,i-1))*u(2,i-1));
         x(6,i) = 2*r/dfx*(cos(x(7,i-1))*u(1,i-1) - cos(x(9,i-1))*u(2,i-1));
         x(7:8,i) =  x(7:8,i-1) + u(3,i-1)*dt;
@@ -163,14 +164,14 @@ while 1
     A(2,4,1) = dt*(sin(x(3,1))-cos(x(3,1))*x(3,1)/sm);
     A(2,5,1) = dt*(cos(x(3,1))+sin(x(3,1))*x(3,1)/sm);
     
-    A(4,7,1) = -cos(x(7,1))*u(1,1)/2/sm;
-    A(4,9,1) = -cos(x(9,1))*u(2,1)/2/sm;
+    A(4,7,1) = -r/2*cos(x(7,1))*u(1,1)/sm2;
+    A(4,9,1) = -r/2*cos(x(9,1))*u(2,1)/sm2;
 
-    A(5,7,1) = r/2*(-sin(x(7,1))*u(1,1))/sm;
-    A(5,9,1) = r/2*(-sin(x(9,1))*u(2,1))/sm;
+    A(5,7,1) = r/2*(-sin(x(7,1))*u(1,1))/sm2;
+    A(5,9,1) = r/2*(-sin(x(9,1))*u(2,1))/sm2;
 
-    A(6,7,1) = 2*r/dfy*(-sin(x(7,1))*u(1,1))/sm;
-    A(6,9,1) = -2*r/dfy*(-sin(x(9,1))*u(2,1))/sm;
+    A(6,7,1) = 2*r/dfx *(-sin(x(7,1))*u(1,1))/sm2;
+    A(6,9,1) = -2*r/dfx*(-sin(x(9,1))*u(2,1))/sm2;
             
     for i = 2:size(t,2)
         A(:,:,i) = [1 0 0 0 0 0  0 0 0 0;
@@ -192,14 +193,14 @@ while 1
                     A(2,4,i) = dt*(sin(x(3,i-1))-cos(x(3,i-1))*x(3,i-1)/sm);
                     A(2,5,i) = dt*(cos(x(3,i-1))+sin(x(3,i-1))*x(3,i-1)/sm);
                     
-                    A(4,7,i) = -cos(x(7,i-1))*u(1,i-1)/2/sm;
-                    A(4,9,i) = -cos(x(9,i-1))*u(2,i-1)/2/sm;
+                    A(4,7,i) = -r/2*cos(x(7,i-1))*u(1,i-1)/sm2;
+                    A(4,9,i) = -r/2*cos(x(9,i-1))*u(2,i-1)/sm2;
                     
-                    A(5,7,i) = r/2*(-sin(x(7,i-1))*u(1,i-1))/sm;
-                    A(5,9,i) = r/2*(-sin(x(9,i-1))*u(2,i-1))/sm;
+                    A(5,7,i) = r/2*(-sin(x(7,i-1))*u(1,i-1))/sm2;
+                    A(5,9,i) = r/2*(-sin(x(9,i-1))*u(2,i-1))/sm2;
                     
-                    A(6,7,i) = 2*r/dfy*(-sin(x(7,i-1))*u(1,i-1))/sm;
-                    A(6,9,i) = -2*r/dfy*(-sin(x(9,i-1))*u(2,i-1))/sm;
+                    A(6,7,i) = 2*r/dfx*(-sin(x(7,i-1))*u(1,i-1))/sm2;
+                    A(6,9,i) = -2*r/dfx*(-sin(x(9,i-1))*u(2,i-1))/sm2;
     end
     
     B = zeros(size(x,1),size(u,1),size(t,2));
@@ -214,14 +215,14 @@ while 1
                 0 0 0  dt;
                 0 0 0  dt];
             
-    B(4,1,1) = -(sin(x(7,1)) - x(7,1)*cos(x(7,1))/sm)/2;
-    B(4,2,1) = -(sin(x(9,1)) - x(9,1)*cos(x(9,1))/sm)/2;
+    B(4,1,1) = -r/2*(sin(x(7,1)) - x(7,1)*cos(x(7,1))/sm2);
+    B(4,2,1) = -r/2*(sin(x(9,1)) - x(9,1)*cos(x(9,1))/sm2);
     
-    B(5,1,1) = r/2*(cos(x(7,1)) + x(7,1)*sin(x(7,1))/sm);
-    B(5,2,1) = r/2*(cos(x(9,1)) + x(9,1)*sin(x(9,1))/sm);
+    B(5,1,1) = r/2*(cos(x(7,1)) + x(7,1)*sin(x(7,1))/sm2);
+    B(5,2,1) = r/2*(cos(x(9,1)) + x(9,1)*sin(x(9,1))/sm2);
     
-    B(6,1,1) = 2*r/dfy*(cos(x(7,1)) + x(7,1)*sin(x(7,1))/sm);
-    B(6,2,1) = -2*r/dfy*(cos(x(9,1)) + x(9,1)*sin(x(9,1))/sm);
+    B(6,1,1) = 2*r/dfx*(cos(x(7,1)) + x(7,1)*sin(x(7,1))/sm2);
+    B(6,2,1) = -2*r/dfx*(cos(x(9,1)) + x(9,1)*sin(x(9,1))/sm2);
     
     for i = 2:size(t,2)
         B(:,:,i) = [0 0 0  0;
@@ -235,14 +236,14 @@ while 1
                     0 0 0  dt;
                     0 0 0  dt];
                 
-        B(4,1,i) = -(sin(x(7,i-1)) - x(7,i-1)*cos(x(7,i-1))/sm)/2;
-        B(4,2,i) = -(sin(x(9,i-1)) - x(9,i-1)*cos(x(9,i-1))/sm)/2;
+        B(4,1,i) = -r/2*(sin(x(7,i-1)) - x(7,i-1)*cos(x(7,i-1))/sm2);
+        B(4,2,i) = -r/2*(sin(x(9,i-1)) - x(9,i-1)*cos(x(9,i-1))/sm2);
 
-        B(5,1,i) = r/2*(cos(x(7,i-1)) + x(7,i-1)*sin(x(7,i-1))/sm);
-        B(5,2,i) = r/2*(cos(x(9,i-1)) + x(9,i-1)*sin(x(9,i-1))/sm);
+        B(5,1,i) = r/2*(cos(x(7,i-1)) + x(7,i-1)*sin(x(7,i-1))/sm2);
+        B(5,2,i) = r/2*(cos(x(9,i-1)) + x(9,i-1)*sin(x(9,i-1))/sm2);
 
-        B(6,1,i) = 2*r/dfy*(cos(x(7,i-1)) + x(7,i-1)*sin(x(7,i-1))/sm);
-        B(6,2,i) = -2*r/dfy*(cos(x(9,i-1)) + x(9,i-1)*sin(x(9,i-1))/sm);
+        B(6,1,i) = 2*r/dfx*(cos(x(7,i-1)) + x(7,i-1)*sin(x(7,i-1))/sm2);
+        B(6,2,i) = -2*r/dfx*(cos(x(9,i-1)) + x(9,i-1)*sin(x(9,i-1))/sm2);
     end    
     
     % LQ problem solution
@@ -312,7 +313,7 @@ while 1
                 x(1,i) = x(1,i-1) + cos(x(3,i-1))*x(4,i-1)*dt - sin(x(3,i-1))*x(5,i-1)*dt;
                 x(2,i) = x(2,i-1) + sin(x(3,i-1))*x(4,i-1)*dt + cos(x(3,i-1))*x(5,i-1)*dt;
                 x(3,i) = x(3,i-1) + x(6,i-1)*dt;
-                x(4,i) = - 1/2*(sin(x(7,i-1))*u(1,i-1)+sin(x(9,i-1))*u(2,i-1));
+                x(4,i) = - r/2*(sin(x(7,i-1))*u(1,i-1)+sin(x(9,i-1))*u(2,i-1));
                 x(5,i) = r/2*(cos(x(7,i-1))*u(1,i-1) + cos(x(9,i-1))*u(2,i-1));
                 x(6,i) = 2*r/dfx*(cos(x(7,i-1))*u(1,i-1) - cos(x(9,i-1))*u(2,i-1));
                 x(7:8,i) =  x(7:8,i-1) + u(3,i-1)*dt;
@@ -394,7 +395,7 @@ for i = 2:size(t,2)
     x(1,i) = x(1,i-1) + cos(x(3,i-1))*x(4,i-1)*dt - sin(x(3,i-1))*x(5,i-1)*dt;
     x(2,i) = x(2,i-1) + sin(x(3,i-1))*x(4,i-1)*dt + cos(x(3,i-1))*x(5,i-1)*dt;
     x(3,i) = x(3,i-1) + x(6,i-1)*dt;
-    x(4,i) = - 1/2*(sin(x(7,i-1))*u(1,i-1)+sin(x(9,i-1))*u(2,i-1));
+    x(4,i) = - r/2*(sin(x(7,i-1))*u(1,i-1)+sin(x(9,i-1))*u(2,i-1));
     x(5,i) = r/2*(cos(x(7,i-1))*u(1,i-1) + cos(x(9,i-1))*u(2,i-1));
     x(6,i) = 2*r/dfx*(cos(x(7,i-1))*u(1,i-1) - cos(x(9,i-1))*u(2,i-1));
     x(7:8,i) =  x(7:8,i-1) + u(3,i-1)*dt;
