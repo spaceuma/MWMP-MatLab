@@ -2,6 +2,7 @@ addpath('../../../ARES-DyMu_matlab/Global Path Planning/functions')
 addpath('../../maps')
 addpath('../../models')
 addpath('../../costs')
+addpath('../../utils')
  
 clear
 
@@ -14,17 +15,17 @@ dfy = 0.7;
 global r;
 r = 0.2;
 
-safetyDistance = 0.7;
+safetyDistance = 0.8;
 mapResolution = 0.05;
 vehicleSpeed = 0.1;
 
 % Constraints 
-xB0 = 2;
+xB0 = 2.5;
 yB0 = 2.5;
 yawB0 = -pi/2;
 
-xBf = 8.0;
-yBf = 8.5;
+xBf = 2.5;
+yBf = 8.0;
 yawBf = -pi/2;
 
 tf = 15;
@@ -33,27 +34,27 @@ t = 0:dt:tf;
 
 fc = 1000000; % Final state cost,                                     1000000
 foc = 0; % Final orientation cost,                                    1000000
-tc = 2.7; % Total cost map cost,                                      0.11    2.7
-bc = 0.1; % Base actuation cost,                                      2       0.1
-dc = 0.2; % Steering cost,                                            2       0.2
-sm = 10; % Influence of turns into final speed, tune till convergence 10
+tc = 5; % Total cost map cost,                                      2.7
+bc = 0.1; % Base actuation cost,                                      0.1
+dc = 0.2; % Steering cost,                                            0.2
+sm = 15; % Influence of turns into final speed, tune till convergence 10
 
 
 maxIter = 1000;
 
 % FMM to compute totalCostMap
-load('obstMap2','obstMap')
+load('obstMap3','obstMap')
 dilatedObstMap = dilateObstMap(obstMap, safetyDistance, mapResolution);
 distRiskMap = mapResolution*bwdist(dilatedObstMap);
 costMap = 1./distRiskMap;
 costMap = costMap./min(min(costMap));
 
 distMap = mapResolution*bwdist(obstMap);
-auxMap = 1./distMap;
-gradient = 1;
+auxMap = safetyDistance - distMap;
+gradient = 100^3;
 minCost = max(max(costMap(costMap~=Inf)));
-costMap(dilatedObstMap==1)= minCost + gradient*auxMap((dilatedObstMap==1))./min(min(auxMap((dilatedObstMap==1))));
-costMap(obstMap==1) = max(max(costMap(costMap~=Inf)));
+costMap(dilatedObstMap==1)= minCost + nthroot(+safetyDistance+gradient*auxMap((dilatedObstMap==1)),3);
+% costMap(obstMap==1) = max(max(costMap(costMap~=Inf)));
 
 iInit = [round(xB0/mapResolution)+1 round(yB0/mapResolution)+1];
 iGoal = [round(xBf/mapResolution)+1 round(yBf/mapResolution)+1];
@@ -69,6 +70,19 @@ totalCostMap(totalCostMap == Inf) = NaN;
 tau = 0.5;
 [referencePath,~,~,~] = getPathGDM(totalCostMap,iInit,iGoal,tau);
 referencePath = (referencePath-1)*mapResolution;
+
+%  figure
+% xVect = linspace(0,9.95,200);
+% contourf(xVect,xVect,totalCostMap,20)
+% xlabel('Eje X (m)','FontSize',25)
+% ylabel('Eje Y (m)','FontSize',25)
+% % colormap jet
+% xVect = linspace(0,9.95,200/8);
+% hold on
+% quiver(xVect,xVect,-gTCMx(1:8:end,1:8:end),-gTCMy(1:8:end,1:8:end),...
+%     'Color',[1 1 1],'MarkerSize',0.2,'LineWidth',2.2,'MaxHeadSize',0.3,...
+%     'AutoScaleFactor',0.75)
+% daspect([1 1 1])
 
 % State vectors
 x = zeros(12,size(t,2));
@@ -282,7 +296,8 @@ while 1
     
     % Exit condition
     endDist = norm(x(1:2,end)-x0(1:2,end));
-    if norm(uh)<0.0005*norm(u) || ((norm(uh)<0.10*norm(u))&&(endDist<0.05))
+    if (isSafePath(x(1,:),x(2,:),mapResolution,dilatedObstMap))&&...
+        (norm(uh)<0.0005*norm(u) || ((norm(uh)<0.2*norm(u))&&(endDist<0.025)))
         disp(['SLQ found the optimal control input within ',num2str(iter-1),' iterations'])
         break;
     else
@@ -305,6 +320,7 @@ while 1
                 x(11:12,i) =  x(11:12,i-1) + u(4,i-1)*dt;
             end
             J(n) = 1/2*(x(:,end)-x0(:,end)).'*Qend*(x(:,end)-x0(:,end))...
+                  + 99999*~isSafePath(x(1,:),x(2,:),mapResolution,dilatedObstMap)...
                   + tc*getMeanTotalCost(x, size(x,2), mapResolution, totalCostMap);%...
 %                 + tc*getTotalCost(x(1,end), x(2,end), mapResolution, totalCostMap);%...
 %                 + lc*sum(getSimpleLogBarrierCost(x(15:20,end),armJointsLimits(:,2),tLog,0))...
@@ -377,6 +393,7 @@ while 1
     hold off;
 
     disp(['Iteration number ',num2str(iter-1), ', alpha = ', num2str(alfamin), ', endDist = ',num2str(endDist)])
+    disp(['Is the path safe? ', num2str(isSafePath(x(1,:),x(2,:),mapResolution,dilatedObstMap))])
 
 end
 
