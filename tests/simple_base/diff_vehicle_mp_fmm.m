@@ -21,9 +21,9 @@ vehicleSpeed = 0.1;
 % Constraints 
 xB0 = 2;
 yB0 = 2.5;
-yawB0 = -pi/4;
+yawB0 = -pi/2;
 
-xBf = 8;
+xBf = 8.0;
 yBf = 8.5;
 yawBf = -pi/2;
 
@@ -31,12 +31,12 @@ tf = 15;
 dt = 0.2;
 t = 0:dt:tf;
 
-fc = 1000000; % Final state cost, 1000000
-foc = 0; % Final orientation cost, 1000000
-tc = 2.7; % Total cost map cost, 0.11
-bc = 0.1; % Base actuation cost, 2
-dc = 0.2; % Steering cost, 2
-sm = 10; % Influence of turns into final speed, tune till convergence
+fc = 1000000; % Final state cost,                                     1000000
+foc = 0; % Final orientation cost,                                    1000000
+tc = 2.7; % Total cost map cost,                                      0.11    2.7
+bc = 0.1; % Base actuation cost,                                      2       0.1
+dc = 0.2; % Steering cost,                                            2       0.2
+sm = 10; % Influence of turns into final speed, tune till convergence 10
 
 
 maxIter = 1000;
@@ -63,6 +63,8 @@ iGoal = [round(xBf/mapResolution)+1 round(yBf/mapResolution)+1];
 % Quadratizing totalCostMap
 totalCostMap(totalCostMap == Inf) = NaN;
 [gTCMx, gTCMy] = calculateGradient(mapResolution*totalCostMap);
+% gTCMx = gTCMx .* abs(gTCMx).^5;
+% gTCMy = gTCMy .* abs(gTCMy).^5;
 
 tau = 0.5;
 [referencePath,~,~,~] = getPathGDM(totalCostMap,iInit,iGoal,tau);
@@ -118,7 +120,6 @@ xVect = linspace(0,9.95,200);
 % SLQR algorithm
 iter = 1;
 while 1   
-    disp(iter)
     % Forward integrate system equations
     for i = 2:size(t,2)
         x(1,i) = x(1,i-1) + x(4,i-1)*dt;
@@ -236,8 +237,10 @@ while 1
     
     % Total cost map cost
     Tcmx = zeros(size(Q,1),size(t,2)); 
+    
     for i = 1:size(t,2)-1
-        [Tcmx(4,i), Tcmx(5,i)] = getGradientTotalCost(x(1,i), x(2,i), mapResolution, gTCMx, gTCMy);
+        [Tcmx(4,i), Tcmx(5,i)] = getGradientMeanTotalCost(x, i, mapResolution, gTCMx, gTCMy);
+%         [Tcmx(4,i), Tcmx(5,i)] = getGradientTotalCost(x(1,i), x(2,i), mapResolution, gTCMx, gTCMy);
         Tcmx(4,i) = tc*Tcmx(4,i);
         Tcmx(5,i) = tc*Tcmx(5,i);
     end
@@ -279,12 +282,12 @@ while 1
     
     % Exit condition
     endDist = norm(x(1:2,end)-x0(1:2,end));
-    if norm(uh)<0.0001*norm(u) || ((norm(uh)<0.08*norm(u))&&(endDist<0.05))
+    if norm(uh)<0.0005*norm(u) || ((norm(uh)<0.10*norm(u))&&(endDist<0.05))
         disp(['SLQ found the optimal control input within ',num2str(iter-1),' iterations'])
         break;
     else
         % Line search to optimize alfa
-        alfa = 1:-0.1:0.0001;
+        alfa = 1:-0.01:0.0001;
         J = zeros(size(alfa));
         uk = u;
         for n = 1:size(alfa,2)
@@ -302,14 +305,17 @@ while 1
                 x(11:12,i) =  x(11:12,i-1) + u(4,i-1)*dt;
             end
             J(n) = 1/2*(x(:,end)-x0(:,end)).'*Qend*(x(:,end)-x0(:,end))...
-                  + tc*getTotalCost(x(1,end), x(2,end), mapResolution, totalCostMap);%...
+                  + tc*getMeanTotalCost(x, size(x,2), mapResolution, totalCostMap);%...
+%                 + tc*getTotalCost(x(1,end), x(2,end), mapResolution, totalCostMap);%...
 %                 + lc*sum(getSimpleLogBarrierCost(x(15:20,end),armJointsLimits(:,2),tLog,0))...
 %                 + lc*sum(getSimpleLogBarrierCost(x(15:20,end),armJointsLimits(:,2),tLog,1))...
 %                 + oc*getTotalCost(x(10,end), x(11,end), mapResolution, obstLogCostMap);
             for i = 1:size(t,2)-1
                 J(n) = J(n) + 1/2*((x(:,i)-x0(:,i)).'*Q(:,:,i)*(x(:,i)-x0(:,i))...
                     + (u(:,i)-u0(:,i)).'*R*(u(:,i)-u0(:,i)))...
-                    + tc*getTotalCost(x(1,i), x(2,i), mapResolution, totalCostMap);%...
+                    + tc*getMeanTotalCost(x, i, mapResolution, totalCostMap);%...
+
+%                     + tc*getTotalCost(x(1,i), x(2,i), mapResolution, totalCostMap);%...
 %                     + lc*sum(getSimpleLogBarrierCost(x(15:20,i),armJointsLimits(:,2),tLog,0))...
 %                     + lc*sum(getSimpleLogBarrierCost(x(15:20,i),armJointsLimits(:,2),tLog,1))...
 %                     + oc*getTotalCost(x(10,i), x(11,i), mapResolution, obstLogCostMap);
@@ -370,7 +376,7 @@ while 1
 
     hold off;
 
-%     disp(['Iteration number ',num2str(iter-1)])
+    disp(['Iteration number ',num2str(iter-1), ', alpha = ', num2str(alfamin), ', endDist = ',num2str(endDist)])
 
 end
 
