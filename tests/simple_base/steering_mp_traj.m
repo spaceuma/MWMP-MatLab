@@ -14,7 +14,7 @@ dfy = 1;
 global r;
 r = 0.2;
 
-safetyDistance = 0.7;
+safetyDistance = 0.8;
 mapResolution = 0.05;
 vehicleSpeed = 0.1;
 
@@ -23,8 +23,8 @@ xB0 = 2;
 yB0 = 2.5;
 yawB0 = -pi/2;
 
-xBf = 8;
-yBf = 8.5;
+xBf = 2.5;
+yBf = 7.5;
 yawBf = -pi/2;
 
 tf = 15;
@@ -33,18 +33,19 @@ t = 0:dt:tf;
 
 fc = 1000000; % Final state cost, 1000000
 foc = 0; % Final orientation cost, 1000000
-tc = 0.11; % Total cost map cost, 0.11
-bc = 0.5; % Base actuation cost, 2
-dc = 0.2; % Steering cost, 2
-sm = 999999; % Influence of diff turns into final speed, tune till convergence
-sm2 = 10; % Influence of steer turns into final speed, tune till convergence
+rtc = 30; % Reference path cost                                       10
+% tc = 0.11; % Total cost map cost, 0.11
+bc = 2; % Base actuation cost, 2
+dc = 2; % Steering cost, 2
+sm = 10; % Influence of diff turns into final speed, tune till convergence
+sm2 = 50; % Influence of steer turns into final speed, tune till convergence
 
 lineSearchStep = 0.01;
 
-maxIter = 150;
+maxIter = 500;
 
 % FMM to compute totalCostMap
-load('obstMap1','obstMap')
+load('obstMap3','obstMap')
 dilatedObstMap = dilateObstMap(obstMap, safetyDistance, mapResolution);
 distRiskMap = mapResolution*bwdist(dilatedObstMap);
 costMap = 1./distRiskMap;
@@ -91,6 +92,15 @@ u = zeros(4,size(t,2));
 
 % Target state and control trajectories
 x0 = zeros(10,size(t,2));
+
+% Resize path
+x1 = 1:size(referencePath,1);
+x2 = linspace(1,size(referencePath,1),size(x,2));
+resizedPath = interp1(x1,referencePath,x2);
+
+x0(1,:) = resizedPath(:,1);
+x0(2,:) = resizedPath(:,2);
+
 x0(1,end) = xBf;
 x0(2,end) = yBf;
 x0(3,end) = yawBf;
@@ -132,6 +142,8 @@ while 1
     
     % Quadratize cost function along the trajectory
     Q = zeros(size(x,1),size(x,1),size(t,2));
+    Q(1,1,:) = rtc;
+    Q(2,2,:) = rtc;
     
     Qend = zeros(size(x,1),size(x,1));
     Qend(1,1) = fc;

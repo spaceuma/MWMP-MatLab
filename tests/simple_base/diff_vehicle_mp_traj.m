@@ -2,60 +2,65 @@ addpath('../../../ARES-DyMu_matlab/Global Path Planning/functions')
 addpath('../../maps')
 addpath('../../models')
 addpath('../../costs')
+addpath('../../utils')
  
 clear
 
 tic
 % System properties
 global dfx;
-dfx = 1;
+dfx = 0.7;
 global dfy;
-dfy = 1;
+dfy = 0.7;
 global r;
 r = 0.2;
 
-safetyDistance = 0.7;
+safetyDistance = 0.8;
 mapResolution = 0.05;
 vehicleSpeed = 0.1;
 
 % Constraints 
-xB0 = 2;
+xB0 = 2.5;
 yB0 = 2.5;
 yawB0 = -pi/2;
 
-xBf = 8;
-yBf = 8.5;
-yawBf = -pi/2;
+xBf = 2.5;
+yBf = 8.0;
+yawBf = pi/2;
 
 tf = 15;
 dt = 0.2;
 t = 0:dt:tf;
 
-fc = 1000000; % Final state cost, 1000000
-foc = 0; % Final orientation cost, 1000000
-tc = 0.11; % Total cost map cost, 0.11
-bc = 0.5; % Base actuation cost, 2
-dc = 0.2; % Steering cost, 2
-sm = 999999; % Influence of diff turns into final speed, tune till convergence
-sm2 = 10; % Influence of steer turns into final speed, tune till convergence
+fc = 1000000; % Final state cost,                                     1000000
+foc = 0; % Final orientation cost,                                    1000000
+rtc = 10; % Reference path cost                                       10
+% tc = 8; % Total cost map cost,                                        2.7
+% oc = 8; % Obstacles escaping cost,                                    1
+bc = 1; % Base actuation cost,                                      0.1
+dc = 0.2; % Steering cost,                                            0.2
+sm = 10; % Influence of turns into final speed, tune till convergence 10
 
 lineSearchStep = 0.01;
 
-maxIter = 150;
+iterFCApproaching = 0;
+
+
+maxIter = 500;
 
 % FMM to compute totalCostMap
-load('obstMap1','obstMap')
+load('obstMap3','obstMap')
 dilatedObstMap = dilateObstMap(obstMap, safetyDistance, mapResolution);
 distRiskMap = mapResolution*bwdist(dilatedObstMap);
 costMap = 1./distRiskMap;
 costMap = costMap./min(min(costMap));
 
 distMap = mapResolution*bwdist(obstMap);
-auxMap = 1./distMap;
-gradient = 1;
+auxMap = safetyDistance - distMap;
+gradient = 100^3;
 minCost = max(max(costMap(costMap~=Inf)));
-costMap(dilatedObstMap==1)= minCost + gradient*auxMap((dilatedObstMap==1))./min(min(auxMap((dilatedObstMap==1))));
-costMap(obstMap==1) = max(max(costMap(costMap~=Inf)));
+costMap(dilatedObstMap==1)= minCost + nthroot(+safetyDistance+gradient*auxMap((dilatedObstMap==1)),3);
+% costMap(obstMap==1) = max(max(costMap(costMap~=Inf)));
 
 iInit = [round(xB0/mapResolution)+1 round(yB0/mapResolution)+1];
 iGoal = [round(xBf/mapResolution)+1 round(yBf/mapResolution)+1];
@@ -66,31 +71,60 @@ iGoal = [round(xBf/mapResolution)+1 round(yBf/mapResolution)+1];
 totalCostMap(totalCostMap == Inf) = NaN;
 [gTCMx, gTCMy] = calculateGradient(mapResolution*totalCostMap);
 
+% Obtaining gradient inside obstacles, for escaping them
+[gOMx, gOMy] = getObstaclesEscapingGradient(dilatedObstMap);
+
 tau = 0.5;
 [referencePath,~,~,~] = getPathGDM(totalCostMap,iInit,iGoal,tau);
 referencePath = (referencePath-1)*mapResolution;
 
+%  figure
+% xVect = linspace(0,9.95,200);
+% contourf(xVect,xVect,totalCostMap,20)
+% xlabel('Eje X (m)','FontSize',25)
+% ylabel('Eje Y (m)','FontSize',25)
+% % colormap jet
+% xVect = linspace(0,9.95,200/8);
+% hold on
+% quiver(xVect,xVect,-gTCMx(1:8:end,1:8:end),-gTCMy(1:8:end,1:8:end),...
+%     'Color',[1 1 1],'MarkerSize',0.2,'LineWidth',2.2,'MaxHeadSize',0.3,...
+%     'AutoScaleFactor',0.75)
+% daspect([1 1 1])
+
 % State vectors
-x = zeros(10,size(t,2));
+x = zeros(12,size(t,2));
+
 % WTB
 x(1,1) = xB0;
 x(2,1) = yB0;
 x(3,1) = yawB0;
-% Bspeed
+% Wspeed
 x(4,1) = 0;
 x(5,1) = 0;
+% Bspeed
 x(6,1) = 0;
-% Steering joints
 x(7,1) = 0;
 x(8,1) = 0;
+% Steering joints
 x(9,1) = 0;
 x(10,1) = 0;
+x(11,1) = 0;
+x(12,1) = 0;
 
 % Initial control law
 u = zeros(4,size(t,2));
 
 % Target state and control trajectories
-x0 = zeros(10,size(t,2));
+x0 = zeros(12,size(t,2));
+
+% Resize path
+x1 = 1:size(referencePath,1);
+x2 = linspace(1,size(referencePath,1),size(x,2));
+resizedPath = interp1(x1,referencePath,x2);
+
+x0(1,:) = resizedPath(:,1);
+x0(2,:) = resizedPath(:,2);
+
 x0(1,end) = xBf;
 x0(2,end) = yBf;
 x0(3,end) = yawBf;
@@ -101,6 +135,8 @@ x0(7,end) = 0;
 x0(8,end) = 0;
 x0(9,end) = 0;
 x0(10,end) = 0;
+x0(11,end) = 0;
+x0(12,end) = 0;
 
 u0 = zeros(4,size(t,2));
 
@@ -117,14 +153,16 @@ iter = 1;
 while 1   
     % Forward integrate system equations
     for i = 2:size(t,2)
-        x(1,i) = x(1,i-1) + cos(x(3,i-1))*x(4,i-1)*dt - sin(x(3,i-1))*x(5,i-1)*dt;
-        x(2,i) = x(2,i-1) + sin(x(3,i-1))*x(4,i-1)*dt + cos(x(3,i-1))*x(5,i-1)*dt;
-        x(3,i) = x(3,i-1) + x(6,i-1)*dt;
-        x(4,i) = - r/2*(sin(x(7,i-1))*u(1,i-1)+sin(x(9,i-1))*u(2,i-1));
-        x(5,i) = r/2*(cos(x(7,i-1))*u(1,i-1) + cos(x(9,i-1))*u(2,i-1));
-        x(6,i) = 2*r/dfx*(cos(x(7,i-1))*u(1,i-1) - cos(x(9,i-1))*u(2,i-1));
-        x(7:8,i) =  x(7:8,i-1) + u(3,i-1)*dt;
-        x(9:10,i) =  x(9:10,i-1) + u(4,i-1)*dt;        
+        x(1,i) = x(1,i-1) + x(4,i-1)*dt;
+        x(2,i) = x(2,i-1) + x(5,i-1)*dt;
+        x(3,i) = x(3,i-1) + x(8,i-1)*dt;
+        x(4,i) = cos(x(3,i-1))*x(6,i-1) - sin(x(3,i-1))*x(7,i-1);
+        x(5,i) = sin(x(3,i-1))*x(6,i-1) + cos(x(3,i-1))*x(7,i-1);
+        x(6,i) = - r/2*(sin(x(9,i-1))*u(1,i-1)+sin(x(11,i-1))*u(2,i-1));
+        x(7,i) = r/2*(cos(x(9,i-1))*u(1,i-1) + cos(x(11,i-1))*u(2,i-1));
+        x(8,i) = 2*r/dfx*(cos(x(9,i-1))*u(1,i-1) - cos(x(11,i-1))*u(2,i-1));
+        x(9:10,i) =  x(9:10,i-1) + u(3,i-1)*dt;
+        x(11:12,i) =  x(11:12,i-1) + u(4,i-1)*dt;        
     end
 
     xh0 = x0 - x;
@@ -132,10 +170,17 @@ while 1
     
     % Quadratize cost function along the trajectory
     Q = zeros(size(x,1),size(x,1),size(t,2));
-    
+    Q(1,1,:) = rtc;
+    Q(2,2,:) = rtc;
+     
     Qend = zeros(size(x,1),size(x,1));
-    Qend(1,1) = fc;
-    Qend(2,2) = fc;
+    if iterFCApproaching ~= 0 && iter <= iterFCApproaching
+        Qend(1,1) = fc*iter/(iterFCApproaching-1) -fc/(iterFCApproaching-1);
+        Qend(2,2) = fc*iter/(iterFCApproaching-1) -fc/(iterFCApproaching-1);
+    else
+        Qend(1,1) = fc;
+        Qend(2,2) = fc;
+    end
     Qend(3,3) = foc;
     
     R = eye(size(u,1));
@@ -146,105 +191,78 @@ while 1
     
     % Linearize the system dynamics and constraints along the trajectory    
     A = zeros(size(x,1),size(x,1),size(t,2));
-    A(:,:,1) = [1 0 0 0 0 0  0 0 0 0;
-                0 1 0 0 0 0  0 0 0 0;
-                0 0 1 0 0 dt 0 0 0 0;
-                0 0 0 0 0 0  0 0 0 0;
-                0 0 0 0 0 0  0 0 0 0;
-                0 0 0 0 0 0  0 0 0 0;
-                0 0 0 0 0 0  1 0 0 0;
-                0 0 0 0 0 0  0 1 0 0;
-                0 0 0 0 0 0  0 0 1 0;
-                0 0 0 0 0 0  0 0 0 1];
+    A(:,:,1) = [1 0 0 dt 0  0 0 0  0 0 0 0;
+                0 1 0 0  dt 0 0 0  0 0 0 0;
+                0 0 1 0  0  0 0 dt 0 0 0 0;
+                0 0 0 0  0  0 0 0  0 0 0 0;
+                0 0 0 0  0  0 0 0  0 0 0 0;
+                0 0 0 0  0  0 0 0  0 0 0 0;
+                0 0 0 0  0  0 0 0  0 0 0 0;
+                0 0 0 0  0  0 0 0  0 0 0 0;
+                0 0 0 0  0  0 0 0  1 0 0 0;
+                0 0 0 0  0  0 0 0  0 1 0 0;
+                0 0 0 0  0  0 0 0  0 0 1 0;
+                0 0 0 0  0  0 0 0  0 0 0 1];
     
-    A(1,3,1) = dt*(-sin(x(3,1))*x(4,1)/sm-cos(x(3,1))*x(5,1)/sm);
-    A(1,4,1) = dt*(cos(x(3,1))+sin(x(3,1))*x(3,1)/sm);
-    A(1,5,1) = -dt*(sin(x(3,1))-cos(x(3,1))*x(3,1)/sm);
+    A(4,3,1) = (-sin(x(3,1))*x(6,1)/sm-cos(x(3,1))*x(7,1)/sm);
+    A(4,6,1) = (cos(x(3,1))+sin(x(3,1))*x(3,1)/sm);
+    A(4,7,1) = -(sin(x(3,1))-cos(x(3,1))*x(3,1)/sm);
     
-    A(2,3,1) = dt*(cos(x(3,1))*x(4,1)/sm-sin(x(3,1))*x(5,1)/sm);
-    A(2,4,1) = dt*(sin(x(3,1))-cos(x(3,1))*x(3,1)/sm);
-    A(2,5,1) = dt*(cos(x(3,1))+sin(x(3,1))*x(3,1)/sm);
+    A(5,3,1) = (cos(x(3,1))*x(6,1)/sm-sin(x(3,1))*x(7,1)/sm);
+    A(5,6,1) = (sin(x(3,1))-cos(x(3,1))*x(3,1)/sm);
+    A(5,7,1) = (cos(x(3,1))+sin(x(3,1))*x(3,1)/sm);
     
-    A(4,7,1) = -r/2*cos(x(7,1))*u(1,1)/sm2;
-    A(4,9,1) = -r/2*cos(x(9,1))*u(2,1)/sm2;
-
-    A(5,7,1) = r/2*(-sin(x(7,1))*u(1,1))/sm2;
-    A(5,9,1) = r/2*(-sin(x(9,1))*u(2,1))/sm2;
-
-    A(6,7,1) = 2*r/dfx *(-sin(x(7,1))*u(1,1))/sm2;
-    A(6,9,1) = -2*r/dfx*(-sin(x(9,1))*u(2,1))/sm2;
+    
             
     for i = 2:size(t,2)
-        A(:,:,i) = [1 0 0 0 0 0  0 0 0 0;
-                    0 1 0 0 0 0  0 0 0 0;
-                    0 0 1 0 0 dt 0 0 0 0;
-                    0 0 0 0 0 0  0 0 0 0;
-                    0 0 0 0 0 0  0 0 0 0;
-                    0 0 0 0 0 0  0 0 0 0;
-                    0 0 0 0 0 0  1 0 0 0;
-                    0 0 0 0 0 0  0 1 0 0;
-                    0 0 0 0 0 0  0 0 1 0;
-                    0 0 0 0 0 0  0 0 0 1];
+        A(:,:,i) = [1 0 0 dt 0  0 0 0  0 0 0 0;
+                    0 1 0 0  dt 0 0 0  0 0 0 0;
+                    0 0 1 0  0  0 0 dt 0 0 0 0;
+                    0 0 0 0  0  0 0 0  0 0 0 0;
+                    0 0 0 0  0  0 0 0  0 0 0 0;
+                    0 0 0 0  0  0 0 0  0 0 0 0;
+                    0 0 0 0  0  0 0 0  0 0 0 0;
+                    0 0 0 0  0  0 0 0  0 0 0 0;
+                    0 0 0 0  0  0 0 0  1 0 0 0;
+                    0 0 0 0  0  0 0 0  0 1 0 0;
+                    0 0 0 0  0  0 0 0  0 0 1 0;
+                    0 0 0 0  0  0 0 0  0 0 0 1];
                 
-                    A(1,3,i) = dt*(-sin(x(3,i-1))*x(4,i-1)/sm-cos(x(3,i-1))*x(5,i-1)/sm);
-                    A(1,4,i) = dt*(cos(x(3,i-1))+sin(x(3,i-1))*x(3,i-1)/sm);
-                    A(1,5,i) = -dt*(sin(x(3,i-1))-cos(x(3,i-1))*x(3,i-1)/sm);
-
-                    A(2,3,i) = dt*(cos(x(3,i-1))*x(4,i-1)/sm-sin(x(3,i-1))*x(5,i-1)/sm);
-                    A(2,4,i) = dt*(sin(x(3,i-1))-cos(x(3,i-1))*x(3,i-1)/sm);
-                    A(2,5,i) = dt*(cos(x(3,i-1))+sin(x(3,i-1))*x(3,i-1)/sm);
+                    A(4,3,i) = (-sin(x(3,i-1))*x(6,i-1)/sm-cos(x(3,i-1))*x(7,i-1)/sm);
+                    A(4,6,i) = (cos(x(3,i-1))+sin(x(3,i-1))*x(3,i-1)/sm);
+                    A(4,7,i) = -(sin(x(3,i-1))-cos(x(3,i-1))*x(3,i-1)/sm);
                     
-                    A(4,7,i) = -r/2*cos(x(7,i-1))*u(1,i-1)/sm2;
-                    A(4,9,i) = -r/2*cos(x(9,i-1))*u(2,i-1)/sm2;
-                    
-                    A(5,7,i) = r/2*(-sin(x(7,i-1))*u(1,i-1))/sm2;
-                    A(5,9,i) = r/2*(-sin(x(9,i-1))*u(2,i-1))/sm2;
-                    
-                    A(6,7,i) = 2*r/dfx*(-sin(x(7,i-1))*u(1,i-1))/sm2;
-                    A(6,9,i) = -2*r/dfx*(-sin(x(9,i-1))*u(2,i-1))/sm2;
+                    A(5,3,i) = (cos(x(3,i-1))*x(6,i-1)/sm-sin(x(3,i-1))*x(7,i-1)/sm);
+                    A(5,6,i) = (sin(x(3,i-1))-cos(x(3,i-1))*x(3,i-1)/sm);
+                    A(5,7,i) = (cos(x(3,i-1))+sin(x(3,i-1))*x(3,i-1)/sm);
     end
     
     B = zeros(size(x,1),size(u,1),size(t,2));
-    B(:,:,1) = [0 0 0  0;
-                0 0 0  0;
-                0 0 0  0;
-                0 0 0  0;
-                0 0 0  0;
-                0 0 0  0;
-                0 0 dt 0;
-                0 0 dt 0;
-                0 0 0  dt;
-                0 0 0  dt];
-            
-    B(4,1,1) = -r/2*(sin(x(7,1)) - x(7,1)*cos(x(7,1))/sm2);
-    B(4,2,1) = -r/2*(sin(x(9,1)) - x(9,1)*cos(x(9,1))/sm2);
-    
-    B(5,1,1) = r/2*(cos(x(7,1)) + x(7,1)*sin(x(7,1))/sm2);
-    B(5,2,1) = r/2*(cos(x(9,1)) + x(9,1)*sin(x(9,1))/sm2);
-    
-    B(6,1,1) = 2*r/dfx*(cos(x(7,1)) + x(7,1)*sin(x(7,1))/sm2);
-    B(6,2,1) = -2*r/dfx*(cos(x(9,1)) + x(9,1)*sin(x(9,1))/sm2);
-    
+    B(:,:,1) = [0                    0                   0    0;
+                0                    0                   0    0;
+                0                    0                   0    0;
+                0                    0                   0    0;
+                0                    0                   0    0;
+                -sin(x(9,1))*r/2     -sin(x(11,1))*r/2    0    0;
+                cos(x(9,1))*r/2      cos(x(11,1))*r/2     0    0;
+                cos(x(9,1))*2*r/dfx -cos(x(11,1))*2*r/dfx 0    0;
+                0                    0                   dt   0;
+                0                    0                   dt   0;
+                0                    0                   0    dt;
+                0                    0                   0    dt];
     for i = 2:size(t,2)
-        B(:,:,i) = [0 0 0  0;
-                    0 0 0  0;
-                    0 0 0  0;
-                    0 0 0  0;
-                    0 0 0  0;
-                    0 0 0  0;
-                    0 0 dt 0;
-                    0 0 dt 0;
-                    0 0 0  dt;
-                    0 0 0  dt];
-                
-        B(4,1,i) = -r/2*(sin(x(7,i-1)) - x(7,i-1)*cos(x(7,i-1))/sm2);
-        B(4,2,i) = -r/2*(sin(x(9,i-1)) - x(9,i-1)*cos(x(9,i-1))/sm2);
-
-        B(5,1,i) = r/2*(cos(x(7,i-1)) + x(7,i-1)*sin(x(7,i-1))/sm2);
-        B(5,2,i) = r/2*(cos(x(9,i-1)) + x(9,i-1)*sin(x(9,i-1))/sm2);
-
-        B(6,1,i) = 2*r/dfx*(cos(x(7,i-1)) + x(7,i-1)*sin(x(7,i-1))/sm2);
-        B(6,2,i) = -2*r/dfx*(cos(x(9,i-1)) + x(9,i-1)*sin(x(9,i-1))/sm2);
+        B(:,:,i) = [0                      0                     0    0;
+                    0                      0                     0    0;
+                    0                      0                     0    0;
+                    0                      0                     0    0;
+                    0                      0                     0    0;
+                    -sin(x(9,i-1))*r/2     -sin(x(11,i-1))*r/2    0    0;
+                    cos(x(9,i-1))*r/2      cos(x(11,i-1))*r/2     0    0;
+                    cos(x(9,i-1))*2*r/dfx  -cos(x(11,i-1))*2*r/dfx 0    0;
+                    0                      0                     dt   0;
+                    0                      0                     dt   0;
+                    0                      0                     0    dt;
+                    0                      0                     0    dt];
     end    
     
     % LQ problem solution
@@ -255,16 +273,29 @@ while 1
     % Logaritmic sharpness
     tLog = 10 + 0.01*iter;
     
-    % Total cost map cost
+%     % Total cost map cost
 %     Tcmx = zeros(size(Q,1),size(t,2)); 
+%     
 %     for i = 1:size(t,2)-1
-%         [Tcmx(13,i), Tcmx(14,i)] = getGradientTotalCost(x(10,i), x(11,i), mapResolution, gTCMx, gTCMy);
-%         Tcmx(13,i) = tc*Tcmx(13,i);
-%         Tcmx(14,i) = tc*Tcmx(14,i);
+%         [Tcmx(4,i), Tcmx(5,i)] = getGradientMeanTotalCost(x, i, mapResolution, gTCMx, gTCMy);
+% %         [Tcmx(4,i), Tcmx(5,i)] = getGradientTotalCost(x(1,i), x(2,i), mapResolution, gTCMx, gTCMy);
+%         Tcmx(4,i) = tc*Tcmx(4,i);
+%         Tcmx(5,i) = tc*Tcmx(5,i);
+%     end
+%     
+%     % Obstacles escaping cost
+%     
+%     Ox = zeros(size(Q,1),size(t,2)); 
+%     
+%     for i = 1:size(t,2)-1
+%         [Ox(4,i), Ox(5,i)] = getGradientMeanTotalCost(x, i, mapResolution, gOMx, gOMy);
+% %         [Ox(4,i), Ox(5,i)] = getGradientTotalCost(x(1,i), x(2,i), mapResolution, gOMx, gOMy);
+%         Ox(4,i) = oc*Ox(4,i);
+%         Ox(5,i) = oc*Ox(5,i);
 %     end
     
     P(:,:,end) = Qend;
-    s(:,:,end) = -Qend*xh0(:,end) ;%+ Tcmx(:,end);
+    s(:,:,end) = -Qend*xh0(:,end);% + Tcmx(:,end) + Ox(:,end);
     
     xh = zeros(size(x,1),size(t,2));
     uh = zeros(size(u,1),size(t,2));
@@ -284,7 +315,7 @@ while 1
         P(:,:,i) = Q(:,:,i) + A(:,:,i).'*P(:,:,i+1)*M(:,:,i)*A(:,:,i);
         s(:,:,i) = A(:,:,i).'*(eye(size(Q,1)) - P(:,:,i+1)*M(:,:,i)*B(:,:,i)*inv(R)*B(:,:,i).')*s(:,:,i+1)+...
             A(:,:,i).'*P(:,:,i+1)*M(:,:,i)*B(:,:,i)*uh0(:,i) - Q(:,:,i)*xh0(:,i);%...
-            %+ Tcmx(:,i);
+            %+ Tcmx(:,i) + Ox(:,i);
     end
     
     % Solve forward
@@ -312,29 +343,36 @@ while 1
         for n = 1:size(alfa,2)
             u = uk + alfa(n)*uh;
             for i = 2:size(t,2)
-                x(1,i) = x(1,i-1) + cos(x(3,i-1))*x(4,i-1)*dt - sin(x(3,i-1))*x(5,i-1)*dt;
-                x(2,i) = x(2,i-1) + sin(x(3,i-1))*x(4,i-1)*dt + cos(x(3,i-1))*x(5,i-1)*dt;
-                x(3,i) = x(3,i-1) + x(6,i-1)*dt;
-                x(4,i) = - r/2*(sin(x(7,i-1))*u(1,i-1)+sin(x(9,i-1))*u(2,i-1));
-                x(5,i) = r/2*(cos(x(7,i-1))*u(1,i-1) + cos(x(9,i-1))*u(2,i-1));
-                x(6,i) = 2*r/dfx*(cos(x(7,i-1))*u(1,i-1) - cos(x(9,i-1))*u(2,i-1));
-                x(7:8,i) =  x(7:8,i-1) + u(3,i-1)*dt;
-                x(9:10,i) =  x(9:10,i-1) + u(4,i-1)*dt; 
+                x(1,i) = x(1,i-1) + x(4,i-1)*dt;
+                x(2,i) = x(2,i-1) + x(5,i-1)*dt;
+                x(3,i) = x(3,i-1) + x(8,i-1)*dt;
+                x(4,i) = cos(x(3,i-1))*x(6,i-1) - sin(x(3,i-1))*x(7,i-1);
+                x(5,i) = sin(x(3,i-1))*x(6,i-1) + cos(x(3,i-1))*x(7,i-1);
+                x(6,i) = - r/2*(sin(x(9,i-1))*u(1,i-1)+sin(x(11,i-1))*u(2,i-1));
+                x(7,i) = r/2*(cos(x(9,i-1))*u(1,i-1) + cos(x(11,i-1))*u(2,i-1));
+                x(8,i) = 2*r/dfx*(cos(x(9,i-1))*u(1,i-1) - cos(x(11,i-1))*u(2,i-1));
+                x(9:10,i) =  x(9:10,i-1) + u(3,i-1)*dt;
+                x(11:12,i) =  x(11:12,i-1) + u(4,i-1)*dt;
             end
             J(n) = 1/2*(x(:,end)-x0(:,end)).'*Qend*(x(:,end)-x0(:,end))...
                   + 100*~isSafePath(x(1,:),x(2,:),mapResolution,dilatedObstMap);%...
-%                 + tc*getTotalCost(x(10,end), x(11,end), mapResolution, totalCostMap)...
+              
+%                 + tc*getMeanTotalCost(x, size(x,2), mapResolution, totalCostMap)...
+%                 + tc*getTotalCost(x(1,end), x(2,end), mapResolution, totalCostMap)...
 %                 + lc*sum(getSimpleLogBarrierCost(x(15:20,end),armJointsLimits(:,2),tLog,0))...
 %                 + lc*sum(getSimpleLogBarrierCost(x(15:20,end),armJointsLimits(:,2),tLog,1))...
 %                 + oc*getTotalCost(x(10,end), x(11,end), mapResolution, obstLogCostMap);
             for i = 1:size(t,2)-1
                 J(n) = J(n) + 1/2*((x(:,i)-x0(:,i)).'*Q(:,:,i)*(x(:,i)-x0(:,i))...
                     + (u(:,i)-u0(:,i)).'*R*(u(:,i)-u0(:,i)));%...
-%                     + tc*getTotalCost(x(10,i), x(11,i), mapResolution, totalCostMap)...
+                
+%                     + tc*getMeanTotalCost(x, i, mapResolution, totalCostMap);%...
+%                     + tc*getTotalCost(x(1,i), x(2,i), mapResolution, totalCostMap);%...
 %                     + lc*sum(getSimpleLogBarrierCost(x(15:20,i),armJointsLimits(:,2),tLog,0))...
 %                     + lc*sum(getSimpleLogBarrierCost(x(15:20,i),armJointsLimits(:,2),tLog,1))...
 %                     + oc*getTotalCost(x(10,i), x(11,i), mapResolution, obstLogCostMap);
-            end            
+            end        
+
         end
         [mincost, ind] = min(J);
         alfamin = alfa(ind);
@@ -384,26 +422,29 @@ while 1
     quiver3(TWB(1,4), TWB(2,4), TWB(3,4), 0, 0, 1/2, 'Color', 'c', 'LineWidth', 2, 'MaxHeadSize', 0.7)
     daspect([1 1 1])
     plot3(x(1,:),x(2,:),0.645*ones(size(x(1,:))), 'Color', [0.9290, 0.6940, 0.1250], 'LineWidth', 5)
+    plot3(referencePath(:,1),referencePath(:,2), 0.645*ones(size(referencePath,1),2), 'LineWidth', 5)
     title('Mobile robot trajectories', 'interpreter', ...
     'latex','fontsize',18)
-    plot3(referencePath(:,1),referencePath(:,2), 0.645*ones(size(referencePath,1),2), 'LineWidth', 5)
     plot3(xBf,yBf,0.645*ones(size(x(1,:))), 'MarkerSize', 20, 'Marker', '.', 'Color', 'c')
 
     hold off;
 
     disp(['Iteration number ',num2str(iter-1), ', alpha = ', num2str(alfamin), ', endDist = ',num2str(endDist)])
     disp(['Is the path safe? ', num2str(isSafePath(x(1,:),x(2,:),mapResolution,dilatedObstMap))])
+
 end
 
 for i = 2:size(t,2)
-    x(1,i) = x(1,i-1) + cos(x(3,i-1))*x(4,i-1)*dt - sin(x(3,i-1))*x(5,i-1)*dt;
-    x(2,i) = x(2,i-1) + sin(x(3,i-1))*x(4,i-1)*dt + cos(x(3,i-1))*x(5,i-1)*dt;
-    x(3,i) = x(3,i-1) + x(6,i-1)*dt;
-    x(4,i) = - r/2*(sin(x(7,i-1))*u(1,i-1)+sin(x(9,i-1))*u(2,i-1));
-    x(5,i) = r/2*(cos(x(7,i-1))*u(1,i-1) + cos(x(9,i-1))*u(2,i-1));
-    x(6,i) = 2*r/dfx*(cos(x(7,i-1))*u(1,i-1) - cos(x(9,i-1))*u(2,i-1));
-    x(7:8,i) =  x(7:8,i-1) + u(3,i-1)*dt;
-    x(9:10,i) =  x(9:10,i-1) + u(4,i-1)*dt; 
+    x(1,i) = x(1,i-1) + x(4,i-1)*dt;
+    x(2,i) = x(2,i-1) + x(5,i-1)*dt;
+    x(3,i) = x(3,i-1) + x(8,i-1)*dt;
+    x(4,i) = cos(x(3,i-1))*x(6,i-1) - sin(x(3,i-1))*x(7,i-1);
+    x(5,i) = sin(x(3,i-1))*x(6,i-1) + cos(x(3,i-1))*x(7,i-1);
+    x(6,i) = - r/2*(sin(x(9,i-1))*u(1,i-1)+sin(x(11,i-1))*u(2,i-1));
+    x(7,i) = r/2*(cos(x(9,i-1))*u(1,i-1) + cos(x(11,i-1))*u(2,i-1));
+    x(8,i) = 2*r/dfx*(cos(x(9,i-1))*u(1,i-1) - cos(x(11,i-1))*u(2,i-1));
+    x(9:10,i) =  x(9:10,i-1) + u(3,i-1)*dt;
+    x(11:12,i) =  x(11:12,i-1) + u(4,i-1)*dt;
 end
 
 toc
@@ -456,9 +497,9 @@ quiver3(TWB(1,4), TWB(2,4), TWB(3,4), cos(x(3,end))/2, sin(x(3,end))/2, 0, 'Colo
 quiver3(TWB(1,4), TWB(2,4), TWB(3,4), 0, 0, 1/2, 'Color', 'c', 'LineWidth', 2, 'MaxHeadSize', 0.7)
 daspect([1 1 1])
 plot3(x(1,:),x(2,:),0.645*ones(size(x(1,:))), 'Color', [0.9290, 0.6940, 0.1250], 'LineWidth', 5)
+plot3(referencePath(:,1),referencePath(:,2), 0.645*ones(size(referencePath,1),2), 'LineWidth', 5)
 title('Mobile robot trajectories', 'interpreter', ...
 'latex','fontsize',18)
-plot3(referencePath(:,1),referencePath(:,2), 0.645*ones(size(referencePath,1),2), 'LineWidth', 5)
 plot3(xBf,yBf,0.645*ones(size(x(1,:))), 'MarkerSize', 20, 'Marker', '.', 'Color', 'c')
 
 hold off
@@ -476,7 +517,7 @@ grid
 hold off
 
 figure(3)
-plot(t,x(4:6,:))
+plot(t,x(6:8,:))
 title('Evolution of the state (B)', 'interpreter', ...
 'latex','fontsize',18)
 legend('$x_{c}^.$','$y_{c}^.$','$\omega_c$', 'interpreter', ...
@@ -487,7 +528,7 @@ grid
 hold off
 
 figure(4)
-plot(t,x(7:10,:))
+plot(t,x(9:12,:))
 title('Evolution of the state (C)', 'interpreter', ...
 'latex','fontsize',18)
 legend('$\theta_{d1}$','$\theta_{d2}$','$\theta_{d3}$','$\theta_{d4}$',...
