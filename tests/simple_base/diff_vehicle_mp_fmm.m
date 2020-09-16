@@ -24,9 +24,9 @@ xB0 = 2.5;
 yB0 = 2.5;
 yawB0 = -pi/2;
 
-xBf = 2.5;
+xBf = 3.5;
 yBf = 8.0;
-yawBf = -pi/2;
+yawBf = pi/2;
 
 tf = 15;
 dt = 0.2;
@@ -34,10 +34,15 @@ t = 0:dt:tf;
 
 fc = 1000000; % Final state cost,                                     1000000
 foc = 0; % Final orientation cost,                                    1000000
-tc = 5; % Total cost map cost,                                      2.7
-bc = 0.1; % Base actuation cost,                                      0.1
+tc = 8; % Total cost map cost,                                        2.7
+oc = 8; % Obstacles escaping cost,                                    1
+bc = 0.3; % Base actuation cost,                                      0.1
 dc = 0.2; % Steering cost,                                            0.2
 sm = 15; % Influence of turns into final speed, tune till convergence 10
+
+lineSearchStep = 0.01;
+
+iterFCApproaching = 0;
 
 
 maxIter = 1000;
@@ -64,8 +69,9 @@ iGoal = [round(xBf/mapResolution)+1 round(yBf/mapResolution)+1];
 % Quadratizing totalCostMap
 totalCostMap(totalCostMap == Inf) = NaN;
 [gTCMx, gTCMy] = calculateGradient(mapResolution*totalCostMap);
-% gTCMx = gTCMx .* abs(gTCMx).^5;
-% gTCMy = gTCMy .* abs(gTCMy).^5;
+
+% Obtaining gradient inside obstacles, for escaping them
+[gOMx, gOMy] = getObstaclesEscapingGradient(dilatedObstMap);
 
 tau = 0.5;
 [referencePath,~,~,~] = getPathGDM(totalCostMap,iInit,iGoal,tau);
@@ -108,6 +114,7 @@ u = zeros(4,size(t,2));
 
 % Target state and control trajectories
 x0 = zeros(12,size(t,2));
+
 x0(1,end) = xBf;
 x0(2,end) = yBf;
 x0(3,end) = yawBf;
@@ -155,8 +162,13 @@ while 1
     Q = zeros(size(x,1),size(x,1),size(t,2));
      
     Qend = zeros(size(x,1),size(x,1));
-    Qend(1,1) = fc;
-    Qend(2,2) = fc;
+    if iterFCApproaching ~= 0
+        Qend(1,1) = fc*iter/(iterFCApproaching-1) -fc/(iterFCApproaching-1);
+        Qend(2,2) = fc*iter/(iterFCApproaching-1) -fc/(iterFCApproaching-1);
+    else
+        Qend(1,1) = fc;
+        Qend(2,2) = fc;
+    end
     Qend(3,3) = foc;
     
     R = eye(size(u,1));
@@ -259,8 +271,19 @@ while 1
         Tcmx(5,i) = tc*Tcmx(5,i);
     end
     
+    % Obstacles escaping cost
+    
+    Ox = zeros(size(Q,1),size(t,2)); 
+    
+    for i = 1:size(t,2)-1
+        [Ox(4,i), Ox(5,i)] = getGradientMeanTotalCost(x, i, mapResolution, gOMx, gOMy);
+%         [Ox(4,i), Ox(5,i)] = getGradientTotalCost(x(1,i), x(2,i), mapResolution, gOMx, gOMy);
+        Ox(4,i) = oc*Ox(4,i);
+        Ox(5,i) = oc*Ox(5,i);
+    end
+    
     P(:,:,end) = Qend;
-    s(:,:,end) = -Qend*xh0(:,end) + Tcmx(:,end);
+    s(:,:,end) = -Qend*xh0(:,end) + Tcmx(:,end) + Ox(:,end);
     
     xh = zeros(size(x,1),size(t,2));
     uh = zeros(size(u,1),size(t,2));
@@ -280,7 +303,7 @@ while 1
         P(:,:,i) = Q(:,:,i) + A(:,:,i).'*P(:,:,i+1)*M(:,:,i)*A(:,:,i);
         s(:,:,i) = A(:,:,i).'*(eye(size(Q,1)) - P(:,:,i+1)*M(:,:,i)*B(:,:,i)*inv(R)*B(:,:,i).')*s(:,:,i+1)+...
             A(:,:,i).'*P(:,:,i+1)*M(:,:,i)*B(:,:,i)*uh0(:,i) - Q(:,:,i)*xh0(:,i)...
-            + Tcmx(:,i);
+            + Tcmx(:,i) + Ox(:,i);
     end
     
     % Solve forward
@@ -302,7 +325,7 @@ while 1
         break;
     else
         % Line search to optimize alfa
-        alfa = 1:-0.01:0.0001;
+        alfa = 1:-lineSearchStep:0.0001;
         J = zeros(size(alfa));
         uk = u;
         for n = 1:size(alfa,2)
@@ -320,7 +343,7 @@ while 1
                 x(11:12,i) =  x(11:12,i-1) + u(4,i-1)*dt;
             end
             J(n) = 1/2*(x(:,end)-x0(:,end)).'*Qend*(x(:,end)-x0(:,end))...
-                  + 99999*~isSafePath(x(1,:),x(2,:),mapResolution,dilatedObstMap)...
+                  + 100*~isSafePath(x(1,:),x(2,:),mapResolution,dilatedObstMap)...
                   + tc*getMeanTotalCost(x, size(x,2), mapResolution, totalCostMap);%...
 %                 + tc*getTotalCost(x(1,end), x(2,end), mapResolution, totalCostMap);%...
 %                 + lc*sum(getSimpleLogBarrierCost(x(15:20,end),armJointsLimits(:,2),tLog,0))...
@@ -335,7 +358,8 @@ while 1
 %                     + lc*sum(getSimpleLogBarrierCost(x(15:20,i),armJointsLimits(:,2),tLog,0))...
 %                     + lc*sum(getSimpleLogBarrierCost(x(15:20,i),armJointsLimits(:,2),tLog,1))...
 %                     + oc*getTotalCost(x(10,i), x(11,i), mapResolution, obstLogCostMap);
-            end            
+            end        
+
         end
         [mincost, ind] = min(J);
         alfamin = alfa(ind);
