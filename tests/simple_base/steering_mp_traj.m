@@ -2,19 +2,20 @@ addpath('../../../ARES-DyMu_matlab/Global Path Planning/functions')
 addpath('../../maps')
 addpath('../../models')
 addpath('../../costs')
- 
+addpath('../../utils')
+
 clear
 
 tic
 % System properties
 global dfx;
-dfx = 1;
+dfx = 0.7;
 global dfy;
-dfy = 1;
+dfy = 0.7;
 global r;
 r = 0.2;
 
-safetyDistance = 0.8;
+safetyDistance = 1;
 mapResolution = 0.05;
 vehicleSpeed = 0.1;
 
@@ -23,24 +24,32 @@ xB0 = 2;
 yB0 = 2.5;
 yawB0 = -pi/2;
 
-xBf = 2.5;
+xBf = 3.5;
 yBf = 7.5;
 yawBf = -pi/2;
 
-tf = 15;
-dt = 0.2;
+tf = 60;
+dt = 0.8;
 t = 0:dt:tf;
 
+% State costs
 fc = 1000000; % Final state cost, 1000000
-foc = 0; % Final orientation cost, 1000000
-rtc = 30; % Reference path cost                                       10
+foc = 0; % Final orientation cost, 0
+rtc = 15; % Reference path cost      
+
+% Extra costs
+sm = 25; % Influence of diff turns into final speed, tune till convergence
+sm2 = 10; % Influence of steer turns into final speed, tune till convergence
 % tc = 0.11; % Total cost map cost, 0.11
+
+% Input costs
 bc = 2; % Base actuation cost, 2
 dc = 2; % Steering cost, 2
-sm = 10; % Influence of diff turns into final speed, tune till convergence
-sm2 = 50; % Influence of steer turns into final speed, tune till convergence
+
 
 lineSearchStep = 0.01;
+
+iterFCApproaching = 0;
 
 maxIter = 500;
 
@@ -146,8 +155,13 @@ while 1
     Q(2,2,:) = rtc;
     
     Qend = zeros(size(x,1),size(x,1));
-    Qend(1,1) = fc;
-    Qend(2,2) = fc;
+    if iterFCApproaching ~= 0 && iter <= iterFCApproaching
+        Qend(1,1) = fc*iter/(iterFCApproaching-1) -fc/(iterFCApproaching-1);
+        Qend(2,2) = fc*iter/(iterFCApproaching-1) -fc/(iterFCApproaching-1);
+    else
+        Qend(1,1) = fc;
+        Qend(2,2) = fc;
+    end
     Qend(3,3) = foc;
     
     R = eye(size(u,1));
