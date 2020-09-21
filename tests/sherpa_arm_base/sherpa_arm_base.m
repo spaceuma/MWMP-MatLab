@@ -1,3 +1,5 @@
+%% Initialization
+
 addpath('../../../ARES-DyMu_matlab/Global Path Planning/functions')
 addpath('../../maps')
 addpath('../../models')
@@ -42,30 +44,7 @@ armJointsLimits = [-360 +360;
                    -135 +135;
                    -360 +360]*pi/180;
 
-% State costs
-fc = 1000000; % Final state cost, 1000000
-foc = 1000000; % Final orientation cost, 0
-rtc = 1; % Reference path cost
-
-% Input costs
-bc = 5; % Base actuation cost, 2
-sc = 20; % Steering cost, 2
-ac = 1000; % Arm actuation cost, 60
-
-% Extra costs
-sm = 50; % Influence of diff turns into final speed, tune till convergence
-sm2 = 9999999999999; % Influence of steer turns into final speed, tune till convergence
-lc = 1; % Joints limits cost, 0.5
-oc = 0.0; % Obstacles limits cost, 0.0
-tc = 0.0; % Total cost map cost, 0.11
-
-lineSearchStep = 0.01;
-
-iterFCApproaching = 0;
-
-maxIter = 500;
-
-% Constraints 
+%% Constraints 
 xB0 = 2;
 yB0 = 2.5;
 zB0 = zBC;
@@ -76,15 +55,11 @@ pitchei = pi;
 yawei = 0;
 
 xef = 7.6;
-yef = 6.6;
+yef = 4.6;
 zef = 0.2;
 rollef = 0;
 pitchef = pi;
 yawef = 0;
-
-tf = 60;
-dt = 0.8;
-t = 0:dt:tf;
 
 TWB = getTraslation([xB0,yB0,zB0])*getZRot(yawB0);
 [~, ~, ~, ~, ~, ~, TB6] = direct([0, -pi/2, pi/2, 0, pi/2, 0]);
@@ -95,6 +70,36 @@ xei = TW6(1,4);
 yei = TW6(2,4);
 zei = TW6(3,4);
 
+%% Costs
+% State costs
+fc = 1000000; % Final state cost, 1000000
+foc = 1000000; % Final orientation cost, 0
+fsc = 1000000; % FInal zero speed cost, 1000000
+rtc = 3; % Reference path cost 3
+
+% Input costs
+bc = 5; % Base actuation cost, 2
+sc = 20; % Steering cost, 2
+ac = 900; % Arm actuation cost, 60
+
+% Extra costs
+sm = 50; % Influence of diff turns into final speed, tune till convergence
+sm2 = 9999999999999; % Influence of steer turns into final speed, tune till convergence
+lc = 1; % Joints limits cost, 0.5
+oc = 0.0; % Obstacles limits cost, 0.0
+tc = 0; % Total cost map cost, 0.11
+
+tf = 60;
+dt = 0.6;
+t = 0:dt:tf;
+
+lineSearchStep = 0.01;
+
+iterFCApproaching = 0;
+
+maxIter = 500;
+
+%% Algorithm
 % FMM to compute totalCostMap
 load('obstMap1','obstMap')
 dilatedObstMap = dilateObstMap(obstMap, safetyDistance, mapResolution);
@@ -188,33 +193,40 @@ resizedPath = interp1(x1,referencePath,x2);
 x0(10,:) = resizedPath(:,1);
 x0(11,:) = resizedPath(:,2);
 
+% WTEE
 x0(1,end) = xef;
 x0(2,end) = yef;
 x0(3,end) = zef;
+% BTEE
 x0(4,end) = 0;
 x0(5,end) = 0;
 x0(6,end) = 0;
 x0(7,end) = rollef;
 x0(8,end) = pitchef;
 x0(9,end) = yawef;
+% WTB
 x0(10,end) = 0;
 x0(11,end) = 0;
 x0(12,end) = 0;
+% Bspeed
 x0(13,end) = 0;
 x0(14,end) = 0;
 x0(15,end) = 0;
+% ArmJoints
 x0(16,end) = 0;
 x0(17,end) = 0;
 x0(18,end) = 0;
 x0(19,end) = 0;
 x0(20,end) = 0;
 x0(21,end) = 0;
+% ArmJoints Speed
 x0(22,end) = 0;
 x0(23,end) = 0;
 x0(24,end) = 0;
 x0(25,end) = 0;
 x0(26,end) = 0;
 x0(27,end) = 0;
+% Steering joints
 x0(28,end) = 0;
 x0(29,end) = 0;
 x0(30,end) = 0;
@@ -234,19 +246,20 @@ xVect = linspace(0,9.95,200);
 
 % SLQR algorithm
 iter = 1;
+error = 0;
 while 1   
     % Forward integrate system equations
     for i = 2:size(t,2)
         Jac(:,:,i-1) = jacobian(x(16:21,i-1));
         % W2EE
-        x(1,i) = cos(x(12,i-1))*x(4,i-1) + sin(x(12,i-1))*x(5,i-1) + x(10,i-1);
-        x(2,i) = - sin(x(12,i-1))*x(4,i-1) + cos(x(12,i-1))*x(5,i-1) + x(11,i-1);
+        x(1,i) = cos(x(12,i-1))*x(4,i-1) - sin(x(12,i-1))*x(5,i-1) + x(10,i-1);
+        x(2,i) = sin(x(12,i-1))*x(4,i-1) + cos(x(12,i-1))*x(5,i-1) + x(11,i-1);
         x(3,i) = x(6,i-1) + zBC;
         % B2EE
         x(4:9,i) = x(4:9,i-1) + Jac(:,:,i-1)*x(22:27,i-1)*dt; 
         % W2B
-        x(10,i) = x(10,i-1) + cos(x(12,i-1))*x(13,i-1)*dt + sin(x(12,i-1))*x(14,i-1)*dt;
-        x(11,i) = x(11,i-1) - sin(x(12,i-1))*x(13,i-1)*dt + cos(x(12,i-1))*x(14,i-1)*dt;
+        x(10,i) = x(10,i-1) + cos(x(12,i-1))*x(13,i-1)*dt - sin(x(12,i-1))*x(14,i-1)*dt;
+        x(11,i) = x(11,i-1) + sin(x(12,i-1))*x(13,i-1)*dt + cos(x(12,i-1))*x(14,i-1)*dt;
         x(12,i) = x(12,i-1) + x(15,i-1)*dt;
         % Bspeed
         x(13,i) = r/2*(cos(x(28,i-1))*u(7,i-1) + cos(x(30,i-1))*u(8,i-1));
@@ -277,8 +290,15 @@ while 1
     Qend(7,7) = foc;
     Qend(8,8) = foc;
     Qend(9,9) = foc;
-%     Qend(13,13) = fc;
-%     Qend(14,14) = fc;
+    Qend(13,13) = fsc;
+    Qend(14,14) = fsc;
+    Qend(15,15) = fsc;
+    Qend(22,22) = fsc;
+    Qend(23,23) = fsc;
+    Qend(24,24) = fsc;
+    Qend(25,25) = fsc;
+    Qend(26,26) = fsc;
+    Qend(27,27) = fsc;
     
     R = eye(size(u,1));
     R(1,1) = ac;
@@ -299,11 +319,11 @@ while 1
 
     % W2EEx
     A(1,4,1) = cos(x(12,1));
-    A(1,5,1) = sin(x(12,1));
+    A(1,5,1) = -sin(x(12,1));
     A(1,10,1) = 1;
 
     % W2EEy
-    A(2,4,1) = -sin(x(12,1));
+    A(2,4,1) = sin(x(12,1));
     A(2,5,1) = cos(x(12,1));
     A(2,11,1) = 1;
 
@@ -316,14 +336,14 @@ while 1
 
     % W2Bx
     A(10,10,1) = 1;
-    A(10,12,1) = dt*(-sin(x(12,1))*x(13,1)/sm+cos(x(12,1))*x(14,1)/sm);
+    A(10,12,1) = dt*(-sin(x(12,1))*x(13,1)/sm-cos(x(12,1))*x(14,1)/sm);
     A(10,13,1) = dt*(cos(x(12,1))+sin(x(12,1))*x(12,1)/sm);
-    A(10,14,1) = dt*(sin(x(12,1))-cos(x(12,1))*x(12,1)/sm);
+    A(10,14,1) = -dt*(sin(x(12,1))-cos(x(12,1))*x(12,1)/sm);
 
     % W2By
     A(11,11,1) = 1;
-    A(11,12,1) = dt*(-cos(x(12,1))*x(13,1)/sm-sin(x(12,1))*x(14,1)/sm);
-    A(11,13,1) = dt*(-sin(x(12,1))+cos(x(12,1))*x(12,1)/sm);
+    A(11,12,1) = dt*(cos(x(12,1))*x(13,1)/sm-sin(x(12,1))*x(14,1)/sm);
+    A(11,13,1) = dt*(sin(x(12,1))-cos(x(12,1))*x(12,1)/sm);
     A(11,14,1) = dt*(cos(x(12,1))+sin(x(12,1))*x(12,1)/sm);
 
     % W2B Heading
@@ -355,11 +375,11 @@ while 1
     for i = 2:size(t,2)
         % W2EEx
         A(1,4,i) = cos(x(12,i-1));
-        A(1,5,i) = sin(x(12,i-1));
+        A(1,5,i) = -sin(x(12,i-1));
         A(1,10,i) = 1;
 
         % W2EEy
-        A(2,4,i) = -sin(x(12,i-1));
+        A(2,4,i) = sin(x(12,i-1));
         A(2,5,i) = cos(x(12,i-1));
         A(2,11,i) = 1;
 
@@ -372,14 +392,14 @@ while 1
 
         % W2Bx
         A(10,10,i) = 1;
-        A(10,12,i) = dt*(-sin(x(12,i-1))*x(13,i-1)/sm+cos(x(12,i-1))*x(14,i-1)/sm);
+        A(10,12,i) = dt*(-sin(x(12,i-1))*x(13,i-1)/sm-cos(x(12,i-1))*x(14,i-1)/sm);
         A(10,13,i) = dt*(cos(x(12,i-1))+sin(x(12,i-1))*x(12,i-1)/sm);
-        A(10,14,i) = dt*(sin(x(12,i-1))-cos(x(12,i-1))*x(12,i-1)/sm);
+        A(10,14,i) = -dt*(sin(x(12,i-1))-cos(x(12,i-1))*x(12,i-1)/sm);
 
         % W2By
         A(11,11,i) = 1;
-        A(11,12,i) = dt*(-cos(x(12,i-1))*x(13,i-1)/sm-sin(x(12,i-1))*x(14,i-1)/sm);
-        A(11,13,i) = dt*(-sin(x(12,i-1))+cos(x(12,i-1))*x(12,i-1)/sm);
+        A(11,12,i) = dt*(cos(x(12,i-1))*x(13,i-1)/sm-sin(x(12,i-1))*x(14,i-1)/sm);
+        A(11,13,i) = dt*(sin(x(12,i-1))-cos(x(12,i-1))*x(12,i-1)/sm);
         A(11,14,i) = dt*(cos(x(12,i-1))+sin(x(12,i-1))*x(12,i-1)/sm);
 
         % W2B Heading
@@ -462,11 +482,11 @@ while 1
     
     % Total cost map cost
     Tcmx = zeros(size(Q,1),size(t,2)); 
-%     for i = 1:size(t,2)-1
-%         [Tcmx(13,i), Tcmx(14,i)] = getGradientTotalCost(x(10,i), x(11,i), mapResolution, gTCMx, gTCMy);
-%         Tcmx(13,i) = tc*Tcmx(13,i);
-%         Tcmx(14,i) = tc*Tcmx(14,i);
-%     end
+    for i = 1:size(t,2)-1
+        [Tcmx(13,i), Tcmx(14,i)] = getGradientTotalCost(x(10,i), x(11,i), mapResolution, gTCMx, gTCMy);
+        Tcmx(13,i) = tc*Tcmx(13,i);
+        Tcmx(14,i) = tc*Tcmx(14,i);
+    end
     
     % Joints limits cost
     Jux = zeros(size(Q,1),size(t,2));
@@ -538,14 +558,14 @@ while 1
             for i = 2:size(t,2)
                 Jac(:,:,i-1) = jacobian(x(16:21,i-1));
                 % W2EE
-                x(1,i) = cos(x(12,i-1))*x(4,i-1) + sin(x(12,i-1))*x(5,i-1) + x(10,i-1);
-                x(2,i) = - sin(x(12,i-1))*x(4,i-1) + cos(x(12,i-1))*x(5,i-1) + x(11,i-1);
+                x(1,i) = cos(x(12,i-1))*x(4,i-1) - sin(x(12,i-1))*x(5,i-1) + x(10,i-1);
+                x(2,i) = sin(x(12,i-1))*x(4,i-1) + cos(x(12,i-1))*x(5,i-1) + x(11,i-1);
                 x(3,i) = x(6,i-1) + zBC;
                 % B2EE
                 x(4:9,i) = x(4:9,i-1) + Jac(:,:,i-1)*x(22:27,i-1)*dt; 
                 % W2B
-                x(10,i) = x(10,i-1) + cos(x(12,i-1))*x(13,i-1)*dt + sin(x(12,i-1))*x(14,i-1)*dt;
-                x(11,i) = x(11,i-1) - sin(x(12,i-1))*x(13,i-1)*dt + cos(x(12,i-1))*x(14,i-1)*dt;
+                x(10,i) = x(10,i-1) + cos(x(12,i-1))*x(13,i-1)*dt - sin(x(12,i-1))*x(14,i-1)*dt;
+                x(11,i) = x(11,i-1) + sin(x(12,i-1))*x(13,i-1)*dt + cos(x(12,i-1))*x(14,i-1)*dt;
                 x(12,i) = x(12,i-1) + x(15,i-1)*dt;
                 % W2Bspeed
                 x(13,i) = r/2*(cos(x(28,i-1))*u(7,i-1) + cos(x(30,i-1))*u(8,i-1));
@@ -586,6 +606,7 @@ while 1
     
     if iter > maxIter
         cprintf('err','SLQR failed to converge to a solution\n')
+        error = 1;
         break;
     end
     
@@ -656,10 +677,10 @@ while 1
     daspect([1 1 1])
     contourf(X,Y,dilatedObstMap+obstMap);
     plot3(x(1,:),x(2,:),x(3,:), 'LineWidth', 5, 'Color', 'y')
-    plot3(x(10,1:end-1),x(11,1:end-1),zBC*ones(size(x,2)-1), 'LineWidth', 5)
+    plot3(x(10,1:end-1),x(11,1:end-1),zBC*ones(size(x,2)-1), 'LineWidth', 5, 'Color', [1,0.5,0])
     title('Mobile manipulator trajectories', 'interpreter', ...
     'latex','fontsize',18)
-    plot3(referencePath(:,1),referencePath(:,2), zBC*ones(size(referencePath,1),2), 'LineWidth', 5, 'Color', [1,0,1])
+    plot3(referencePath(:,1),referencePath(:,2), zBC*ones(size(referencePath,1),2), 'LineWidth', 5, 'Color', [0,0,0.6])
     plot3(xef,yef,zef, 'MarkerSize', 20, 'Marker', '.', 'Color', 'c')
 
     hold off;
@@ -668,184 +689,210 @@ while 1
     disp(['Is the path safe? ', num2str(isSafePath(x(10,:),x(11,:),mapResolution,dilatedObstMap))])
 end
 
-for i = 2:size(t,2)
-    Jac(:,:,i-1) = jacobian(x(16:21,i-1));
-    % W2EE
-    x(1,i) = cos(x(12,i-1))*x(4,i-1) + sin(x(12,i-1))*x(5,i-1) + x(10,i-1);
-    x(2,i) = - sin(x(12,i-1))*x(4,i-1) + cos(x(12,i-1))*x(5,i-1) + x(11,i-1);
-    x(3,i) = x(6,i-1) + zBC;
-    % B2EE
-    x(4:9,i) = x(4:9,i-1) + Jac(:,:,i-1)*x(22:27,i-1)*dt; 
-    % W2B
-    x(10,i) = x(10,i-1) + cos(x(12,i-1))*x(13,i-1)*dt + sin(x(12,i-1))*x(14,i-1)*dt;
-    x(11,i) = x(11,i-1) - sin(x(12,i-1))*x(13,i-1)*dt + cos(x(12,i-1))*x(14,i-1)*dt;
-    x(12,i) = x(12,i-1) + x(15,i-1)*dt;
-    % W2Bspeed
-    x(13,i) = r/2*(cos(x(28,i-1))*u(7,i-1) + cos(x(30,i-1))*u(8,i-1));
-    x(14,i) = - r/2*(sin(x(28,i-1))*u(7,i-1) + sin(x(30,i-1))*u(8,i-1));
-    x(15,i) = 2*r/dfx*(cos(x(28,i-1))*u(7,i-1) - cos(x(30,i-1))*u(8,i-1));
-    % Arm Joints Position
-    x(16:21,i) = x(16:21,i-1) + x(22:27,i-1)*dt;
-    % Arm Joints Speed
-    x(22:27,i) = x(22:27,i-1) + u(1:6,i-1)*dt;
-    % Steering Joints Position
-    x(28:29,i) =  x(28:29,i-1) + u(9,i-1)*dt;
-    x(30:31,i) =  x(30:31,i-1) + u(10,i-1)*dt;
-    
-    if(x(16,i) < armJointsLimits(1,1) || x(16,i) > armJointsLimits(1,2))
-        disp('WARNING: Arm joint 1 is violating its position limits at waypoint ',num2str(i));
-    end
-    if(x(17,i) < armJointsLimits(2,1) || x(17,i) > armJointsLimits(2,2))
-        disp('WARNING: Arm joint 2 is violating its position limits at waypoint ',num2str(i));
-    end
-    if(x(18,i) < armJointsLimits(3,1) || x(18,i) > armJointsLimits(3,2))
-        disp('WARNING: Arm joint 3 is violating its position limits at waypoint ',num2str(i));
-    end
-    if(x(19,i) < armJointsLimits(4,1) || x(19,i) > armJointsLimits(4,2))
-        disp('WARNING: Arm joint 4 is violating its position limits at waypoint ',num2str(i));
-    end
-    if(x(20,i) < armJointsLimits(5,1) || x(20,i) > armJointsLimits(5,2))
-        disp('WARNING: Arm joint 5 is violating its position limits at waypoint ',num2str(i));
-    end
-    if(x(21,i) < armJointsLimits(6,1) || x(21,i) > armJointsLimits(6,2))
-        disp('WARNING: Arm joint 6 is violating its position limits at waypoint ',num2str(i));
-    end
-end
+%% Plots
+% Plotting stuff
+map = [0 0.6   0
+       0.6 0.3 0
+       0.6 0   0];
+colormap(map);
+xVect = linspace(0,9.95,200);
+[X,Y] = meshgrid(xVect,xVect);
+if error == 0
+    for i = 2:size(t,2)
+        Jac(:,:,i-1) = jacobian(x(16:21,i-1));
+        % W2EE
+        x(1,i) = cos(x(12,i-1))*x(4,i-1) - sin(x(12,i-1))*x(5,i-1) + x(10,i-1);
+        x(2,i) = sin(x(12,i-1))*x(4,i-1) + cos(x(12,i-1))*x(5,i-1) + x(11,i-1);
+        x(3,i) = x(6,i-1) + zBC;
+        % B2EE
+        x(4:9,i) = x(4:9,i-1) + Jac(:,:,i-1)*x(22:27,i-1)*dt; 
+        % W2B
+        x(10,i) = x(10,i-1) + cos(x(12,i-1))*x(13,i-1)*dt - sin(x(12,i-1))*x(14,i-1)*dt;
+        x(11,i) = x(11,i-1) + sin(x(12,i-1))*x(13,i-1)*dt + cos(x(12,i-1))*x(14,i-1)*dt;
+        x(12,i) = x(12,i-1) + x(15,i-1)*dt;
+        % W2Bspeed
+        x(13,i) = r/2*(cos(x(28,i-1))*u(7,i-1) + cos(x(30,i-1))*u(8,i-1));
+        x(14,i) = - r/2*(sin(x(28,i-1))*u(7,i-1) + sin(x(30,i-1))*u(8,i-1));
+        x(15,i) = 2*r/dfx*(cos(x(28,i-1))*u(7,i-1) - cos(x(30,i-1))*u(8,i-1));
+        % Arm Joints Position
+        x(16:21,i) = x(16:21,i-1) + x(22:27,i-1)*dt;
+        % Arm Joints Speed
+        x(22:27,i) = x(22:27,i-1) + u(1:6,i-1)*dt;
+        % Steering Joints Position
+        x(28:29,i) =  x(28:29,i-1) + u(9,i-1)*dt;
+        x(30:31,i) =  x(30:31,i-1) + u(10,i-1)*dt;
 
-toc
-iu = cumsum(abs(u(1,:)));
-disp(['Total acc applied joint 1: ',num2str(iu(end)),' m/s^2'])
-iu = cumsum(abs(u(2,:)));
-disp(['Total acc applied joint 2: ',num2str(iu(end)),' m/s^2'])
-iu = cumsum(abs(u(3,:)));
-disp(['Total acc applied joint 3: ',num2str(iu(end)),' m/s^2'])
-iu = cumsum(abs(u(4,:)));
-disp(['Total acc applied joint 4: ',num2str(iu(end)),' m/s^2'])
-iu = cumsum(abs(u(5,:)));
-disp(['Total acc applied joint 5: ',num2str(iu(end)),' m/s^2'])
-iu = cumsum(abs(u(6,:)));
-disp(['Total acc applied joint 6: ',num2str(iu(end)),' m/s^2'])
-iu = cumsum(abs(u(7,:)));
-disp(['Total speed applied right wheels: ',num2str(iu(end)),' m/s'])
-iu = cumsum(abs(u(8,:)));
-disp(['Total speed applied left wheels: ',num2str(iu(end)),' m/s'])
-iu = cumsum(abs(u(9,:)));
-disp(['Total speed applied front steering joints: ',num2str(iu(end)),' m/s'])
-iu = cumsum(abs(u(10,:)));
-disp(['Total speed applied back steering joints: ',num2str(iu(end)),' m/s'])
+        if(x(16,i) < armJointsLimits(1,1) || x(16,i) > armJointsLimits(1,2))
+            disp(['WARNING: Arm joint 1 is violating its position limits at waypoint ',num2str(i)]);
+        end
+        if(x(17,i) < armJointsLimits(2,1) || x(17,i) > armJointsLimits(2,2))
+            disp(['WARNING: Arm joint 2 is violating its position limits at waypoint ',num2str(i)]);
+        end
+        if(x(18,i) < armJointsLimits(3,1) || x(18,i) > armJointsLimits(3,2))
+            disp(['WARNING: Arm joint 3 is violating its position limits at waypoint ',num2str(i)]);
+        end
+        if(x(19,i) < armJointsLimits(4,1) || x(19,i) > armJointsLimits(4,2))
+            disp(['WARNING: Arm joint 4 is violating its position limits at waypoint ',num2str(i)]);
+        end
+        if(x(20,i) < armJointsLimits(5,1) || x(20,i) > armJointsLimits(5,2))
+            disp(['WARNING: Arm joint 5 is violating its position limits at waypoint ',num2str(i)]);
+        end
+        if(x(21,i) < armJointsLimits(6,1) || x(21,i) > armJointsLimits(6,2))
+            disp(['WARNING: Arm joint 6 is violating its position limits at waypoint ',num2str(i)]);
+        end
+    end
 
-figure(1)
-% Plotting first arm config
-[TB0, TB1, TB2, TB3, TB4, TB5, TB6] = direct(x(16:21,1));
-TWB = getTraslation([x(10,1),x(11,1),zBC])*getZRot(x(12,1));
-TW0 = TWB*TB0;
-TW1 = TWB*TB1;
-TW2 = TWB*TB2;
-TW3 = TWB*TB3;
-TW4 = TWB*TB4;
-TW5 = TWB*TB5;
-TW6 = TWB*TB6;
-plot3([TW0(1,4) TW1(1,4) TW2(1,4) TW3(1,4) TW4(1,4) TW5(1,4) TW6(1,4)],...
-      [TW0(2,4) TW1(2,4) TW2(2,4) TW3(2,4) TW4(2,4) TW5(2,4) TW6(2,4)],...
-      [TW0(3,4) TW1(3,4) TW2(3,4) TW3(3,4) TW4(3,4) TW5(3,4) TW6(3,4)], 'Color', 'r', 'LineWidth', 2.5);
-hold on;
+    toc
+    iu = cumsum(abs(u(1,:)));
+    disp(['Total acc applied joint 1: ',num2str(iu(end)),' m/s^2'])
+    iu = cumsum(abs(u(2,:)));
+    disp(['Total acc applied joint 2: ',num2str(iu(end)),' m/s^2'])
+    iu = cumsum(abs(u(3,:)));
+    disp(['Total acc applied joint 3: ',num2str(iu(end)),' m/s^2'])
+    iu = cumsum(abs(u(4,:)));
+    disp(['Total acc applied joint 4: ',num2str(iu(end)),' m/s^2'])
+    iu = cumsum(abs(u(5,:)));
+    disp(['Total acc applied joint 5: ',num2str(iu(end)),' m/s^2'])
+    iu = cumsum(abs(u(6,:)));
+    disp(['Total acc applied joint 6: ',num2str(iu(end)),' m/s^2'])
+    iu = cumsum(abs(u(7,:)));
+    disp(['Total speed applied right wheels: ',num2str(iu(end)),' m/s'])
+    iu = cumsum(abs(u(8,:)));
+    disp(['Total speed applied left wheels: ',num2str(iu(end)),' m/s'])
+    iu = cumsum(abs(u(9,:)));
+    disp(['Total speed applied front steering joints: ',num2str(iu(end)),' m/s'])
+    iu = cumsum(abs(u(10,:)));
+    disp(['Total speed applied back steering joints: ',num2str(iu(end)),' m/s'])
 
-% Plotting last arm config
-[TB0, TB1, TB2, TB3, TB4, TB5, TB6] = direct(x(16:21,end-1));
-TWB = getTraslation([x(10,end-1),x(11,end-1),zBC])*getZRot(x(12,end-1));
-TW0 = TWB*TB0;
-TW1 = TWB*TB1;
-TW2 = TWB*TB2;
-TW3 = TWB*TB3;
-TW4 = TWB*TB4;
-TW5 = TWB*TB5;
-TW6 = TWB*TB6;
-plot3([TW0(1,4) TW1(1,4) TW2(1,4) TW3(1,4) TW4(1,4) TW5(1,4) TW6(1,4)],...
-      [TW0(2,4) TW1(2,4) TW2(2,4) TW3(2,4) TW4(2,4) TW5(2,4) TW6(2,4)],...
-      [TW0(3,4) TW1(3,4) TW2(3,4) TW3(3,4) TW4(3,4) TW5(3,4) TW6(3,4)], 'Color', 'r', 'LineWidth', 2.5);
+    figure(1)
+    hold on;
+    % Plotting first arm config
+    [TB0, TB1, TB2, TB3, TB4, TB5, TB6] = direct(x(16:21,1));
+    TWB = getTraslation([x(10,1),x(11,1),zBC])*getZRot(x(12,1));
+    TW0 = TWB*TB0;
+    TW1 = TWB*TB1;
+    TW2 = TWB*TB2;
+    TW3 = TWB*TB3;
+    TW4 = TWB*TB4;
+    TW5 = TWB*TB5;
+    TW6 = TWB*TB6;
+    plot3([TW0(1,4) TW1(1,4) TW2(1,4) TW3(1,4) TW4(1,4) TW5(1,4) TW6(1,4)],...
+          [TW0(2,4) TW1(2,4) TW2(2,4) TW3(2,4) TW4(2,4) TW5(2,4) TW6(2,4)],...
+          [TW0(3,4) TW1(3,4) TW2(3,4) TW3(3,4) TW4(3,4) TW5(3,4) TW6(3,4)], 'Color', 'r', 'LineWidth', 2.5);
 
-% Plotting first rover position
-TWB = getTraslation([x(10,1),x(11,1),zBC])*getZRot(x(12,1));
-TB1 = getTraslation([dfx,dfy,-zBC]);
-TB2 = getTraslation([-dfx,dfy,-zBC]);
-TB3 = getTraslation([-dfx,-dfy,-zBC]);
-TB4 = getTraslation([dfx,-dfy,-zBC]);
-TW1 = TWB*TB1;
-TW2 = TWB*TB2;
-TW3 = TWB*TB3;
-TW4 = TWB*TB4;
-plot3([TWB(1,4) TW1(1,4) TWB(1,4) TW2(1,4) TWB(1,4) TW3(1,4) TWB(1,4) TW4(1,4)],...
-      [TWB(2,4) TW1(2,4) TWB(2,4) TW2(2,4) TWB(2,4) TW3(2,4) TWB(2,4) TW4(2,4)],...
-      [TWB(3,4) TW1(3,4) TWB(3,4) TW2(3,4) TWB(3,4) TW3(3,4) TWB(3,4) TW4(3,4)], 'Color', 'r', 'LineWidth', 2.5);
-hold on;
 
-quiver3(TWB(1,4), TWB(2,4), TWB(3,4), cos(x(12,1))/2, sin(x(12,1))/2, 0, 'Color', 'r', 'LineWidth', 2, 'MaxHeadSize', 0.7)
-quiver3(TWB(1,4), TWB(2,4), TWB(3,4), -sin(x(12,1))/2, cos(x(12,1))/2, 0, 'Color', 'g', 'LineWidth', 2, 'MaxHeadSize', 0.7)
-quiver3(TWB(1,4), TWB(2,4), TWB(3,4), 0, 0, 1/2, 'Color', 'c', 'LineWidth', 2, 'MaxHeadSize', 0.7) 
+    % Plotting last arm config
+    [TB0, TB1, TB2, TB3, TB4, TB5, TB6] = direct(x(16:21,end-1));
+    TWB = getTraslation([x(10,end-1),x(11,end-1),zBC])*getZRot(x(12,end-1));
+    TW0 = TWB*TB0;
+    TW1 = TWB*TB1;
+    TW2 = TWB*TB2;
+    TW3 = TWB*TB3;
+    TW4 = TWB*TB4;
+    TW5 = TWB*TB5;
+    TW6 = TWB*TB6;
+    plot3([TW0(1,4) TW1(1,4) TW2(1,4) TW3(1,4) TW4(1,4) TW5(1,4) TW6(1,4)],...
+          [TW0(2,4) TW1(2,4) TW2(2,4) TW3(2,4) TW4(2,4) TW5(2,4) TW6(2,4)],...
+          [TW0(3,4) TW1(3,4) TW2(3,4) TW3(3,4) TW4(3,4) TW5(3,4) TW6(3,4)], 'Color', 'r', 'LineWidth', 2.5);
 
-% Plotting last rover position
-TWB = getTraslation([x(10,end-1),x(11,end-1),zBC])*getZRot(x(12,end-1));
-TW1 = TWB*TB1;
-TW2 = TWB*TB2;
-TW3 = TWB*TB3;
-TW4 = TWB*TB4;
-plot3([TWB(1,4) TW1(1,4) TWB(1,4) TW2(1,4) TWB(1,4) TW3(1,4) TWB(1,4) TW4(1,4)],...
+    % Plotting first rover position
+    TWB = getTraslation([x(10,1),x(11,1),zBC])*getZRot(x(12,1));
+    TB1 = getTraslation([dfx,dfy,-zBC]);
+    TB2 = getTraslation([-dfx,dfy,-zBC]);
+    TB3 = getTraslation([-dfx,-dfy,-zBC]);
+    TB4 = getTraslation([dfx,-dfy,-zBC]);
+    TW1 = TWB*TB1;
+    TW2 = TWB*TB2;
+    TW3 = TWB*TB3;
+    TW4 = TWB*TB4;
+    plot3([TWB(1,4) TW1(1,4) TWB(1,4) TW2(1,4) TWB(1,4) TW3(1,4) TWB(1,4) TW4(1,4)],...
           [TWB(2,4) TW1(2,4) TWB(2,4) TW2(2,4) TWB(2,4) TW3(2,4) TWB(2,4) TW4(2,4)],...
           [TWB(3,4) TW1(3,4) TWB(3,4) TW2(3,4) TWB(3,4) TW3(3,4) TWB(3,4) TW4(3,4)], 'Color', 'r', 'LineWidth', 2.5);
 
-quiver3(TWB(1,4), TWB(2,4), TWB(3,4), cos(x(12,end-1))/2, sin(x(12,end-1))/2, 0, 'Color', 'r', 'LineWidth', 2, 'MaxHeadSize', 0.7)
-quiver3(TWB(1,4), TWB(2,4), TWB(3,4), -sin(x(12,end-1))/2, cos(x(12,end-1))/2, 0, 'Color', 'g', 'LineWidth', 2, 'MaxHeadSize', 0.7)
-quiver3(TWB(1,4), TWB(2,4), TWB(3,4), 0, 0, 1/2, 'Color', 'c', 'LineWidth', 2, 'MaxHeadSize', 0.7)
 
-% Plotting scenario
-daspect([1 1 1])
-contourf(X,Y,dilatedObstMap+obstMap);
-plot3(x(1,:),x(2,:),x(3,:), 'LineWidth', 5, 'Color', 'y')
-plot3(x(10,1:end-1),x(11,1:end-1),zBC*ones(size(x,2)-1), 'LineWidth', 5)
-title('Mobile manipulator trajectories', 'interpreter', ...
-'latex','fontsize',18)
-plot3(referencePath(:,1),referencePath(:,2), zBC*ones(size(referencePath,1),2), 'LineWidth', 5, 'Color', [1,0,1])
-plot3(xef,yef,zef, 'MarkerSize', 20, 'Marker', '.', 'Color', 'c')
+    quiver3(TWB(1,4), TWB(2,4), TWB(3,4), cos(x(12,1))/2, sin(x(12,1))/2, 0, 'Color', 'r', 'LineWidth', 2, 'MaxHeadSize', 0.7)
+    quiver3(TWB(1,4), TWB(2,4), TWB(3,4), -sin(x(12,1))/2, cos(x(12,1))/2, 0, 'Color', 'g', 'LineWidth', 2, 'MaxHeadSize', 0.7)
+    quiver3(TWB(1,4), TWB(2,4), TWB(3,4), 0, 0, 1/2, 'Color', 'c', 'LineWidth', 2, 'MaxHeadSize', 0.7) 
 
-hold off;
+    % Plotting last rover position
+    TWB = getTraslation([x(10,end-1),x(11,end-1),zBC])*getZRot(x(12,end-1));
+    TW1 = TWB*TB1;
+    TW2 = TWB*TB2;
+    TW3 = TWB*TB3;
+    TW4 = TWB*TB4;
+    plot3([TWB(1,4) TW1(1,4) TWB(1,4) TW2(1,4) TWB(1,4) TW3(1,4) TWB(1,4) TW4(1,4)],...
+              [TWB(2,4) TW1(2,4) TWB(2,4) TW2(2,4) TWB(2,4) TW3(2,4) TWB(2,4) TW4(2,4)],...
+              [TWB(3,4) TW1(3,4) TWB(3,4) TW2(3,4) TWB(3,4) TW3(3,4) TWB(3,4) TW4(3,4)], 'Color', 'r', 'LineWidth', 2.5);
+
+    quiver3(TWB(1,4), TWB(2,4), TWB(3,4), cos(x(12,end-1))/2, sin(x(12,end-1))/2, 0, 'Color', 'r', 'LineWidth', 2, 'MaxHeadSize', 0.7)
+    quiver3(TWB(1,4), TWB(2,4), TWB(3,4), -sin(x(12,end-1))/2, cos(x(12,end-1))/2, 0, 'Color', 'g', 'LineWidth', 2, 'MaxHeadSize', 0.7)
+    quiver3(TWB(1,4), TWB(2,4), TWB(3,4), 0, 0, 1/2, 'Color', 'c', 'LineWidth', 2, 'MaxHeadSize', 0.7)
+
+    % Plotting arm profile
+    for i = 1:round(size(x,2)/5):size(x,2)
+        [TB0, TB1, TB2, TB3, TB4, TB5, TB6] = direct(x(16:21,i));
+        TWB = getTraslation([x(10,i),x(11,i),zBC])*getZRot(x(12,i));
+        TW0 = TWB*TB0;
+        TW1 = TWB*TB1;
+        TW2 = TWB*TB2;
+        TW3 = TWB*TB3;
+        TW4 = TWB*TB4;
+        TW5 = TWB*TB5;
+        TW6 = TWB*TB6;
+        plot3([TW0(1,4) TW1(1,4) TW2(1,4) TW3(1,4) TW4(1,4) TW5(1,4) TW6(1,4)],...
+              [TW0(2,4) TW1(2,4) TW2(2,4) TW3(2,4) TW4(2,4) TW5(2,4) TW6(2,4)],...
+              [TW0(3,4) TW1(3,4) TW2(3,4) TW3(3,4) TW4(3,4) TW5(3,4) TW6(3,4)], 'Color', 'r', 'LineWidth', 2.5);
+    end
+
+    % Plotting scenario
+    daspect([1 1 1])
+    contourf(X,Y,dilatedObstMap+obstMap);
+    plot3(x(1,:),x(2,:),x(3,:), 'LineWidth', 5, 'Color', 'y')
+    plot3(x(10,1:end-1),x(11,1:end-1),zBC*ones(size(x,2)-1), 'LineWidth', 5, 'Color', [1,0.5,0])
+    title('Mobile manipulator trajectories', 'interpreter', ...
+    'latex','fontsize',18)
+    plot3(referencePath(:,1),referencePath(:,2), zBC*ones(size(referencePath,1),2), 'LineWidth', 5, 'Color', [0,0,0.6])
+    plot3(xef,yef,zef, 'MarkerSize', 20, 'Marker', '.', 'Color', 'c')
+
+    hold off;
 
 
-% figure(2)
-% plot(t,x(13:14,:))
-% hold on
-% plot(t,x(21:26,:))
-% title('Evolution of the state', 'interpreter', ...
-% 'latex','fontsize',18)
-% legend('$x_{B}^.$','$y_{B}^.$','$\tau_1^.$','$\tau_2^.$','$\tau_3^.$','$\tau_4^.$','$\tau_5^.$','$\tau_6^.$', 'interpreter', ...
-% 'latex','fontsize',18)
-% xlabel('$t (s)$', 'interpreter', 'latex','fontsize',18)
-% %ylabel('$\theta (rad)$', 'interpreter', 'latex','fontsize',18)
-% grid
-% hold off
+    figure(2)
+    plot(t,x(16:21,:))
+    hold on
+    title('Evolution of the arm joints', 'interpreter', ...
+    'latex','fontsize',18)
+    legend('$\tau_1^.$','$\tau_2^.$','$\tau_3^.$','$\tau_4^.$','$\tau_5^.$','$\tau_6^.$', 'interpreter', ...
+    'latex','fontsize',18)
+    xlabel('$t (s)$', 'interpreter', 'latex','fontsize',18)
+    ylabel('$\theta (rad)$', 'interpreter', 'latex','fontsize',18)
+    grid
+    hold off
 
-% figure(3)
-% plot(t,u)
-% title('Actuating acc (u)','interpreter','latex')
-% xlabel('t(s)','interpreter','latex')
-% ylabel('$a(m/s^2$)','interpreter','latex')
-% legend('x displacement','y displacement','$Joint 1$','$Joint 2$',...
-%        '$Joint 3$','$Joint 4$','$Joint 5$','$Joint 6$', 'interpreter', ...
-%        'latex','fontsize',18)
+    figure(3)
+    plot(t,u(7:8,:))
+    title('Actuating wheels speed (u)','interpreter','latex')
+    xlabel('t(s)','interpreter','latex')
+    ylabel('$v(m/s$)','interpreter','latex')
+    legend('$\omega_R$','$\omega_L$', 'interpreter', ...
+           'latex','fontsize',18)
 
-% figure(4)
-% plot(t,x(15:20,:))
-% title('Manipulator Joints','interpreter','latex')
-% xlabel('t(s)','interpreter','latex')
-% ylabel('$q(rad)$','interpreter','latex')
-% legend('$\theta_1$','$\theta_2$',...
-%        '$\theta_3$','$\theta_4$','$\theta_5$','$\theta_6$', 'interpreter', ...
-%        'latex','fontsize',18)
-% hold off
+    % figure(4)
+    % plot(t,x(15:20,:))
+    % title('Manipulator Joints','interpreter','latex')
+    % xlabel('t(s)','interpreter','latex')
+    % ylabel('$q(rad)$','interpreter','latex')
+    % legend('$\theta_1$','$\theta_2$',...
+    %        '$\theta_3$','$\theta_4$','$\theta_5$','$\theta_6$', 'interpreter', ...
+    %        'latex','fontsize',18)
+    % hold off
 
-% figure(4)
-% contourf(gBCMx)
-% figure(2)
-% contourf(gBCMy)
-% sim('simulink_sherpa_tt_simpleBase',15);
+    % figure(4)
+    % contourf(gBCMx)
+    % figure(2)
+    % contourf(gBCMy)
+    % sim('simulink_sherpa_tt_simpleBase',15);
+
+end
 
 
