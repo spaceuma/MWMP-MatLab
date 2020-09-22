@@ -22,6 +22,8 @@ tests/base_5DofManip_planar/slprj/sim/varcache/base_dof5Manip_planar/checksumOfC
 tests/base_5DofManip_planar/slprj/sim/varcache/base_dof5Manip_planar/tmwinternal/simulink_cache.xml
 tests/base_5DofManip_planar/slprj/sim/varcache/base_dof5Manip_planar/varInfo.mat
 *.pdf
+*.png
+*.jpg
 tests/mass_spring_damper/slq_discrete_equality.m
 tests/mass_spring_damper/slq_discrete_unconstrained.m
 tests/sherpa_tt_fmm/Comparativa fmm-slq/halfs_1_iso.png
@@ -58,3 +60,9 @@ tests/sherpa_tt_fmm/slprj/sim/varcache/simulink_sherpa_tt_simpleBase/varInfo.mat
 tests/simple_base/slprj/sim/varcache/simulink_sherpa_tt_simpleBase/checksumOfCache.mat
 tests/simple_base/slprj/sim/varcache/simulink_sherpa_tt_simpleBase/tmwinternal/simulink_cache.xml
 tests/simple_base/slprj/sim/varcache/simulink_sherpa_tt_simpleBase/varInfo.mat
+tests/03-5dof_planar/slprj/sim/varcache/dof5_planar/checksumOfCache.mat
+tests/03-5dof_planar/slprj/sim/varcache/dof5_planar/tmwinternal/simulink_cache.xml
+tests/03-5dof_planar/slprj/sim/varcache/dof5_planar/varInfo.mat
+tests/04-base_5DofManip_planar/slprj/sim/varcache/base_dof5Manip_planar/checksumOfCache.mat
+tests/04-base_5DofManip_planar/slprj/sim/varcache/base_dof5Manip_planar/tmwinternal/simulink_cache.xml
+tests/04-base_5DofManip_planar/slprj/sim/varcache/base_dof5Manip_planar/varInfo.mat

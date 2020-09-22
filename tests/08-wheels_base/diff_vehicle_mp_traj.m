@@ -29,7 +29,7 @@ yBf = 8.0;
 yawBf = pi/2;
 
 tf = 15;
-dt = 0.2;
+dt = 0.02;
 t = 0:dt:tf;
 
 fc = 1000000; % Final state cost,                                     1000000
@@ -39,7 +39,7 @@ rtc = 10; % Reference path cost                                       10
 % oc = 8; % Obstacles escaping cost,                                    1
 bc = 1; % Base actuation cost,                                      0.1
 dc = 0.2; % Steering cost,                                            0.2
-sm = 10; % Influence of turns into final speed, tune till convergence 10
+sm = 10; % Influence of turns into final speed [0,1]
 
 lineSearchStep = 0.01;
 
@@ -49,7 +49,7 @@ iterFCApproaching = 0;
 maxIter = 500;
 
 % FMM to compute totalCostMap
-load('obstMap3','obstMap')
+load('obstMap1','obstMap')
 dilatedObstMap = dilateObstMap(obstMap, safetyDistance, mapResolution);
 distRiskMap = mapResolution*bwdist(dilatedObstMap);
 costMap = 1./distRiskMap;
