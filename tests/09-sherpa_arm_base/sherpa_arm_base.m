@@ -24,6 +24,9 @@ global d4;
 d4 = 0.695;
 global d6;
 d6 = 0.30;
+global reachabilityDistance;
+reachabilityDistance = a1+a2+d4;
+
 global dfx;
 dfx = 0.7;
 global dfy;
@@ -32,6 +35,7 @@ global r;
 r = 0.2;
 global zBC;
 zBC = 0.645;
+
 
 safetyDistance = 1;
 mapResolution = 0.05;
@@ -45,7 +49,7 @@ armJointsLimits = [-360 +360;
                    -360 +360]*pi/180;
 
 %% Constraints 
-xB0 = 2;
+xB0 = 3.8;
 yB0 = 2.5;
 zB0 = zBC;
 yawB0 = 0;
@@ -54,8 +58,8 @@ rollei = 0;
 pitchei = pi;
 yawei = 0;
 
-xef = 7.6;
-yef = 4.6;
+xef = 2.0;
+yef = 2.5;
 zef = 0.2;
 rollef = 0;
 pitchef = pi;
@@ -75,19 +79,19 @@ zei = TW6(3,4);
 fc = 1000000; % Final state cost, 1000000
 foc = 1000000; % Final orientation cost, 0
 fsc = 1000000; % FInal zero speed cost, 1000000
-rtc = 3; % Reference path cost 3
+rtc = 7; % Reference path cost 3
 
 % Input costs
-bc = 5; % Base actuation cost, 2
+bc = 0.1; % Base actuation cost, 2
 sc = 20; % Steering cost, 2
-ac = 900; % Arm actuation cost, 60
+ac = 1000; % Arm actuation cost, 60
 
 % Extra costs
 sm = 50; % Influence of diff turns into final speed, tune till convergence
 sm2 = 9999999999999; % Influence of steer turns into final speed, tune till convergence
-lc = 1; % Joints limits cost, 0.5
+lc = 0.0; % Joints limits cost, 0.5
 oc = 0.0; % Obstacles limits cost, 0.0
-tc = 0; % Total cost map cost, 0.11
+tc = 0.0; % Total cost map cost, 0.11
 
 tf = 60;
 dt = 0.6;
@@ -126,6 +130,8 @@ totalCostMap(totalCostMap == Inf) = NaN;
 tau = 0.5;
 [referencePath,~,~,~] = getPathGDM(totalCostMap,iInit,iGoal,tau);
 referencePath = (referencePath-1)*mapResolution;
+yaw = getYaw(referencePath, yawB0);
+referencePath = [referencePath yaw];
 
 % Generating obst log cost map
 tLog = 10;
@@ -189,9 +195,12 @@ x0 = zeros(31,size(t,2));
 x1 = 1:size(referencePath,1);
 x2 = linspace(1,size(referencePath,1),size(x,2));
 resizedPath = interp1(x1,referencePath,x2);
+reachabilityIndex = getDistanceIndex(resizedPath, [xef yef], reachabilityDistance);
 
 x0(10,:) = resizedPath(:,1);
 x0(11,:) = resizedPath(:,2);
+x0(12,:) = resizedPath(:,3);
+
 
 % WTEE
 x0(1,end) = xef;
@@ -280,8 +289,13 @@ while 1
     
     % Quadratize cost function along the trajectory
     Q = zeros(size(x,1),size(x,1),size(t,2));
-    Q(10,10,:) = rtc;
-    Q(11,11,:) = rtc;
+    Q(10,10,1:reachabilityIndex) = rtc;
+    Q(11,11,1:reachabilityIndex) = rtc;
+    Q(12,12,1:reachabilityIndex) = rtc;
+    
+    Q(10,10,reachabilityIndex:end) = rtc/9999999;
+    Q(11,11,reachabilityIndex:end) = rtc/9999999;
+    Q(12,12,reachabilityIndex:end) = rtc/9999999;
      
     Qend = zeros(size(x,1),size(x,1));
     Qend(1,1) = fc;
@@ -482,22 +496,22 @@ while 1
     
     % Total cost map cost
     Tcmx = zeros(size(Q,1),size(t,2)); 
-    for i = 1:size(t,2)-1
-        [Tcmx(13,i), Tcmx(14,i)] = getGradientTotalCost(x(10,i), x(11,i), mapResolution, gTCMx, gTCMy);
-        Tcmx(13,i) = tc*Tcmx(13,i);
-        Tcmx(14,i) = tc*Tcmx(14,i);
-    end
+%     for i = 1:size(t,2)-1
+%         [Tcmx(13,i), Tcmx(14,i)] = getGradientTotalCost(x(10,i), x(11,i), mapResolution, gTCMx, gTCMy);
+%         Tcmx(13,i) = tc*Tcmx(13,i);
+%         Tcmx(14,i) = tc*Tcmx(14,i);
+%     end
     
     % Joints limits cost
     Jux = zeros(size(Q,1),size(t,2));
-    for i = 1:size(t,2)-1
-        Jux(15:20,i) = lc.*getGradientLogBarrierCost(x(15:20,i),armJointsLimits(:,2),tLog,0);
-    end
+%     for i = 1:size(t,2)-1
+%         Jux(16:21,i) = lc.*getGradientLogBarrierCost(x(16:21,i),armJointsLimits(:,2),tLog,0);
+%     end
     
     Jdx = zeros(size(Q,1),size(t,2));
-    for i = 1:size(t,2)-1
-        Jdx(15:20,i) = lc.*getGradientLogBarrierCost(x(15:20,i),armJointsLimits(:,1),tLog,1);
-    end
+%     for i = 1:size(t,2)-1
+%         Jdx(16:21,i) = lc.*getGradientLogBarrierCost(x(16:21,i),armJointsLimits(:,1),tLog,1);
+%     end
 
     % Obstacles limits cost
     Ox = zeros(size(Q,1),size(t,2));
@@ -545,7 +559,7 @@ while 1
     % Exit condition
     endDist = norm(x(1:3,end)-x0(1:3,end));
     if (isSafePath(x(10,:),x(11,:),mapResolution,dilatedObstMap))&&...
-        (norm(uh)<0.0005*norm(u) || ((norm(uh)<0.2*norm(u))&&(endDist<0.025)))
+        (norm(uh)<0.0001*norm(u) || ((norm(uh)<0.2*norm(u))&&(endDist<0.025)))
         disp(['SLQ found the optimal control input within ',num2str(iter-1),' iterations'])
         break;
     else
@@ -765,7 +779,7 @@ if error == 0
     disp(['Total speed applied back steering joints: ',num2str(iu(end)),' m/s'])
 
     figure(1)
-    hold on;
+    hold off;
     % Plotting first arm config
     [TB0, TB1, TB2, TB3, TB4, TB5, TB6] = direct(x(16:21,1));
     TWB = getTraslation([x(10,1),x(11,1),zBC])*getZRot(x(12,1));
@@ -779,7 +793,7 @@ if error == 0
     plot3([TW0(1,4) TW1(1,4) TW2(1,4) TW3(1,4) TW4(1,4) TW5(1,4) TW6(1,4)],...
           [TW0(2,4) TW1(2,4) TW2(2,4) TW3(2,4) TW4(2,4) TW5(2,4) TW6(2,4)],...
           [TW0(3,4) TW1(3,4) TW2(3,4) TW3(3,4) TW4(3,4) TW5(3,4) TW6(3,4)], 'Color', 'r', 'LineWidth', 2.5);
-
+    hold on;
 
     % Plotting last arm config
     [TB0, TB1, TB2, TB3, TB4, TB5, TB6] = direct(x(16:21,end-1));
@@ -859,38 +873,52 @@ if error == 0
 
     figure(2)
     plot(t,x(16:21,:))
-    hold on
     title('Evolution of the arm joints', 'interpreter', ...
     'latex','fontsize',18)
-    legend('$\tau_1^.$','$\tau_2^.$','$\tau_3^.$','$\tau_4^.$','$\tau_5^.$','$\tau_6^.$', 'interpreter', ...
-    'latex','fontsize',18)
+    legend('$\theta_1$','$\theta_2$',...
+           '$\theta_3$','$\theta_4$','$\theta_5$','$\theta_6$', 'interpreter', ...
+           'latex','fontsize',18)
     xlabel('$t (s)$', 'interpreter', 'latex','fontsize',18)
     ylabel('$\theta (rad)$', 'interpreter', 'latex','fontsize',18)
     grid
-    hold off
-
+    
     figure(3)
+    plot(t,x(28:31,:))
+    title('Evolution of the steering joints', 'interpreter', ...
+    'latex','fontsize',18)
+    legend('$\theta_{s1}$','$\theta_{s2}$',...
+           '$\theta_{s3}$','$\theta_{s4}$', 'interpreter', ...
+           'latex','fontsize',18)
+    xlabel('$t (s)$', 'interpreter', 'latex','fontsize',18)
+    ylabel('$\theta (rad)$', 'interpreter', 'latex','fontsize',18)
+    grid
+       
+    figure(4)
+    plot(t,u(1:6,:))
+    title('Actuating joints accelerations','interpreter','latex')
+    xlabel('t(s)','interpreter','latex','fontsize',18)
+    ylabel('$\ddot\theta(m/s^2$)','interpreter','latex','fontsize',18)
+    legend('$\ddot\theta_1$','$\ddot\theta_2$',...
+           '$\ddot\theta_3$','$\ddot\theta_4$','$\ddot\theta_5$','$\ddot\theta_6$', 'interpreter', ...
+           'latex','fontsize',18)
+              
+    figure(5)
     plot(t,u(7:8,:))
-    title('Actuating wheels speed (u)','interpreter','latex')
-    xlabel('t(s)','interpreter','latex')
-    ylabel('$v(m/s$)','interpreter','latex')
+    title('Actuating wheels speed','interpreter','latex')
+    xlabel('t(s)','interpreter','latex','fontsize',18)
+    ylabel('$\omega(m/s$)','interpreter','latex','fontsize',18)
     legend('$\omega_R$','$\omega_L$', 'interpreter', ...
            'latex','fontsize',18)
+              
+    figure(6)
+    plot(t,u(9:10,:))
+    title('Actuating steering speed','interpreter','latex')
+    xlabel('t(s)','interpreter','latex','fontsize',18)
+    ylabel('$\omega(m/s$)','interpreter','latex','fontsize',18)
+    legend('$\omega_F$','$\omega_B$', 'interpreter', ...
+           'latex','fontsize',18)
 
-    % figure(4)
-    % plot(t,x(15:20,:))
-    % title('Manipulator Joints','interpreter','latex')
-    % xlabel('t(s)','interpreter','latex')
-    % ylabel('$q(rad)$','interpreter','latex')
-    % legend('$\theta_1$','$\theta_2$',...
-    %        '$\theta_3$','$\theta_4$','$\theta_5$','$\theta_6$', 'interpreter', ...
-    %        'latex','fontsize',18)
-    % hold off
 
-    % figure(4)
-    % contourf(gBCMx)
-    % figure(2)
-    % contourf(gBCMy)
     % sim('simulink_sherpa_tt_simpleBase',15);
 
 end
