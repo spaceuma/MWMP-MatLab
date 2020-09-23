@@ -36,8 +36,8 @@ r = 0.2;
 global zBC;
 zBC = 0.645;
 
-
-safetyDistance = 1;
+riskDistance = 1;
+safetyDistance = 1.3;
 mapResolution = 0.05;
 vehicleSpeed = 0.1;
 
@@ -49,24 +49,25 @@ armJointsLimits = [-360 +360;
                    -360 +360]*pi/180;
 
 %% Constraints 
-xB0 = 3.8;
+xB0 = 2.0;
 yB0 = 2.5;
 zB0 = zBC;
 yawB0 = 0;
 
+qi = [pi/2, -pi/2, pi/2, 0, pi/2, 0];
 rollei = 0;
 pitchei = pi;
-yawei = 0;
+yawei = pi/2;
 
-xef = 2.0;
-yef = 2.5;
+xef = 7.5;
+yef = 8.7;
 zef = 0.2;
 rollef = 0;
 pitchef = pi;
 yawef = 0;
 
 TWB = getTraslation([xB0,yB0,zB0])*getZRot(yawB0);
-[~, ~, ~, ~, ~, ~, TB6] = direct([0, -pi/2, pi/2, 0, pi/2, 0]);
+[~, ~, ~, ~, ~, ~, TB6] = direct(qi);
 
 TW6 = TWB*TB6;
 
@@ -83,12 +84,12 @@ rtc = 7; % Reference path cost 3
 
 % Input costs
 bc = 0.1; % Base actuation cost, 2
-sc = 20; % Steering cost, 2
+sc = 0.01; % Steering cost, 2
 ac = 1000; % Arm actuation cost, 60
 
 % Extra costs
 sm = 50; % Influence of diff turns into final speed, tune till convergence
-sm2 = 9999999999999; % Influence of steer turns into final speed, tune till convergence
+sm2 = 9999999999; % Influence of steer turns into final speed, tune till convergence
 lc = 0.0; % Joints limits cost, 0.5
 oc = 0.0; % Obstacles limits cost, 0.0
 tc = 0.0; % Total cost map cost, 0.11
@@ -96,6 +97,8 @@ tc = 0.0; % Total cost map cost, 0.11
 tf = 60;
 dt = 0.6;
 t = 0:dt:tf;
+
+distThreshold = 0.031;
 
 lineSearchStep = 0.01;
 
@@ -105,17 +108,22 @@ maxIter = 500;
 
 %% Algorithm
 % FMM to compute totalCostMap
-load('obstMap1','obstMap')
-dilatedObstMap = dilateObstMap(obstMap, safetyDistance, mapResolution);
-distRiskMap = mapResolution*bwdist(dilatedObstMap);
-costMap = 1./distRiskMap;
-costMap = costMap./min(min(costMap));
+load('obstMap2','obstMap')
+dilatedObstMap = dilateObstMap(obstMap, riskDistance, mapResolution);
+safeObstMap = dilateObstMap(obstMap, safetyDistance, mapResolution);
+
+% distRiskMap = mapResolution*bwdist(dilatedObstMap);
+% costMap = 1./distRiskMap;
+% costMap = costMap./min(min(costMap));
+costMap = ones(size(obstMap));
+
 
 distMap = mapResolution*bwdist(obstMap);
 auxMap = 1./distMap;
 gradient = 1;
 minCost = max(max(costMap(costMap~=Inf)));
-costMap(dilatedObstMap==1)= minCost + gradient*auxMap((dilatedObstMap==1))./min(min(auxMap((dilatedObstMap==1))));
+costMap(safeObstMap==1)= minCost + gradient*auxMap(safeObstMap==1)./min(min(auxMap(safeObstMap==1)));
+costMap(safeObstMap==1)= costMap(safeObstMap==1)./min(min(costMap(safeObstMap==1)));
 costMap(obstMap==1) = max(max(costMap(costMap~=Inf)));
 
 iInit = [round(xB0/mapResolution)+1 round(yB0/mapResolution)+1];
@@ -134,15 +142,15 @@ yaw = getYaw(referencePath, yawB0);
 referencePath = [referencePath yaw];
 
 % Generating obst log cost map
-tLog = 10;
-obstLogCostMap = zeros(size(distMap));
-for i = 1:size(distMap,1)
-    for j = 1:size(distMap,2)
-        obstLogCostMap(j,i) = getSimpleLogBarrierCost(distMap(j,i),safetyDistance,tLog,1);
-    end
-end
-
-[gOLCMx, gOLCMy] = calculateMapGradient(obstLogCostMap);
+% tLog = 10;
+% obstLogCostMap = zeros(size(distMap));
+% for i = 1:size(distMap,1)
+%     for j = 1:size(distMap,2)
+%         obstLogCostMap(j,i) = getSimpleLogBarrierCost(distMap(j,i),safetyDistance,tLog,1);
+%     end
+% end
+% 
+% [gOLCMx, gOLCMy] = calculateMapGradient(obstLogCostMap);
 
 % State vectors
 x = zeros(31,size(t,2));
@@ -166,12 +174,12 @@ x(13,1) = 0;
 x(14,1) = 0;
 x(15,1) = 0;
 % ArmJoints
-x(16,1) = 0;
-x(17,1) = -pi/2;
-x(18,1) = pi/2;
-x(19,1) = 0;
-x(20,1) = pi/2;
-x(21,1) = 0;
+x(16,1) = qi(1);
+x(17,1) = qi(2);
+x(18,1) = qi(3);
+x(19,1) = qi(4);
+x(20,1) = qi(5);
+x(21,1) = qi(6);
 % ArmJoints Speed
 x(22,1) = 0;
 x(23,1) = 0;
@@ -559,7 +567,7 @@ while 1
     % Exit condition
     endDist = norm(x(1:3,end)-x0(1:3,end));
     if (isSafePath(x(10,:),x(11,:),mapResolution,dilatedObstMap))&&...
-        (norm(uh)<0.0001*norm(u) || ((norm(uh)<0.2*norm(u))&&(endDist<0.025)))
+        (norm(uh)<0.0001*norm(u) || ((norm(uh)<0.2*norm(u))&&(endDist<distThreshold)))
         disp(['SLQ found the optimal control input within ',num2str(iter-1),' iterations'])
         break;
     else
@@ -594,18 +602,18 @@ while 1
                 x(30:31,i) =  x(30:31,i-1) + u(10,i-1)*dt;
             end
             J(n) = 1/2*(x(:,end)-x0(:,end)).'*Qend*(x(:,end)-x0(:,end))...
-                + 100*~isSafePath(x(1,:),x(2,:),mapResolution,dilatedObstMap)...
-                + tc*getTotalCost(x(10,end), x(11,end), mapResolution, totalCostMap)...
-                + lc*sum(getSimpleLogBarrierCost(x(15:20,end),armJointsLimits(:,2),tLog,0))...
-                + lc*sum(getSimpleLogBarrierCost(x(15:20,end),armJointsLimits(:,2),tLog,1))...
-                + oc*getTotalCost(x(10,end), x(11,end), mapResolution, obstLogCostMap);
+                + 100*~isSafePath(x(1,:),x(2,:),mapResolution,dilatedObstMap);
+%                 + tc*getTotalCost(x(10,end), x(11,end), mapResolution, totalCostMap)...
+%                 + lc*sum(getSimpleLogBarrierCost(x(15:20,end),armJointsLimits(:,2),tLog,0))...
+%                 + lc*sum(getSimpleLogBarrierCost(x(15:20,end),armJointsLimits(:,2),tLog,1))...
+%                 + oc*getTotalCost(x(10,end), x(11,end), mapResolution, obstLogCostMap);
             for i = 1:size(t,2)-1
                 J(n) = J(n) + 1/2*((x(:,i)-x0(:,i)).'*Q(:,:,i)*(x(:,i)-x0(:,i))...
-                    + (u(:,i)-u0(:,i)).'*R*(u(:,i)-u0(:,i)))...
-                    + tc*getTotalCost(x(10,i), x(11,i), mapResolution, totalCostMap)...
-                    + lc*sum(getSimpleLogBarrierCost(x(15:20,i),armJointsLimits(:,2),tLog,0))...
-                    + lc*sum(getSimpleLogBarrierCost(x(15:20,i),armJointsLimits(:,2),tLog,1))...
-                    + oc*getTotalCost(x(10,i), x(11,i), mapResolution, obstLogCostMap);
+                    + (u(:,i)-u0(:,i)).'*R*(u(:,i)-u0(:,i)));
+%                     + tc*getTotalCost(x(10,i), x(11,i), mapResolution, totalCostMap)...
+%                     + lc*sum(getSimpleLogBarrierCost(x(15:20,i),armJointsLimits(:,2),tLog,0))...
+%                     + lc*sum(getSimpleLogBarrierCost(x(15:20,i),armJointsLimits(:,2),tLog,1))...
+%                     + oc*getTotalCost(x(10,i), x(11,i), mapResolution, obstLogCostMap);
             end            
         end
         [mincost, ind] = min(J);
