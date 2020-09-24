@@ -66,3 +66,10 @@ tests/03-5dof_planar/slprj/sim/varcache/dof5_planar/varInfo.mat
 tests/04-base_5DofManip_planar/slprj/sim/varcache/base_dof5Manip_planar/checksumOfCache.mat
 tests/04-base_5DofManip_planar/slprj/sim/varcache/base_dof5Manip_planar/tmwinternal/simulink_cache.xml
 tests/04-base_5DofManip_planar/slprj/sim/varcache/base_dof5Manip_planar/varInfo.mat
+*.slxc
+tests/10-base_3DoF_dynamics/slprj/sim/varcache/base_3DoF_dynamics/checksumOfCache.mat
+tests/10-base_3DoF_dynamics/slprj/sim/varcache/base_3DoF_dynamics/tmwinternal/simulink_cache.xml
+tests/10-base_3DoF_dynamics/slprj/sim/varcache/base_3DoF_dynamics/varInfo.mat
+tests/10-base_3DoF_dynamics/slprj/sim/varcache/base_3DoF_dynamics_sim/checksumOfCache.mat
+tests/10-base_3DoF_dynamics/slprj/sim/varcache/base_3DoF_dynamics_sim/tmwinternal/simulink_cache.xml
+tests/10-base_3DoF_dynamics/slprj/sim/varcache/base_3DoF_dynamics_sim/varInfo.mat
