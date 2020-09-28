@@ -18,15 +18,9 @@ global a1;
 a1 = 0.225;
 global a2;
 a2 = 0.735;
-global c2;
-c2 = 0.030;
-global a3;
-a3 = 0.030;
 global d4;
 d4 = 0.695;
 
-global reachabilityDistance;
-reachabilityDistance = a1+a2;
 
 global dfx;
 dfx = 0.7;
@@ -36,6 +30,9 @@ global r;
 r = 0.2;
 global zBC;
 zBC = 0.645;
+
+global reachabilityDistance;
+reachabilityDistance = (a1+a2+d4-zBC-d0);
 
 riskDistance = 1;
 safetyDistance = 1.3;
@@ -57,8 +54,8 @@ rollei = 0;
 pitchei = pi/2;
 yawei = 0;
 
-xef = 2.5;
-yef = 8.7;
+xef = 8.5;
+yef = 2.7;
 zef = 0.2;
 rollef = 0;
 pitchef = pi;
@@ -78,7 +75,7 @@ zei = TW3(3,4);
 fc = 1000000; % Final state cost, 1000000
 foc = 0; % Final orientation cost, 0
 fsc = 1000000; % Final zero speed cost, 1000000
-rtc = 7; % Reference path cost 3
+rtc = 7; % Reference path cost 7
 
 % Input costs
 bc = 0.1; % Base actuation cost, 2
@@ -87,19 +84,15 @@ ac = 0.1; % Arm actuation cost, 60
 
 % Extra costs
 sm = 50; % Influence of diff turns into final speed, tune till convergence
-sm2 = 9999999999; % Influence of steer turns into final speed, tune till convergence
-
-% lc = 0.0; % Joints limits cost, 0.5
-% oc = 0.0; % Obstacles limits cost, 0.0
-% tc = 0.0; % Total cost map cost, 0.11
+sm2 = 99999999; % Influence of steer turns into final speed, tune till convergence
 
 tf = 60;
-dt = 0.6;
+dt = 0.2;
 t = 0:dt:tf;
 
 distThreshold = 0.031;
 
-lineSearchStep = 0.01;
+lineSearchStep = 0.05;
 
 iterFCApproaching = 0;
 
@@ -107,7 +100,7 @@ maxIter = 500;
 
 %% Algorithm
 % FMM to compute totalCostMap
-load('obstMap2','obstMap')
+load('obstMap3','obstMap')
 dilatedObstMap = dilateObstMap(obstMap, riskDistance, mapResolution);
 safeObstMap = dilateObstMap(obstMap, safetyDistance, mapResolution);
 
@@ -466,39 +459,9 @@ while 1
     M = zeros(size(B,1),size(B,1),size(t,2));
     P = zeros(size(Q,1),size(Q,2),size(t,2));
     s = zeros(size(Q,1),1,size(t,2));
-    
-%     % Logaritmic sharpness
-%     tLog = 10 + 0.01*iter;
-    
-%     % Total cost map cost
-%     Tcmx = zeros(size(Q,1),size(t,2)); 
-%     for i = 1:size(t,2)-1
-%         [Tcmx(13,i), Tcmx(14,i)] = getGradientTotalCost(x(10,i), x(11,i), mapResolution, gTCMx, gTCMy);
-%         Tcmx(13,i) = tc*Tcmx(13,i);
-%         Tcmx(14,i) = tc*Tcmx(14,i);
-%     end
-    
-%     % Joints limits cost
-%     Jux = zeros(size(Q,1),size(t,2));
-%     for i = 1:size(t,2)-1
-%         Jux(16:21,i) = lc.*getGradientLogBarrierCost(x(16:21,i),armJointsLimits(:,2),tLog,0);
-%     end
-%     
-%     Jdx = zeros(size(Q,1),size(t,2));
-%     for i = 1:size(t,2)-1
-%         Jdx(16:21,i) = lc.*getGradientLogBarrierCost(x(16:21,i),armJointsLimits(:,1),tLog,1);
-%     end
-
-%     % Obstacles limits cost
-%     Ox = zeros(size(Q,1),size(t,2));
-%     for i = 1:size(t,2)-1
-%         [Ox(10,i), Ox(11,i)] = getGradientTotalCost(x(10,i), x(11,i), mapResolution, gOLCMx, gOLCMy);
-%         Ox(10,i) = oc*Ox(10,i);
-%         Ox(11,i) = oc*Ox(11,i);
-%     end
-    
+ 
     P(:,:,end) = Qend;
-    s(:,:,end) = -Qend*xh0(:,end);% + Tcmx(:,end) + Jux(:,end) + Jdx(:,end) + Ox(:,end);
+    s(:,:,end) = -Qend*xh0(:,end);
     
     xh = zeros(size(x,1),size(t,2));
     uh = zeros(size(u,1),size(t,2));
@@ -517,8 +480,7 @@ while 1
         M(:,:,i) = inv(eye(size(B,1)) + B(:,:,i)*inv(R)*B(:,:,i).'*P(:,:,i+1));
         P(:,:,i) = Q(:,:,i) + A(:,:,i).'*P(:,:,i+1)*M(:,:,i)*A(:,:,i);
         s(:,:,i) = A(:,:,i).'*(eye(size(Q,1)) - P(:,:,i+1)*M(:,:,i)*B(:,:,i)*inv(R)*B(:,:,i).')*s(:,:,i+1)+...
-            A(:,:,i).'*P(:,:,i+1)*M(:,:,i)*B(:,:,i)*uh0(:,i) - Q(:,:,i)*xh0(:,i);%...
-            %+ Tcmx(:,i) + Jux(:,i) + Jdx(:,i) + Ox(:,i);
+            A(:,:,i).'*P(:,:,i+1)*M(:,:,i)*B(:,:,i)*uh0(:,i) - Q(:,:,i)*xh0(:,i);
     end
     
     % Solve forward
@@ -569,17 +531,9 @@ while 1
             end
             J(n) = 1/2*(x(:,end)-x0(:,end)).'*Qend*(x(:,end)-x0(:,end))...
                 + 100*~isSafePath(x(1,:),x(2,:),mapResolution,dilatedObstMap);
-%                 + tc*getTotalCost(x(10,end), x(11,end), mapResolution, totalCostMap)...
-%                 + lc*sum(getSimpleLogBarrierCost(x(15:20,end),armJointsLimits(:,2),tLog,0))...
-%                 + lc*sum(getSimpleLogBarrierCost(x(15:20,end),armJointsLimits(:,2),tLog,1))...
-%                 + oc*getTotalCost(x(10,end), x(11,end), mapResolution, obstLogCostMap);
             for i = 1:size(t,2)-1
                 J(n) = J(n) + 1/2*((x(:,i)-x0(:,i)).'*Q(:,:,i)*(x(:,i)-x0(:,i))...
                     + (u(:,i)-u0(:,i)).'*R*(u(:,i)-u0(:,i)));
-%                     + tc*getTotalCost(x(10,i), x(11,i), mapResolution, totalCostMap)...
-%                     + lc*sum(getSimpleLogBarrierCost(x(15:20,i),armJointsLimits(:,2),tLog,0))...
-%                     + lc*sum(getSimpleLogBarrierCost(x(15:20,i),armJointsLimits(:,2),tLog,1))...
-%                     + oc*getTotalCost(x(10,i), x(11,i), mapResolution, obstLogCostMap);
             end            
         end
         [mincost, ind] = min(J);
@@ -587,7 +541,6 @@ while 1
         
         % Update controller
         u = uk + alfamin*uh;
-%         u = u + uh;
 
     end
     
@@ -847,8 +800,8 @@ if error == 0
            'latex','fontsize',18)
 
 
-    simAcc = 1/5;
-    sim('base_3DoF_dynamics_sim',t(end)*simAcc);
+    simAcc = 1;
+    sim('base_3DoF_dynamics_sim_forces',t(end)*simAcc);
 
 end
 
