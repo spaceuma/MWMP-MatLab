@@ -24,8 +24,6 @@ global d4;
 d4 = 0.695;
 global d6;
 d6 = 0.30;
-global reachabilityDistance;
-reachabilityDistance = a1+a2+d4;
 
 global dfx;
 dfx = 0.7;
@@ -35,6 +33,9 @@ global r;
 r = 0.2;
 global zBC;
 zBC = 0.645;
+
+global reachabilityDistance;
+reachabilityDistance = (a1+a2+d4+d6-zBC-d0);
 
 riskDistance = 1;
 safetyDistance = 1.3;
@@ -78,21 +79,22 @@ zei = TW6(3,4);
 %% Costs
 % State costs
 fc = 1000000; % Final state cost, 1000000
-foc = 1000000; % Final orientation cost, 0
-fsc = 1000000; % FInal zero speed cost, 1000000
-rtc = 7; % Reference path cost 3
+foc = 1000000; % Final orientation cost, 1000000
+fsc = 1000000; % Final zero speed cost, 1000000
+rtc = 0; % Reference path cost 7
 
 % Input costs
-bc = 0.1; % Base actuation cost, 2
-sc = 0.01; % Steering cost, 2
-ac = 1000; % Arm actuation cost, 60
+bc = 0.1; % Base actuation cost, 0.1
+sc = 0.1; % Steering cost, 0.1
+ac = 9; % Arm actuation cost, 0.1
 
 % Extra costs
-sm = 50; % Influence of diff turns into final speed, tune till convergence
-sm2 = 9999999999; % Influence of steer turns into final speed, tune till convergence
-lc = 0.0; % Joints limits cost, 0.5
+sm = 50; % Influence of diff turns into final speed, tune till convergence 50
+sm2 = 9999999999; % Influence of steer turns into final speed, tune till convergence 999999999
+lc = 0.0; % Joints limits cost, 0.0
 oc = 0.0; % Obstacles limits cost, 0.0
-tc = 0.0; % Total cost map cost, 0.11
+tc = 0.01; % Total cost map cost, 1.1
+tco = 0.01; % Total cost map orientation cost, 1.0
 
 tf = 60;
 dt = 0.6;
@@ -100,7 +102,7 @@ t = 0:dt:tf;
 
 distThreshold = 0.031;
 
-lineSearchStep = 0.10;
+lineSearchStep = 0.01;
 
 iterFCApproaching = 0;
 
@@ -108,7 +110,7 @@ maxIter = 500;
 
 %% Algorithm
 % FMM to compute totalCostMap
-load('obstMap2','obstMap')
+load('obstMap3','obstMap')
 dilatedObstMap = dilateObstMap(obstMap, riskDistance, mapResolution);
 safeObstMap = dilateObstMap(obstMap, safetyDistance, mapResolution);
 
@@ -153,7 +155,7 @@ referencePath = [referencePath yaw];
 % [gOLCMx, gOLCMy] = calculateMapGradient(obstLogCostMap);
 
 % State vectors
-x = zeros(31,size(t,2));
+x = zeros(25,size(t,2));
 % WTEE
 x(1,1) = xei;
 x(2,1) = yei;
@@ -180,24 +182,17 @@ x(18,1) = qi(3);
 x(19,1) = qi(4);
 x(20,1) = qi(5);
 x(21,1) = qi(6);
-% ArmJoints Speed
+% Steering joints
 x(22,1) = 0;
 x(23,1) = 0;
 x(24,1) = 0;
 x(25,1) = 0;
-x(26,1) = 0;
-x(27,1) = 0;
-% Steering joints
-x(28,1) = 0;
-x(29,1) = 0;
-x(30,1) = 0;
-x(31,1) = 0;
 
 % Initial control law
 u = zeros(10,size(t,2));
 
 % Target state and control trajectories
-x0 = zeros(31,size(t,2));
+x0 = zeros(25,size(t,2));
 
 % Resize path
 x1 = 1:size(referencePath,1);
@@ -222,9 +217,9 @@ x0(7,end) = rollef;
 x0(8,end) = pitchef;
 x0(9,end) = yawef;
 % WTB
-x0(10,end) = 0;
-x0(11,end) = 0;
-x0(12,end) = 0;
+% x0(10,end) = 0;
+% x0(11,end) = 0;
+% x0(12,end) = 0;
 % Bspeed
 x0(13,end) = 0;
 x0(14,end) = 0;
@@ -236,18 +231,11 @@ x0(18,end) = 0;
 x0(19,end) = 0;
 x0(20,end) = 0;
 x0(21,end) = 0;
-% ArmJoints Speed
+% Steering joints
 x0(22,end) = 0;
 x0(23,end) = 0;
 x0(24,end) = 0;
 x0(25,end) = 0;
-x0(26,end) = 0;
-x0(27,end) = 0;
-% Steering joints
-x0(28,end) = 0;
-x0(29,end) = 0;
-x0(30,end) = 0;
-x0(31,end) = 0;
 
 u0 = zeros(10,size(t,2));
 
@@ -273,22 +261,20 @@ while 1
         x(2,i) = sin(x(12,i-1))*x(4,i-1) + cos(x(12,i-1))*x(5,i-1) + x(11,i-1);
         x(3,i) = x(6,i-1) + zBC;
         % B2EE
-        x(4:9,i) = x(4:9,i-1) + Jac(:,:,i-1)*x(22:27,i-1)*dt; 
+        x(4:9,i) = x(4:9,i-1) + Jac(:,:,i-1)*u(1:6,i-1)*dt; 
         % W2B
         x(10,i) = x(10,i-1) + cos(x(12,i-1))*x(13,i-1)*dt - sin(x(12,i-1))*x(14,i-1)*dt;
         x(11,i) = x(11,i-1) + sin(x(12,i-1))*x(13,i-1)*dt + cos(x(12,i-1))*x(14,i-1)*dt;
         x(12,i) = x(12,i-1) + x(15,i-1)*dt;
         % Bspeed
-        x(13,i) = r/2*(cos(x(28,i-1))*u(7,i-1) + cos(x(30,i-1))*u(8,i-1));
-        x(14,i) = - r/2*(sin(x(28,i-1))*u(7,i-1) + sin(x(30,i-1))*u(8,i-1));
-        x(15,i) = r/(2*dfx)*(cos(x(28,i-1))*u(7,i-1) - cos(x(30,i-1))*u(8,i-1));
+        x(13,i) = r/2*(cos(x(22,i-1))*u(7,i-1) + cos(x(24,i-1))*u(8,i-1));
+        x(14,i) = - r/2*(sin(x(22,i-1))*u(7,i-1) + sin(x(24,i-1))*u(8,i-1));
+        x(15,i) = r/(2*dfx)*(cos(x(22,i-1))*u(7,i-1) - cos(x(24,i-1))*u(8,i-1));
         % Arm Joints Position
-        x(16:21,i) = x(16:21,i-1) + x(22:27,i-1)*dt;
-        % Arm Joints Speed
-        x(22:27,i) = x(22:27,i-1) + u(1:6,i-1)*dt;
+        x(16:21,i) = x(16:21,i-1) + u(1:6,i-1)*dt;
         % Steering Joints Position
-        x(28:29,i) =  x(28:29,i-1) + u(9,i-1)*dt;
-        x(30:31,i) =  x(30:31,i-1) + u(10,i-1)*dt;
+        x(22:23,i) =  x(22:23,i-1) + u(9,i-1)*dt;
+        x(24:25,i) =  x(24:25,i-1) + u(10,i-1)*dt;
     end
     Jac(:,:,end) = jacobian(x(16:21,end));
 
@@ -311,16 +297,10 @@ while 1
     Qend(3,3) = fc;
     Qend(7,7) = foc;
     Qend(8,8) = foc;
-    Qend(9,9) = foc;
+    Qend(9,9) = 0;
     Qend(13,13) = fsc;
     Qend(14,14) = fsc;
     Qend(15,15) = fsc;
-    Qend(22,22) = fsc;
-    Qend(23,23) = fsc;
-    Qend(24,24) = fsc;
-    Qend(25,25) = fsc;
-    Qend(26,26) = fsc;
-    Qend(27,27) = fsc;
     
     R = eye(size(u,1));
     R(1,1) = ac;
@@ -354,7 +334,6 @@ while 1
 
     % B2EE
     A(4:9,4:9,1) = eye(6,6);
-    A(4:9,22:27,1) = dt*Jac(:,:,1);
 
     % W2Bx
     A(10,10,1) = 1;
@@ -373,26 +352,22 @@ while 1
     A(12,15,1) = dt;
 
     % W2B Speed x
-    A(13,28,1) = r/2*(-sin(x(28,1))*u(7,1))/sm2;
-    A(13,30,1) = r/2*(-sin(x(30,1))*u(8,1))/sm2;
+    A(13,22,1) = r/2*(-sin(x(22,1))*u(7,1))/sm2;
+    A(13,24,1) = r/2*(-sin(x(24,1))*u(8,1))/sm2;
     
     % W2B Speed y
-    A(14,28,1) = -r/2*cos(x(28,1))*u(7,1)/sm2;
-    A(14,30,1) = -r/2*cos(x(30,1))*u(8,1)/sm2;
+    A(14,22,1) = -r/2*cos(x(22,1))*u(7,1)/sm2;
+    A(14,24,1) = -r/2*cos(x(24,1))*u(8,1)/sm2;
     
     % W2B Speed Heading
-    A(15,28,1) = r/(2*dfx) *(-sin(x(28,1))*u(7,1))/sm2;
-    A(15,30,1) = -r/(2*dfx)*(-sin(x(30,1))*u(8,1))/sm2;
+    A(15,22,1) = r/(2*dfx) *(-sin(x(22,1))*u(7,1))/sm2;
+    A(15,24,1) = -r/(2*dfx)*(-sin(x(24,1))*u(8,1))/sm2;
     
     % Arm Joints Position
     A(16:21,16:21,1) = eye(6,6);
-    A(16:21,22:27,1) = dt*eye(6,6);
-    
-    % Arm Joints Speed
-    A(22:27,22:27,1) = eye(6,6);
 
     % Steering Joints Position
-    A(28:31,28:31,1) = eye(4,4);
+    A(22:25,22:25,1) = eye(4,4);
     
     for i = 2:size(t,2)
         % W2EEx
@@ -410,7 +385,6 @@ while 1
 
         % B2EE
         A(4:9,4:9,i) = eye(6,6);
-        A(4:9,22:27,i) = dt*Jac(:,:,i-1);
 
         % W2Bx
         A(10,10,i) = 1;
@@ -429,69 +403,71 @@ while 1
         A(12,15,i) = dt;
 
         % W2B Speed x
-        A(13,28,i) = r/2*(-sin(x(28,i-1))*u(7,i-1))/sm2;
-        A(13,30,i) = r/2*(-sin(x(30,i-1))*u(8,i-1))/sm2;
+        A(13,22,i) = r/2*(-sin(x(22,i-1))*u(7,i-1))/sm2;
+        A(13,24,i) = r/2*(-sin(x(24,i-1))*u(8,i-1))/sm2;
 
         % W2B Speed y
-        A(14,28,i) = -r/2*cos(x(28,i-1))*u(7,i-1)/sm2;
-        A(14,30,i) = -r/2*cos(x(30,i-1))*u(8,i-1)/sm2;
+        A(14,22,i) = -r/2*cos(x(22,i-1))*u(7,i-1)/sm2;
+        A(14,24,i) = -r/2*cos(x(24,i-1))*u(8,i-1)/sm2;
 
         % W2B Speed Heading
-        A(15,28,i) = r/(2*dfx) *(-sin(x(28,i-1))*u(7,i-1))/sm2;
-        A(15,30,i) = -r/(2*dfx)*(-sin(x(30,i-1))*u(8,i-1))/sm2;
+        A(15,22,i) = r/(2*dfx) *(-sin(x(22,i-1))*u(7,i-1))/sm2;
+        A(15,24,i) = -r/(2*dfx)*(-sin(x(24,i-1))*u(8,i-1))/sm2;
 
         % Arm Joints Position
         A(16:21,16:21,i) = eye(6,6);
-        A(16:21,22:27,i) = dt*eye(6,6);
-
-        % Arm Joints Speed
-        A(22:27,22:27,i) = eye(6,6);
 
         % Steering Joints Position
-        A(28:31,28:31,i) = eye(4,4);
+        A(22:25,22:25,i) = eye(4,4);
     end
     
     % Actuation (u) matrix
     B = zeros(size(x,1),size(u,1),size(t,2));
     
+    % B2EE
+    B(4:9,1:6,1) = dt*Jac(:,:,1);
+
     % W2B Speed x
-    B(13,7,1) = r/2*(cos(x(28,1)) + x(28,1)*sin(x(28,1))/sm2);
-    B(13,8,1) = r/2*(cos(x(30,1)) + x(30,1)*sin(x(30,1))/sm2);
+    B(13,7,1) = r/2*(cos(x(22,1)) + x(22,1)*sin(x(22,1))/sm2);
+    B(13,8,1) = r/2*(cos(x(24,1)) + x(24,1)*sin(x(24,1))/sm2);
     
     % W2B Speed y
-    B(14,7,1) = -r/2*(sin(x(28,1)) - x(28,1)*cos(x(28,1))/sm2);
-    B(14,8,1) = -r/2*(sin(x(30,1)) - x(30,1)*cos(x(30,1))/sm2);
+    B(14,7,1) = -r/2*(sin(x(22,1)) - x(22,1)*cos(x(22,1))/sm2);
+    B(14,8,1) = -r/2*(sin(x(24,1)) - x(24,1)*cos(x(24,1))/sm2);
     
     % W2B Speed heading
-    B(15,7,1) = r/(2*dfx)*(cos(x(28,1)) + x(28,1)*sin(x(28,1))/sm2);
-    B(15,8,1) = -r/(2*dfx)*(cos(x(30,1)) + x(30,1)*sin(x(30,1))/sm2);
+    B(15,7,1) = r/(2*dfx)*(cos(x(22,1)) + x(22,1)*sin(x(22,1))/sm2);
+    B(15,8,1) = -r/(2*dfx)*(cos(x(24,1)) + x(24,1)*sin(x(24,1))/sm2);
     
-    % Arm Joints Speed
-    B(22:27,1:6,1) = dt*eye(6,6);
+    % Arm Joints Position
+    B(16:21,1:6,1) = dt*eye(6,6);
     
     % Steering Joints Position
-    B(28:29,9,1) = dt;
-    B(30:31,10,1) = dt;
+    B(22:23,9,1) = dt;
+    B(24:25,10,1) = dt;
     
     for i = 2:size(t,2)
+        % B2EE
+        B(4:9,1:6,i) = dt*Jac(:,:,i-1);
+
         % W2B Speed x
-        B(13,7,i) = r/2*(cos(x(28,i-1)) + x(28,i-1)*sin(x(28,i-1))/sm2);
-        B(13,8,i) = r/2*(cos(x(30,i-1)) + x(30,i-1)*sin(x(30,i-1))/sm2);
+        B(13,7,i) = r/2*(cos(x(22,i-1)) + x(22,i-1)*sin(x(22,i-1))/sm2);
+        B(13,8,i) = r/2*(cos(x(24,i-1)) + x(24,i-1)*sin(x(24,i-1))/sm2);
 
         % W2B Speed y
-        B(14,7,i) = -r/2*(sin(x(28,i-1)) - x(28,i-1)*cos(x(28,i-1))/sm2);
-        B(14,8,i) = -r/2*(sin(x(30,i-1)) - x(30,i-1)*cos(x(30,i-1))/sm2);
+        B(14,7,i) = -r/2*(sin(x(22,i-1)) - x(22,i-1)*cos(x(22,i-1))/sm2);
+        B(14,8,i) = -r/2*(sin(x(24,i-1)) - x(24,i-1)*cos(x(24,i-1))/sm2);
 
         % W2B Speed heading
-        B(15,7,i) = r/(2*dfx)*(cos(x(28,i-1)) + x(28,1)*sin(x(28,i-1))/sm2);
-        B(15,8,i) = -r/(2*dfx)*(cos(x(30,i-1)) + x(30,1)*sin(x(30,i-1))/sm2);
+        B(15,7,i) = r/(2*dfx)*(cos(x(22,i-1)) + x(22,1)*sin(x(22,i-1))/sm2);
+        B(15,8,i) = -r/(2*dfx)*(cos(x(24,i-1)) + x(24,1)*sin(x(24,i-1))/sm2);
 
-        % Arm Joints Speed
-        B(22:27,1:6,i) = dt*eye(6,6);
+        % Arm Joints Position
+        B(16:21,1:6,i) = dt*eye(6,6);
 
         % Steering Joints Position
-        B(28:29,9,i) = dt;
-        B(30:31,10,i) = dt;
+        B(22:23,9,i) = dt;
+        B(24:25,10,i) = dt;
     end    
     
     % LQ problem solution
@@ -504,11 +480,15 @@ while 1
     
     % Total cost map cost
     Tcmx = zeros(size(Q,1),size(t,2)); 
-%     for i = 1:size(t,2)-1
-%         [Tcmx(13,i), Tcmx(14,i)] = getGradientTotalCost(x(10,i), x(11,i), mapResolution, gTCMx, gTCMy);
-%         Tcmx(13,i) = tc*Tcmx(13,i);
-%         Tcmx(14,i) = tc*Tcmx(14,i);
-%     end
+    if tc > 0
+        for i = 1:reachabilityIndex-1
+            [Tcmx(13,i), Tcmx(14,i)] = getGradientTotalCost(x(10,i), x(11,i), mapResolution, gTCMx, gTCMy);
+            Tcmx(13,i) = tc*Tcmx(13,i);
+            Tcmx(14,i) = tc*Tcmx(14,i);
+            x0(12,i) = atan2(-Tcmx(14,i), -Tcmx(13,i));
+            Q(12,12,i) = tco;
+        end
+    end
     
     % Joints limits cost
     Jux = zeros(size(Q,1),size(t,2));
@@ -584,33 +564,31 @@ while 1
                 x(2,i) = sin(x(12,i-1))*x(4,i-1) + cos(x(12,i-1))*x(5,i-1) + x(11,i-1);
                 x(3,i) = x(6,i-1) + zBC;
                 % B2EE
-                x(4:9,i) = x(4:9,i-1) + Jac(:,:,i-1)*x(22:27,i-1)*dt; 
+                x(4:9,i) = x(4:9,i-1) + Jac(:,:,i-1)*u(1:6,i-1)*dt; 
                 % W2B
                 x(10,i) = x(10,i-1) + cos(x(12,i-1))*x(13,i-1)*dt - sin(x(12,i-1))*x(14,i-1)*dt;
                 x(11,i) = x(11,i-1) + sin(x(12,i-1))*x(13,i-1)*dt + cos(x(12,i-1))*x(14,i-1)*dt;
                 x(12,i) = x(12,i-1) + x(15,i-1)*dt;
-                % W2Bspeed
-                x(13,i) = r/2*(cos(x(28,i-1))*u(7,i-1) + cos(x(30,i-1))*u(8,i-1));
-                x(14,i) = - r/2*(sin(x(28,i-1))*u(7,i-1) + sin(x(30,i-1))*u(8,i-1));
-                x(15,i) = r/(2*dfx)*(cos(x(28,i-1))*u(7,i-1) - cos(x(30,i-1))*u(8,i-1));
+                % Bspeed
+                x(13,i) = r/2*(cos(x(22,i-1))*u(7,i-1) + cos(x(24,i-1))*u(8,i-1));
+                x(14,i) = - r/2*(sin(x(22,i-1))*u(7,i-1) + sin(x(24,i-1))*u(8,i-1));
+                x(15,i) = r/(2*dfx)*(cos(x(22,i-1))*u(7,i-1) - cos(x(24,i-1))*u(8,i-1));
                 % Arm Joints Position
-                x(16:21,i) = x(16:21,i-1) + x(22:27,i-1)*dt;
-                % Arm Joints Speed
-                x(22:27,i) = x(22:27,i-1) + u(1:6,i-1)*dt;
+                x(16:21,i) = x(16:21,i-1) + u(1:6,i-1)*dt;
                 % Steering Joints Position
-                x(28:29,i) =  x(28:29,i-1) + u(9,i-1)*dt;
-                x(30:31,i) =  x(30:31,i-1) + u(10,i-1)*dt;
+                x(22:23,i) =  x(22:23,i-1) + u(9,i-1)*dt;
+                x(24:25,i) =  x(24:25,i-1) + u(10,i-1)*dt;
             end
             J(n) = 1/2*(x(:,end)-x0(:,end)).'*Qend*(x(:,end)-x0(:,end))...
-                + 100*~isSafePath(x(1,:),x(2,:),mapResolution,dilatedObstMap);
-%                 + tc*getTotalCost(x(10,end), x(11,end), mapResolution, totalCostMap)...
+                + 100*~isSafePath(x(1,:),x(2,:),mapResolution,dilatedObstMap)...
+                + tc*getTotalCost(x(10,end), x(11,end), mapResolution, totalCostMap);%...
 %                 + lc*sum(getSimpleLogBarrierCost(x(15:20,end),armJointsLimits(:,2),tLog,0))...
 %                 + lc*sum(getSimpleLogBarrierCost(x(15:20,end),armJointsLimits(:,2),tLog,1))...
 %                 + oc*getTotalCost(x(10,end), x(11,end), mapResolution, obstLogCostMap);
             for i = 1:size(t,2)-1
                 J(n) = J(n) + 1/2*((x(:,i)-x0(:,i)).'*Q(:,:,i)*(x(:,i)-x0(:,i))...
-                    + (u(:,i)-u0(:,i)).'*R*(u(:,i)-u0(:,i)));
-%                     + tc*getTotalCost(x(10,i), x(11,i), mapResolution, totalCostMap)...
+                    + (u(:,i)-u0(:,i)).'*R*(u(:,i)-u0(:,i)))...
+                    + tc*getTotalCost(x(10,i), x(11,i), mapResolution, totalCostMap);%...
 %                     + lc*sum(getSimpleLogBarrierCost(x(15:20,i),armJointsLimits(:,2),tLog,0))...
 %                     + lc*sum(getSimpleLogBarrierCost(x(15:20,i),armJointsLimits(:,2),tLog,1))...
 %                     + oc*getTotalCost(x(10,i), x(11,i), mapResolution, obstLogCostMap);
@@ -727,22 +705,20 @@ if error == 0
         x(2,i) = sin(x(12,i-1))*x(4,i-1) + cos(x(12,i-1))*x(5,i-1) + x(11,i-1);
         x(3,i) = x(6,i-1) + zBC;
         % B2EE
-        x(4:9,i) = x(4:9,i-1) + Jac(:,:,i-1)*x(22:27,i-1)*dt; 
+        x(4:9,i) = x(4:9,i-1) + Jac(:,:,i-1)*u(1:6,i-1)*dt; 
         % W2B
         x(10,i) = x(10,i-1) + cos(x(12,i-1))*x(13,i-1)*dt - sin(x(12,i-1))*x(14,i-1)*dt;
         x(11,i) = x(11,i-1) + sin(x(12,i-1))*x(13,i-1)*dt + cos(x(12,i-1))*x(14,i-1)*dt;
         x(12,i) = x(12,i-1) + x(15,i-1)*dt;
-        % W2Bspeed
-        x(13,i) = r/2*(cos(x(28,i-1))*u(7,i-1) + cos(x(30,i-1))*u(8,i-1));
-        x(14,i) = - r/2*(sin(x(28,i-1))*u(7,i-1) + sin(x(30,i-1))*u(8,i-1));
-        x(15,i) = r/(2*dfx)*(cos(x(28,i-1))*u(7,i-1) - cos(x(30,i-1))*u(8,i-1));
+        % Bspeed
+        x(13,i) = r/2*(cos(x(22,i-1))*u(7,i-1) + cos(x(24,i-1))*u(8,i-1));
+        x(14,i) = - r/2*(sin(x(22,i-1))*u(7,i-1) + sin(x(24,i-1))*u(8,i-1));
+        x(15,i) = r/(2*dfx)*(cos(x(22,i-1))*u(7,i-1) - cos(x(24,i-1))*u(8,i-1));
         % Arm Joints Position
-        x(16:21,i) = x(16:21,i-1) + x(22:27,i-1)*dt;
-        % Arm Joints Speed
-        x(22:27,i) = x(22:27,i-1) + u(1:6,i-1)*dt;
+        x(16:21,i) = x(16:21,i-1) + u(1:6,i-1)*dt;
         % Steering Joints Position
-        x(28:29,i) =  x(28:29,i-1) + u(9,i-1)*dt;
-        x(30:31,i) =  x(30:31,i-1) + u(10,i-1)*dt;
+        x(22:23,i) =  x(22:23,i-1) + u(9,i-1)*dt;
+        x(24:25,i) =  x(24:25,i-1) + u(10,i-1)*dt;
 
         if(x(16,i) < armJointsLimits(1,1) || x(16,i) > armJointsLimits(1,2))
             disp(['WARNING: Arm joint 1 is violating its position limits at waypoint ',num2str(i)]);
@@ -766,25 +742,25 @@ if error == 0
 
     toc
     iu = cumsum(abs(u(1,:)));
-    disp(['Total acc applied joint 1: ',num2str(iu(end)),' m/s^2'])
+    disp(['Total speed applied joint 1: ',num2str(iu(end)),' rad/s'])
     iu = cumsum(abs(u(2,:)));
-    disp(['Total acc applied joint 2: ',num2str(iu(end)),' m/s^2'])
+    disp(['Total speed applied joint 2: ',num2str(iu(end)),' rad/s'])
     iu = cumsum(abs(u(3,:)));
-    disp(['Total acc applied joint 3: ',num2str(iu(end)),' m/s^2'])
+    disp(['Total speed applied joint 3: ',num2str(iu(end)),' rad/s'])
     iu = cumsum(abs(u(4,:)));
-    disp(['Total acc applied joint 4: ',num2str(iu(end)),' m/s^2'])
+    disp(['Total speed applied joint 4: ',num2str(iu(end)),' rad/s'])
     iu = cumsum(abs(u(5,:)));
-    disp(['Total acc applied joint 5: ',num2str(iu(end)),' m/s^2'])
+    disp(['Total speed applied joint 5: ',num2str(iu(end)),' rad/s'])
     iu = cumsum(abs(u(6,:)));
-    disp(['Total acc applied joint 6: ',num2str(iu(end)),' m/s^2'])
+    disp(['Total speed applied joint 6: ',num2str(iu(end)),' rad/s'])
     iu = cumsum(abs(u(7,:)));
-    disp(['Total speed applied right wheels: ',num2str(iu(end)),' m/s'])
+    disp(['Total speed applied right wheels: ',num2str(iu(end)),' rad/s'])
     iu = cumsum(abs(u(8,:)));
-    disp(['Total speed applied left wheels: ',num2str(iu(end)),' m/s'])
+    disp(['Total speed applied left wheels: ',num2str(iu(end)),' rad/s'])
     iu = cumsum(abs(u(9,:)));
-    disp(['Total speed applied front steering joints: ',num2str(iu(end)),' m/s'])
+    disp(['Total speed applied front steering joints: ',num2str(iu(end)),' rad/s'])
     iu = cumsum(abs(u(10,:)));
-    disp(['Total speed applied back steering joints: ',num2str(iu(end)),' m/s'])
+    disp(['Total speed applied back steering joints: ',num2str(iu(end)),' rad/s'])
 
     figure(1)
     hold off;
@@ -891,7 +867,7 @@ if error == 0
     grid
     
     figure(3)
-    plot(t,x(28:31,:))
+    plot(t,x(22:25,:))
     title('Evolution of the steering joints', 'interpreter', ...
     'latex','fontsize',18)
     legend('$\theta_{s1}$','$\theta_{s2}$',...
@@ -903,18 +879,18 @@ if error == 0
        
     figure(4)
     plot(t,u(1:6,:))
-    title('Actuating joints accelerations','interpreter','latex')
+    title('Actuating joints velocities','interpreter','latex')
     xlabel('t(s)','interpreter','latex','fontsize',18)
-    ylabel('$\ddot\theta(m/s^2$)','interpreter','latex','fontsize',18)
-    legend('$\ddot\theta_1$','$\ddot\theta_2$',...
-           '$\ddot\theta_3$','$\ddot\theta_4$','$\ddot\theta_5$','$\ddot\theta_6$', 'interpreter', ...
+    ylabel('$\dot\theta(rad/s$)','interpreter','latex','fontsize',18)
+    legend('$\dot\theta_1$','$\dot\theta_2$',...
+           '$\dot\theta_3$','$\dot\theta_4$','$\dot\theta_5$','$\dot\theta_6$', 'interpreter', ...
            'latex','fontsize',18)
               
     figure(5)
     plot(t,u(7:8,:))
     title('Actuating wheels speed','interpreter','latex')
     xlabel('t(s)','interpreter','latex','fontsize',18)
-    ylabel('$\omega(m/s$)','interpreter','latex','fontsize',18)
+    ylabel('$\omega(rad/s$)','interpreter','latex','fontsize',18)
     legend('$\omega_R$','$\omega_L$', 'interpreter', ...
            'latex','fontsize',18)
               
@@ -922,7 +898,7 @@ if error == 0
     plot(t,u(9:10,:))
     title('Actuating steering speed','interpreter','latex')
     xlabel('t(s)','interpreter','latex','fontsize',18)
-    ylabel('$\omega(m/s$)','interpreter','latex','fontsize',18)
+    ylabel('$\omega(rad/s$)','interpreter','latex','fontsize',18)
     legend('$\omega_F$','$\omega_B$', 'interpreter', ...
            'latex','fontsize',18)
 

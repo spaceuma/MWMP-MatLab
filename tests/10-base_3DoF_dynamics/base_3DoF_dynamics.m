@@ -100,7 +100,7 @@ maxIter = 500;
 
 %% Algorithm
 % FMM to compute totalCostMap
-load('obstMap3','obstMap')
+load('obstMap2','obstMap')
 dilatedObstMap = dilateObstMap(obstMap, riskDistance, mapResolution);
 safeObstMap = dilateObstMap(obstMap, safetyDistance, mapResolution);
 
@@ -253,7 +253,7 @@ while 1
         % Bspeed
         x(13,i) = r/2*(cos(x(19,i-1))*u(4,i-1) + cos(x(21,i-1))*u(5,i-1));
         x(14,i) = - r/2*(sin(x(19,i-1))*u(4,i-1) + sin(x(21,i-1))*u(5,i-1));
-        x(15,i) = 2*r/dfx*(cos(x(19,i-1))*u(4,i-1) - cos(x(21,i-1))*u(5,i-1));
+        x(15,i) = r/(2*dfx)*(cos(x(19,i-1))*u(4,i-1) - cos(x(21,i-1))*u(5,i-1));
         % Arm Joints Position
         x(16:18,i) = x(16:18,i-1) + u(1:3,i-1)*dt;
         % Steering Joints Position
@@ -345,8 +345,8 @@ while 1
     A(14,21,1) = -r/2*cos(x(21,1))*u(5,1)/sm2;
     
     % W2B Speed Heading
-    A(15,19,1) = 2*r/dfx *(-sin(x(19,1))*u(4,1))/sm2;
-    A(15,21,1) = -2*r/dfx*(-sin(x(21,1))*u(5,1))/sm2;
+    A(15,19,1) = r/(2*dfx) *(-sin(x(19,1))*u(4,1))/sm2;
+    A(15,21,1) = -r/(2*dfx)*(-sin(x(21,1))*u(5,1))/sm2;
     
     % Arm Joints Position
     A(16:18,16:18,1) = eye(3,3);
@@ -396,8 +396,8 @@ while 1
         A(14,21,i) = -r/2*cos(x(21,i-1))*u(5,i-1)/sm2;
 
         % W2B Speed Heading
-        A(15,19,i) = 2*r/dfx *(-sin(x(19,i-1))*u(4,i-1))/sm2;
-        A(15,21,i) = -2*r/dfx*(-sin(x(21,i-1))*u(5,i-1))/sm2;
+        A(15,19,i) = r/(2*dfx) *(-sin(x(19,i-1))*u(4,i-1))/sm2;
+        A(15,21,i) = -r/(2*dfx)*(-sin(x(21,i-1))*u(5,i-1))/sm2;
 
         % Arm Joints Position
         A(16:18,16:18,i) = eye(3,3);
@@ -421,8 +421,8 @@ while 1
     B(14,5,1) = -r/2*(sin(x(21,1)) - x(21,1)*cos(x(21,1))/sm2);
     
     % W2B Speed heading
-    B(15,4,1) = 2*r/dfx*(cos(x(19,1)) + x(19,1)*sin(x(19,1))/sm2);
-    B(15,5,1) = -2*r/dfx*(cos(x(21,1)) + x(21,1)*sin(x(21,1))/sm2);
+    B(15,4,1) = r/(2*dfx)*(cos(x(19,1)) + x(19,1)*sin(x(19,1))/sm2);
+    B(15,5,1) = -r/(2*dfx)*(cos(x(21,1)) + x(21,1)*sin(x(21,1))/sm2);
     
     % Arm Joints Position
     B(16:18,1:3,1) = dt*eye(3,3);
@@ -444,8 +444,8 @@ while 1
         B(14,5,i) = -r/2*(sin(x(21,i-1)) - x(21,i-1)*cos(x(21,i-1))/sm2);
 
         % W2B Speed heading
-        B(15,4,i) = 2*r/dfx*(cos(x(19,i-1)) + x(19,i-1)*sin(x(19,i-1))/sm2);
-        B(15,5,i) = -2*r/dfx*(cos(x(21,i-1)) + x(21,i-1)*sin(x(21,i-1))/sm2);
+        B(15,4,i) = r/(2*dfx)*(cos(x(19,i-1)) + x(19,i-1)*sin(x(19,i-1))/sm2);
+        B(15,5,i) = -r/(2*dfx)*(cos(x(21,i-1)) + x(21,i-1)*sin(x(21,i-1))/sm2);
 
         % Arm Joints Position
         B(16:18,1:3,i) = dt*eye(3,3);
@@ -522,7 +522,7 @@ while 1
                 % Bspeed
                 x(13,i) = r/2*(cos(x(19,i-1))*u(4,i-1) + cos(x(21,i-1))*u(5,i-1));
                 x(14,i) = - r/2*(sin(x(19,i-1))*u(4,i-1) + sin(x(21,i-1))*u(5,i-1));
-                x(15,i) = 2*r/dfx*(cos(x(19,i-1))*u(4,i-1) - cos(x(21,i-1))*u(5,i-1));
+                x(15,i) = r/(2*dfx)*(cos(x(19,i-1))*u(4,i-1) - cos(x(21,i-1))*u(5,i-1));
                 % Arm Joints Position
                 x(16:18,i) = x(16:18,i-1) + u(1:3,i-1)*dt;
                 % Steering Joints Position
@@ -648,7 +648,7 @@ if error == 0
         % Bspeed
         x(13,i) = r/2*(cos(x(19,i-1))*u(4,i-1) + cos(x(21,i-1))*u(5,i-1));
         x(14,i) = - r/2*(sin(x(19,i-1))*u(4,i-1) + sin(x(21,i-1))*u(5,i-1));
-        x(15,i) = 2*r/dfx*(cos(x(19,i-1))*u(4,i-1) - cos(x(21,i-1))*u(5,i-1));
+        x(15,i) = r/(2*dfx)*(cos(x(19,i-1))*u(4,i-1) - cos(x(21,i-1))*u(5,i-1));
         % Arm Joints Position
         x(16:18,i) = x(16:18,i-1) + u(1:3,i-1)*dt;
         % Steering Joints Position
