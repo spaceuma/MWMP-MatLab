@@ -47,7 +47,7 @@ armJointsLimits = [-360 +360;
 xB0 = 2.0;
 yB0 = 2.5;
 zB0 = zBC;
-yawB0 = 0;
+yawB0 = -pi/2;
 
 qi = [0, -pi/2, pi/2];
 rollei = 0;
@@ -85,28 +85,31 @@ ac = 0.1; % Arm actuation cost, 60
 % Extra costs
 sm = 50; % Influence of diff turns into final speed, tune till convergence
 sm2 = 99999999; % Influence of steer turns into final speed, tune till convergence
+tc = 0.5; % Total cost map cost, 1.1
+tco = 0.5; % Total cost map orientation cost, 1.0
 
-tf = 60;
-dt = 0.1;
+tf = 60; % Time vector
+dt = 0.3;
 t = 0:dt:tf;
 
-distThreshold = 0.031;
+distThreshold = 0.031; % When should we stop the algorithm...? (metres)
 
-lineSearchStep = 0.05;
+yawThreshold = 15; % When should we start the GDM...? (degrees)
 
-iterFCApproaching = 0;
+lineSearchStep = 0.1; % Minimum actuation percentage
 
-maxIter = 500;
+% iterFCApproaching = 0;
+
+maxIter = 500; % Maximum number of iterations
+
+tau = 0.5; % GDM step size
+
 
 %% Algorithm
 % FMM to compute totalCostMap
 load('obstMap3','obstMap')
 dilatedObstMap = dilateObstMap(obstMap, riskDistance, mapResolution);
 safeObstMap = dilateObstMap(obstMap, safetyDistance, mapResolution);
-
-% distRiskMap = mapResolution*bwdist(dilatedObstMap);
-% costMap = 1./distRiskMap;
-% costMap = costMap./min(min(costMap));
 
 costMap = ones(size(obstMap));
 
@@ -123,26 +126,18 @@ iGoal = [round(xef/mapResolution)+1 round(yef/mapResolution)+1];
 
 [totalCostMap, ~] = computeTmap(costMap,iGoal);
 
-% Quadratizing totalCostMap
-totalCostMap(totalCostMap == Inf) = NaN;
-[gTCMx, gTCMy] = calculateGradient(mapResolution*totalCostMap);
-
 tau = 0.5;
 [referencePath,~,~,~] = getPathGDM(totalCostMap,iInit,iGoal,tau);
 referencePath = (referencePath-1)*mapResolution;
-yaw = getYaw(referencePath, yawB0);
-referencePath = [referencePath yaw];
 
-% Generating obst log cost map
-% tLog = 10;
-% obstLogCostMap = zeros(size(distMap));
-% for i = 1:size(distMap,1)
-%     for j = 1:size(distMap,2)
-%         obstLogCostMap(j,i) = getSimpleLogBarrierCost(distMap(j,i),safetyDistance,tLog,1);
-%     end
-% end
-% 
-% [gOLCMx, gOLCMy] = calculateMapGradient(obstLogCostMap);
+while(size(referencePath,1) > 1000)
+    [referencePath,~,~,~] = getPathGDM(totalCostMap,iInit+sign(2*rand(1,2)-1),iGoal,tau);
+    referencePath = (referencePath-1)*mapResolution;
+end
+
+% Quadratizing totalCostMap
+totalCostMap(totalCostMap == Inf) = NaN;
+[gTCMx, gTCMy] = calculateGradient(mapResolution*totalCostMap);
 
 % State vectors
 x = zeros(22,size(t,2));
@@ -181,17 +176,6 @@ u = zeros(7,size(t,2));
 % Target state and control trajectories
 x0 = zeros(22,size(t,2));
 
-% Resize path
-x1 = 1:size(referencePath,1);
-x2 = linspace(1,size(referencePath,1),size(x,2));
-resizedPath = interp1(x1,referencePath,x2);
-reachabilityIndex = getDistanceIndex(resizedPath, [xef yef], reachabilityDistance);
-
-x0(10,:) = resizedPath(:,1);
-x0(11,:) = resizedPath(:,2);
-x0(12,:) = resizedPath(:,3);
-
-
 % WTEE
 x0(1,end) = xef;
 x0(2,end) = yef;
@@ -224,6 +208,11 @@ x0(22,end) = 0;
 u0 = zeros(7,size(t,2));
 
 Jac = zeros(6,3,size(t,2));
+
+% GDM initialization
+isDescendingGradient = zeros(size(t,2),1);
+startingIndex = 0;
+reachabilityIndex = 0;
 
 % Plotting stuff
 map = [0 0.6   0
@@ -262,20 +251,83 @@ while 1
     end
     Jac(:,:,end) = jacobian3(x(16:18,end));
 
+    % Gradient Descent Method Integration
+    for i = 1:size(t,2)
+        if(~isDescendingGradient(i))
+            [TcmX, TcmY] = getGradientTotalCost(x(10,i), x(11,i), mapResolution, gTCMx, gTCMy);
+            descendingYaw = atan2(-TcmY, -TcmX);
+            if(abs(x(12,i) - descendingYaw) < yawThreshold*pi/180)
+                
+                % GDM from the coinciding yaw waypoint
+                iInit = [round(x(10,i)/mapResolution)+1 round(x(11,i)/mapResolution)+1];
+                if(iInit(1)>size(dilatedObstMap,1)-2)
+                    iInit(1) = size(dilatedObstMap,1)-2;
+                end
+                if(iInit(1)<3)
+                    iInit(1) = 3;
+                end
+                if(iInit(2)>size(dilatedObstMap,2)-2)
+                    iInit(2) = size(dilatedObstMap,2)-2;
+                end
+                if(iInit(2)<3)
+                    iInit(2) = 3;
+                end
+                [auxPath,~,~,~] = getPathGDM(totalCostMap,iInit,iGoal,tau);
+                auxPath = (auxPath-1)*mapResolution;
+                
+                while(size(auxPath,1) > 1000)
+                    [auxPath,~,~,~] = getPathGDM(totalCostMap,iInit+sign(2*rand(1,2)-1),iGoal,tau);
+                    auxPath = (auxPath-1)*mapResolution;
+                end
+                
+                yaw = getYaw(auxPath, descendingYaw);
+                auxPath = [auxPath yaw];
+                
+                if(isSafePath(auxPath(:,1),auxPath(:,2),mapResolution,dilatedObstMap) &&...
+                   isSafePath(x(10,1:i),x(11,1:i),mapResolution,dilatedObstMap))
+                    disp(['Hey! I found a coinciding yaw waypoint at index ',num2str(i),', starting GDM!'])
+
+                    % Resize path
+                    x1 = 1:size(auxPath,1);
+                    x2 = linspace(1,size(auxPath,1),size(x,2)-i+1);
+                    resizedPath = interp1(x1,auxPath,x2);
+
+                    startingIndex = i;
+                    reachabilityIndex = startingIndex + ...
+                        getDistanceIndex(resizedPath, [xef yef], reachabilityDistance);
+                    
+                    isDescendingGradient(i:size(x,2)) = 1;
+
+                    x0(10,startingIndex:size(x,2)) = resizedPath(:,1);
+                    x0(11,startingIndex:size(x,2)) = resizedPath(:,2);
+                    x0(12,startingIndex:size(x,2)) = resizedPath(:,3);
+                    
+                    break;
+                end
+
+            end
+        else
+            break;
+        end
+    end
+    
     xh0 = x0 - x;
     uh0 = u0 - u;    
     
     % Quadratize cost function along the trajectory
     Q = zeros(size(x,1),size(x,1),size(t,2));
-    Q(10,10,1:reachabilityIndex) = rtc;
-    Q(11,11,1:reachabilityIndex) = rtc;
-    Q(12,12,1:reachabilityIndex) = rtc;
-    
-    Q(10,10,reachabilityIndex:end) = rtc/9999999;
-    Q(11,11,reachabilityIndex:end) = rtc/9999999;
-    Q(12,12,reachabilityIndex:end) = rtc/9999999;
-     
     Qend = zeros(size(x,1),size(x,1));
+
+    if(startingIndex > 0 && reachabilityIndex > 0)
+        Q(10,10,startingIndex:reachabilityIndex) = rtc;
+        Q(11,11,startingIndex:reachabilityIndex) = rtc;
+        Q(12,12,startingIndex:reachabilityIndex) = rtc;
+
+        Q(10,10,reachabilityIndex:end) = rtc/9999999;
+        Q(11,11,reachabilityIndex:end) = rtc/9999999;
+        Q(12,12,reachabilityIndex:end) = rtc/9999999;
+    end
+     
     Qend(1,1) = fc;
     Qend(2,2) = fc;
     Qend(3,3) = fc;
@@ -285,10 +337,6 @@ while 1
     Qend(13,13) = fsc;
     Qend(14,14) = fsc;
     Qend(15,15) = fsc;
-    
-%     Qend(22,22) = fsc;
-%     Qend(23,23) = fsc;
-%     Qend(24,24) = fsc;
     
     R = eye(size(u,1));
     R(1,1) = ac;
@@ -454,6 +502,20 @@ while 1
         B(19:20,6,i) = dt;
         B(21:22,7,i) = dt;
     end    
+        
+    % Total cost map cost
+    Tcmx = zeros(size(Q,1),size(t,2)); 
+    if tc > 0
+        for i = 1:size(t,2)
+            if(~isDescendingGradient(i))
+                [Tcmx(13,i), Tcmx(14,i)] = getGradientTotalCost(x(10,i), x(11,i), mapResolution, gTCMx, gTCMy);
+                Tcmx(13,i) = tc*Tcmx(13,i);
+                Tcmx(14,i) = tc*Tcmx(14,i);
+                x0(12,i) = atan2(-Tcmx(14,i), -Tcmx(13,i));
+                Q(12,12,i) = tco;
+            end
+        end
+    end
     
     % LQ problem solution
     M = zeros(size(B,1),size(B,1),size(t,2));
@@ -530,10 +592,12 @@ while 1
                 x(21:22,i) =  x(21:22,i-1) + u(7,i-1)*dt;
             end
             J(n) = 1/2*(x(:,end)-x0(:,end)).'*Qend*(x(:,end)-x0(:,end))...
-                + 100*~isSafePath(x(1,:),x(2,:),mapResolution,dilatedObstMap);
+                + 100*~isSafePath(x(1,:),x(2,:),mapResolution,dilatedObstMap)...
+                + tc*getTotalCost(x(10,end), x(11,end), mapResolution, totalCostMap);
             for i = 1:size(t,2)-1
                 J(n) = J(n) + 1/2*((x(:,i)-x0(:,i)).'*Q(:,:,i)*(x(:,i)-x0(:,i))...
-                    + (u(:,i)-u0(:,i)).'*R*(u(:,i)-u0(:,i)));
+                    + (u(:,i)-u0(:,i)).'*R*(u(:,i)-u0(:,i)))...
+                    + tc*getTotalCost(x(10,i), x(11,i), mapResolution, totalCostMap);
             end            
         end
         [mincost, ind] = min(J);
@@ -612,7 +676,12 @@ while 1
     daspect([1 1 1])
     contourf(X,Y,dilatedObstMap+obstMap);
     plot3(x(1,:),x(2,:),x(3,:), 'LineWidth', 5, 'Color', 'y')
-    plot3(x(10,1:end-1),x(11,1:end-1),zBC*ones(size(x,2)-1), 'LineWidth', 5, 'Color', [1,0.5,0])
+    if startingIndex > 0
+        plot3(x(10,1:startingIndex),x(11,1:startingIndex),zBC*ones(startingIndex), 'LineWidth', 5, 'Color', [1,0.5,0])
+        plot3(x(10,startingIndex:end-1),x(11,startingIndex:end-1),zBC*ones(size(t,2)-startingIndex), 'LineWidth', 5, 'Color', [0.5,0.2,0])
+    else
+        plot3(x(10,1:end-1),x(11,1:end-1),zBC*ones(size(x,2)-1), 'LineWidth', 5, 'Color', [1,0.5,0])
+    end
     title('Mobile manipulator trajectories', 'interpreter', ...
     'latex','fontsize',18)
     plot3(referencePath(:,1),referencePath(:,2), zBC*ones(size(referencePath,1),2), 'LineWidth', 5, 'Color', [0,0,0.6])
@@ -744,7 +813,12 @@ if error == 0
     daspect([1 1 1])
     contourf(X,Y,dilatedObstMap+obstMap);
     plot3(x(1,:),x(2,:),x(3,:), 'LineWidth', 5, 'Color', 'y')
-    plot3(x(10,1:end-1),x(11,1:end-1),zBC*ones(size(x,2)-1), 'LineWidth', 5, 'Color', [1,0.5,0])
+    if startingIndex > 0
+        plot3(x(10,1:startingIndex),x(11,1:startingIndex),zBC*ones(startingIndex), 'LineWidth', 5, 'Color', [1,0.5,0])
+        plot3(x(10,startingIndex:end-1),x(11,startingIndex:end-1),zBC*ones(size(t,2)-startingIndex), 'LineWidth', 5, 'Color', [0.5,0.2,0])
+    else
+        plot3(x(10,1:end-1),x(11,1:end-1),zBC*ones(size(x,2)-1), 'LineWidth', 5, 'Color', [1,0.5,0])
+    end
     title('Mobile manipulator trajectories', 'interpreter', ...
     'latex','fontsize',18)
     plot3(referencePath(:,1),referencePath(:,2), zBC*ones(size(referencePath,1),2), 'LineWidth', 5, 'Color', [0,0,0.6])

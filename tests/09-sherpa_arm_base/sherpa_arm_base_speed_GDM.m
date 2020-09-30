@@ -117,11 +117,7 @@ load('obstMap3','obstMap')
 dilatedObstMap = dilateObstMap(obstMap, riskDistance, mapResolution);
 safeObstMap = dilateObstMap(obstMap, safetyDistance, mapResolution);
 
-% distRiskMap = mapResolution*bwdist(dilatedObstMap);
-% costMap = 1./distRiskMap;
-% costMap = costMap./min(min(costMap));
 costMap = ones(size(obstMap));
-
 
 distMap = mapResolution*bwdist(obstMap);
 auxMap = 1./distMap;
