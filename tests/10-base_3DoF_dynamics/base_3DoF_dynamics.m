@@ -54,8 +54,8 @@ rollei = 0;
 pitchei = pi/2;
 yawei = 0;
 
-xef = 8.5;
-yef = 2.7;
+xef = 2.5;
+yef = 8.7;
 zef = 0.2;
 rollef = 0;
 pitchef = pi;
@@ -87,7 +87,7 @@ sm = 50; % Influence of diff turns into final speed, tune till convergence
 sm2 = 99999999; % Influence of steer turns into final speed, tune till convergence
 
 tf = 60;
-dt = 0.2;
+dt = 0.1;
 t = 0:dt:tf;
 
 distThreshold = 0.031;
@@ -100,7 +100,7 @@ maxIter = 500;
 
 %% Algorithm
 % FMM to compute totalCostMap
-load('obstMap2','obstMap')
+load('obstMap3','obstMap')
 dilatedObstMap = dilateObstMap(obstMap, riskDistance, mapResolution);
 safeObstMap = dilateObstMap(obstMap, safetyDistance, mapResolution);
 
@@ -799,9 +799,16 @@ if error == 0
     legend('$\omega_F$','$\omega_B$', 'interpreter', ...
            'latex','fontsize',18)
 
-
-    simAcc = 1;
-    sim('base_3DoF_dynamics_sim_forces',t(end)*simAcc);
+       
+    %% Simulation
+    mu_k = 0.1;
+    mu_s = 1;
+    vth = 0.001;
+    
+    k = 1e6;
+    b = 1e4;
+    
+    sim('base_3DoF_dynamics_sim_forces',t(end));
 
 end
 
