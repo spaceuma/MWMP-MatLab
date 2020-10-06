@@ -6,8 +6,10 @@ function Rz = getZRot(angle)
       
     for i = 1:4  
         for j = 1:4
-            if(abs(Rz(i,j)) < 1e-6) 
-                Rz(i,j) = 0;
+            if isnumeric(Rz(i,j))
+                if abs(Rz(i,j)) < 1e-6 
+                    Rz(i,j) = 0;
+                end
             end
         end
     end
