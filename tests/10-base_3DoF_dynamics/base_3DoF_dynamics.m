@@ -7,7 +7,12 @@ addpath('../../models/3DoF')
 
 addpath('../../costs')
 addpath('../../utils')
- 
+
+if isempty(matlab.project.rootProject)
+    matlab.project.loadProject('../../../Simscape/Contact_Forces_Library.prj')
+    cd 'C:\Users\gonzalopd96\Documents\kinematic_planning\tests\10-base_3DoF_dynamics'
+end
+
 clear
 
 tic
@@ -21,6 +26,13 @@ a2 = 0.735;
 global d4;
 d4 = 0.695;
 
+global h;
+h = 0.05;
+global w;
+w = 0.1;
+
+global rho;
+rho = 2700;
 
 global dfx;
 dfx = 0.7;
@@ -827,57 +839,57 @@ if error == 0
     hold off;
 
 
-    figure(2)
-    plot(t,x(16:18,:))
-    title('Evolution of the arm joints', 'interpreter', ...
-    'latex','fontsize',18)
-    legend('$\theta_1$','$\theta_2$','$\theta_3$', 'interpreter', ...
-           'latex','fontsize',18)
-    xlabel('$t (s)$', 'interpreter', 'latex','fontsize',18)
-    ylabel('$\theta (rad)$', 'interpreter', 'latex','fontsize',18)
-    grid
-    
-    figure(3)
-    plot(t,x(19:22,:))
-    title('Evolution of the steering joints', 'interpreter', ...
-    'latex','fontsize',18)
-    legend('$\theta_{s1}$','$\theta_{s2}$',...
-           '$\theta_{s3}$','$\theta_{s4}$', 'interpreter', ...
-           'latex','fontsize',18)
-    xlabel('$t (s)$', 'interpreter', 'latex','fontsize',18)
-    ylabel('$\theta (rad)$', 'interpreter', 'latex','fontsize',18)
-    grid
-       
-    figure(4)
-    plot(t,u(1:3,:))
-    title('Actuating joints speed','interpreter','latex')
-    xlabel('t(s)','interpreter','latex','fontsize',18)
-    ylabel('$\dot\theta(m/s$)','interpreter','latex','fontsize',18)
-    legend('$\dot\theta_1$','$\dot\theta_2$',...
-           '$\dot\theta_3$','interpreter', ...
-           'latex','fontsize',18)
-              
-    figure(5)
-    plot(t,u(4:5,:))
-    title('Actuating wheels speed','interpreter','latex')
-    xlabel('t(s)','interpreter','latex','fontsize',18)
-    ylabel('$\omega(m/s$)','interpreter','latex','fontsize',18)
-    legend('$\omega_R$','$\omega_L$', 'interpreter', ...
-           'latex','fontsize',18)
-              
-    figure(6)
-    plot(t,u(6:7,:))
-    title('Actuating steering speed','interpreter','latex')
-    xlabel('t(s)','interpreter','latex','fontsize',18)
-    ylabel('$\omega(m/s$)','interpreter','latex','fontsize',18)
-    legend('$\omega_F$','$\omega_B$', 'interpreter', ...
-           'latex','fontsize',18)
+%     figure(2)
+%     plot(t,x(16:18,:))
+%     title('Evolution of the arm joints', 'interpreter', ...
+%     'latex','fontsize',18)
+%     legend('$\theta_1$','$\theta_2$','$\theta_3$', 'interpreter', ...
+%            'latex','fontsize',18)
+%     xlabel('$t (s)$', 'interpreter', 'latex','fontsize',18)
+%     ylabel('$\theta (rad)$', 'interpreter', 'latex','fontsize',18)
+%     grid
+%     
+%     figure(3)
+%     plot(t,x(19:22,:))
+%     title('Evolution of the steering joints', 'interpreter', ...
+%     'latex','fontsize',18)
+%     legend('$\theta_{s1}$','$\theta_{s2}$',...
+%            '$\theta_{s3}$','$\theta_{s4}$', 'interpreter', ...
+%            'latex','fontsize',18)
+%     xlabel('$t (s)$', 'interpreter', 'latex','fontsize',18)
+%     ylabel('$\theta (rad)$', 'interpreter', 'latex','fontsize',18)
+%     grid
+%        
+%     figure(4)
+%     plot(t,u(1:3,:))
+%     title('Actuating joints speed','interpreter','latex')
+%     xlabel('t(s)','interpreter','latex','fontsize',18)
+%     ylabel('$\dot\theta(m/s$)','interpreter','latex','fontsize',18)
+%     legend('$\dot\theta_1$','$\dot\theta_2$',...
+%            '$\dot\theta_3$','interpreter', ...
+%            'latex','fontsize',18)
+%               
+%     figure(5)
+%     plot(t,u(4:5,:))
+%     title('Actuating wheels speed','interpreter','latex')
+%     xlabel('t(s)','interpreter','latex','fontsize',18)
+%     ylabel('$\omega(m/s$)','interpreter','latex','fontsize',18)
+%     legend('$\omega_R$','$\omega_L$', 'interpreter', ...
+%            'latex','fontsize',18)
+%               
+%     figure(6)
+%     plot(t,u(6:7,:))
+%     title('Actuating steering speed','interpreter','latex')
+%     xlabel('t(s)','interpreter','latex','fontsize',18)
+%     ylabel('$\omega(m/s$)','interpreter','latex','fontsize',18)
+%     legend('$\omega_F$','$\omega_B$', 'interpreter', ...
+%            'latex','fontsize',18)
 
        
     %% Simulation
     mu_k = 0.1;
     mu_s = 1;
-    vth = 0.001;
+    vth = 10;
     
     k = 1e6;
     b = 1e4;
