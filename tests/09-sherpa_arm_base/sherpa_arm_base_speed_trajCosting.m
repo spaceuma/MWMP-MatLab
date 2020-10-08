@@ -50,7 +50,7 @@ armJointsLimits = [-360 +360;
                    -360 +360]*pi/180;
 
 %% Constraints 
-xB0 = 8.00;
+xB0 = 2.00;
 yB0 = 2.20;
 zB0 = zBC;
 yawB0 = pi;
@@ -81,7 +81,8 @@ zei = TW6(3,4);
 fc = 1000000; % Final state cost, 1000000
 foc = 1000000; % Final orientation cost, 1000000
 fsc = 1000000; % Final zero speed cost, 1000000
-rtc = 0.5; % Reference path max cost 1
+rtc = 1.0; % Reference path max cost 1
+rtor = 0.25; % Percentage of rtc when wayp orientation = pi/2
 
 % Input costs
 bc = 0.1; % Base actuation cost, 0.1
@@ -91,7 +92,7 @@ ac = 0.1; % Arm actuation cost, 0.1
 % Extra costs
 sm = 50; % Influence of diff turns into final speed, tune till convergence 50
 sm2 = 9999999999; % Influence of steer turns into final speed, tune till convergence 999999999
-tc = 0.005; % Total cost map cost, 1.1
+tc = 0.000; % Total cost map cost, 0.005
 % tco = 0.01; % Total cost map orientation cost, 1.0
 
 tf = 60; % Time vector
@@ -100,7 +101,7 @@ t = 0:dt:tf;
 
 distThreshold = 0.031; % When should we stop the algorithm...? (metres)
 
-lineSearchStep = 0.06; % Step actuation percentage
+lineSearchStep = 0.10; % Step actuation percentage
 
 % iterFCApproaching = 0;
 
@@ -303,13 +304,14 @@ while 1
         pathi = [pathi yaw].';
         
          
-        if norm(x(10:11,i) - x(10:11,i-1)) > tau*mapResolution
+        if norm(x(10:11,i) - x(10:11,i-1)) > tau*mapResolution && ...
+            norm(x(10:11,i) - x0(10:11,i)) < 2
             newCost = getTrajectoryCost(pathi, x(10:12,i:end));
             oldCost = getTrajectoryCost(x0(10:12,i:end), x(10:12,i:end));
 
-            if newCost*1.30 < oldCost && oldCost > 0.025 &&...
+            if newCost*1.30 < oldCost && oldCost > 0.05 &&...
                isSafePath(pathi(1,:),pathi(2,:),mapResolution,dilatedObstMap) && ...
-               getPathsSimilarity(pathi, x0(10:12,i:end), 0.2) < 0.4
+               DiscreteFrechetDist(pathi, x0(10:12,i:end)) > 0.5
                 x0(10:12,i:end) = pathi;
                 disp(['Changing reference path from waypoint ',num2str(i), '...'])
             end
@@ -332,7 +334,7 @@ while 1
             headingDeviation = abs(headingDeviation - 2*pi);
         end
         
-        Q(10:12,10:12,i) = (rtc - 2*rtc/pi*headingDeviation + rtc / pi^2 * headingDeviation^2)*eye(3,3);
+        Q(10:12,10:12,i) = (rtc - rtc*rtor/pi*(3/rtor-4)*headingDeviation + 2*rtc*rtor*(1/rtor-2)/pi^2 * headingDeviation^2)*eye(3,3);
         
         if norm([x(10,i) x(11,i)] - [xef yef]) < reachabilityDistance
             Q(10:12,10:12,i) = Q(10:12,10:12,i)/9999;
@@ -857,52 +859,52 @@ if error == 0
     hold off;
 
 
-    figure(2)
-    plot(t,x(16:21,:))
-    title('Evolution of the arm joints', 'interpreter', ...
-    'latex','fontsize',18)
-    legend('$\theta_1$','$\theta_2$',...
-           '$\theta_3$','$\theta_4$','$\theta_5$','$\theta_6$', 'interpreter', ...
-           'latex','fontsize',18)
-    xlabel('$t (s)$', 'interpreter', 'latex','fontsize',18)
-    ylabel('$\theta (rad)$', 'interpreter', 'latex','fontsize',18)
-    grid
-    
-    figure(3)
-    plot(t,x(22:25,:))
-    title('Evolution of the steering joints', 'interpreter', ...
-    'latex','fontsize',18)
-    legend('$\theta_{s1}$','$\theta_{s2}$',...
-           '$\theta_{s3}$','$\theta_{s4}$', 'interpreter', ...
-           'latex','fontsize',18)
-    xlabel('$t (s)$', 'interpreter', 'latex','fontsize',18)
-    ylabel('$\theta (rad)$', 'interpreter', 'latex','fontsize',18)
-    grid
-       
-    figure(4)
-    plot(t,u(1:6,:))
-    title('Actuating joints velocities','interpreter','latex')
-    xlabel('t(s)','interpreter','latex','fontsize',18)
-    ylabel('$\dot\theta(rad/s$)','interpreter','latex','fontsize',18)
-    legend('$\dot\theta_1$','$\dot\theta_2$',...
-           '$\dot\theta_3$','$\dot\theta_4$','$\dot\theta_5$','$\dot\theta_6$', 'interpreter', ...
-           'latex','fontsize',18)
-              
-    figure(5)
-    plot(t,u(7:8,:))
-    title('Actuating wheels speed','interpreter','latex')
-    xlabel('t(s)','interpreter','latex','fontsize',18)
-    ylabel('$\omega(rad/s$)','interpreter','latex','fontsize',18)
-    legend('$\omega_R$','$\omega_L$', 'interpreter', ...
-           'latex','fontsize',18)
-              
-    figure(6)
-    plot(t,u(9:10,:))
-    title('Actuating steering speed','interpreter','latex')
-    xlabel('t(s)','interpreter','latex','fontsize',18)
-    ylabel('$\omega(rad/s$)','interpreter','latex','fontsize',18)
-    legend('$\omega_F$','$\omega_B$', 'interpreter', ...
-           'latex','fontsize',18)
+%     figure(2)
+%     plot(t,x(16:21,:))
+%     title('Evolution of the arm joints', 'interpreter', ...
+%     'latex','fontsize',18)
+%     legend('$\theta_1$','$\theta_2$',...
+%            '$\theta_3$','$\theta_4$','$\theta_5$','$\theta_6$', 'interpreter', ...
+%            'latex','fontsize',18)
+%     xlabel('$t (s)$', 'interpreter', 'latex','fontsize',18)
+%     ylabel('$\theta (rad)$', 'interpreter', 'latex','fontsize',18)
+%     grid
+%     
+%     figure(3)
+%     plot(t,x(22:25,:))
+%     title('Evolution of the steering joints', 'interpreter', ...
+%     'latex','fontsize',18)
+%     legend('$\theta_{s1}$','$\theta_{s2}$',...
+%            '$\theta_{s3}$','$\theta_{s4}$', 'interpreter', ...
+%            'latex','fontsize',18)
+%     xlabel('$t (s)$', 'interpreter', 'latex','fontsize',18)
+%     ylabel('$\theta (rad)$', 'interpreter', 'latex','fontsize',18)
+%     grid
+%        
+%     figure(4)
+%     plot(t,u(1:6,:))
+%     title('Actuating joints velocities','interpreter','latex')
+%     xlabel('t(s)','interpreter','latex','fontsize',18)
+%     ylabel('$\dot\theta(rad/s$)','interpreter','latex','fontsize',18)
+%     legend('$\dot\theta_1$','$\dot\theta_2$',...
+%            '$\dot\theta_3$','$\dot\theta_4$','$\dot\theta_5$','$\dot\theta_6$', 'interpreter', ...
+%            'latex','fontsize',18)
+%               
+%     figure(5)
+%     plot(t,u(7:8,:))
+%     title('Actuating wheels speed','interpreter','latex')
+%     xlabel('t(s)','interpreter','latex','fontsize',18)
+%     ylabel('$\omega(rad/s$)','interpreter','latex','fontsize',18)
+%     legend('$\omega_R$','$\omega_L$', 'interpreter', ...
+%            'latex','fontsize',18)
+%               
+%     figure(6)
+%     plot(t,u(9:10,:))
+%     title('Actuating steering speed','interpreter','latex')
+%     xlabel('t(s)','interpreter','latex','fontsize',18)
+%     ylabel('$\omega(rad/s$)','interpreter','latex','fontsize',18)
+%     legend('$\omega_F$','$\omega_B$', 'interpreter', ...
+%            'latex','fontsize',18)
 
 
     % sim('simulink_sherpa_tt_simpleBase',15);

@@ -81,20 +81,20 @@ zei = TW6(3,4);
 fc = 1000000; % Final state cost, 1000000
 foc = 1000000; % Final orientation cost, 1000000
 fsc = 1000000; % Final zero speed cost, 1000000
-rtc = 0; % Reference path cost 7
+rtc = 7.0; % Reference path cost 7
 
 % Input costs
 bc = 0.1; % Base actuation cost, 0.1
 sc = 0.1; % Steering cost, 0.1
-ac = 9; % Arm actuation cost, 0.1
+ac = 0.1; % Arm actuation cost, 0.1
 
 % Extra costs
 sm = 50; % Influence of diff turns into final speed, tune till convergence 50
 sm2 = 9999999999; % Influence of steer turns into final speed, tune till convergence 999999999
 lc = 0.0; % Joints limits cost, 0.0
 oc = 0.0; % Obstacles limits cost, 0.0
-tc = 0.01; % Total cost map cost, 1.1
-tco = 0.01; % Total cost map orientation cost, 1.0
+tc = 0.00; % Total cost map cost, 1.1
+tco = 0.00; % Total cost map orientation cost, 1.0
 
 tf = 60;
 dt = 0.6;
@@ -102,7 +102,7 @@ t = 0:dt:tf;
 
 distThreshold = 0.031;
 
-lineSearchStep = 0.01;
+lineSearchStep = 0.06;
 
 iterFCApproaching = 0;
 
