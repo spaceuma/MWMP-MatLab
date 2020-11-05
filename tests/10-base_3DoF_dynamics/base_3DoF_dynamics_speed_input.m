@@ -47,7 +47,7 @@ global reachabilityDistance;
 reachabilityDistance = (a1+a2+d4-zBC-d0);
 
 riskDistance = 1;
-safetyDistance = 1.3;
+safetyDistance = 1.5;
 mapResolution = 0.05;
 vehicleSpeed = 0.1;
 
@@ -59,7 +59,7 @@ armJointsLimits = [-360 +360;
 xB0 = 2.0;
 yB0 = 2.5;
 zB0 = zBC;
-yawB0 = -pi/2;
+yawB0 = 0;
 
 qi = [0, -pi/2, pi/2];
 rollei = 0;
@@ -84,29 +84,35 @@ zei = TW3(3,4);
 
 %% Costs
 % State costs
-fc = 1000000; % Final state cost, 1000000
+fc = 1000000000; % Final state cost, 1000000
 foc = 0; % Final orientation cost, 0
 fsc = 1000000; % Final zero speed cost, 1000000
-rtc = 7; % Reference path cost 7
+rtc = 1.0; % Reference path max cost 1
+rtor = 0.25; % Percentage of rtc when wayp orientation = pi/2
+
+tau1c = 2; % Joint 1 inverse torque constant
+tau2c = 2; % Joint 2 inverse torque constant
+tau3c = 2; % Joint 3 inverse torque constant
 
 % Input costs
 bc = 0.1; % Base actuation cost, 2
 sc = 0.1; % Steering cost, 2
-ac = 0.1; % Arm actuation cost, 60
+ac1 = 10000000; % Arm actuation cost, 60
+ac2 = 10000000; % Arm actuation cost, 60
+ac3 = 10000000; % Arm actuation cost, 60
+
 
 % Extra costs
 sm = 50; % Influence of diff turns into final speed, tune till convergence
 sm2 = 99999999; % Influence of steer turns into final speed, tune till convergence
-tc = 0.5; % Total cost map cost, 1.1
-tco = 0.5; % Total cost map orientation cost, 1.0
+tc = 0.0; % Total cost map cost, 1.1
+% tco = 0.5; % Total cost map orientation cost, 1.0
 
 tf = 60; % Time vector
 dt = 0.3;
 t = 0:dt:tf;
 
 distThreshold = 0.031; % When should we stop the algorithm...? (metres)
-
-yawThreshold = 15; % When should we start the GDM...? (degrees)
 
 lineSearchStep = 0.1; % Minimum actuation percentage
 
@@ -138,21 +144,29 @@ iGoal = [round(xef/mapResolution)+1 round(yef/mapResolution)+1];
 
 [totalCostMap, ~] = computeTmap(costMap,iGoal);
 
-tau = 0.5;
-[referencePath,~,~,~] = getPathGDM(totalCostMap,iInit,iGoal,tau);
-referencePath = (referencePath-1)*mapResolution;
-
-while(size(referencePath,1) > 1000)
-    [referencePath,~,~,~] = getPathGDM(totalCostMap,iInit+sign(2*rand(1,2)-1),iGoal,tau);
-    referencePath = (referencePath-1)*mapResolution;
-end
-
 % Quadratizing totalCostMap
 totalCostMap(totalCostMap == Inf) = NaN;
 [gTCMx, gTCMy] = calculateGradient(mapResolution*totalCostMap);
 
+[referencePath,~] = getPathGDM2(totalCostMap,iInit,iGoal,tau, gTCMx, gTCMy);
+referencePath = (referencePath-1)*mapResolution;
+
+while(size(referencePath,1) > 1000)
+    [referencePath,~] = getPathGDM2(totalCostMap,iInit+round(2*rand(1,2)-1),iGoal,tau, gTCMx, gTCMy);
+    referencePath = (referencePath-1)*mapResolution;
+end
+
+% Resize path
+x1 = 1:size(referencePath,1);
+x2 = linspace(1,size(referencePath,1),size(t,2));
+referencePath = interp1(x1,referencePath,x2);
+
+yaw = getYaw(referencePath);
+referencePath = [referencePath yaw].';
+
 % State vectors
-x = zeros(22,size(t,2));
+sizeStateVector = 31;
+x = zeros(sizeStateVector,size(t,2));
 % WTEE
 x(1,1) = xei;
 x(2,1) = yei;
@@ -181,12 +195,27 @@ x(19,1) = 0;
 x(20,1) = 0;
 x(21,1) = 0;
 x(22,1) = 0;
+% Arm velocities
+x(23,1) = 0;
+x(24,1) = 0;
+x(25,1) = 0;
+% Arm accelerations
+x(26,1) = 0;
+x(27,1) = 0;
+x(28,1) = 0;
+% Arm torques
+x(29,1) = 0;
+x(30,1) = 0;
+x(31,1) = 0;
 
 % Initial control law
-u = zeros(7,size(t,2));
+sizeInputVector = 7;
+u = zeros(sizeInputVector,size(t,2));
 
 % Target state and control trajectories
-x0 = zeros(22,size(t,2));
+x0 = zeros(sizeStateVector,size(t,2));
+
+x0(10:12,1:end) = referencePath;
 
 % WTEE
 x0(1,end) = xef;
@@ -200,9 +229,9 @@ x0(7,end) = rollef;
 x0(8,end) = pitchef;
 x0(9,end) = yawef;
 % WTB
-x0(10,end) = 0;
-x0(11,end) = 0;
-x0(12,end) = 0;
+% x0(10,end) = 0;
+% x0(11,end) = 0;
+% x0(12,end) = 0;
 % Bspeed
 x0(13,end) = 0;
 x0(14,end) = 0;
@@ -216,14 +245,24 @@ x0(19,end) = 0;
 x0(20,end) = 0;
 x0(21,end) = 0;
 x0(22,end) = 0;
+% Arm velocities
+x0(23,end) = 0;
+x0(24,end) = 0;
+x0(25,end) = 0;
+% Arm accelerations
+x0(26,end) = 0;
+x0(27,end) = 0;
+x0(28,end) = 0;
+% Arm torques
+x0(29,end) = 0;
+x0(30,end) = 0;
+x0(31,end) = 0;
 
-u0 = zeros(7,size(t,2));
+u0 = zeros(sizeInputVector,size(t,2));
 
 Jac = zeros(6,3,size(t,2));
 
 % GDM initialization
-isDescendingGradient = zeros(size(t,2),1);
-startingIndex = 0;
 reachabilityIndex = 0;
 
 % Plotting stuff
@@ -258,88 +297,97 @@ while 1
         % Arm Joints Position
         x(16:18,i) = x(16:18,i-1) + u(1:3,i-1)*dt;
         % Steering Joints Position
-        x(19:20,i) =  x(19:20,i-1) + u(6,i-1)*dt;
-        x(21:22,i) =  x(21:22,i-1) + u(7,i-1)*dt;
+        x(19:20,i) = x(19:20,i-1) + u(6,i-1)*dt;
+        x(21:22,i) = x(21:22,i-1) + u(7,i-1)*dt;
+        % Arm velocities
+        x(23:25,i) = u(1:3,i-1);
+        % Arm accelerations
+        x(26:28,i) = (u(1:3,i-1)-x(23:25,i-1))/dt;
+        % Arm torques        
+        x(29:31,i) = getB3(x(16,i-1), x(17,i-1), x(18,i-1))*x(26:28,i-1) +...
+                     getC3(x(16,i-1), x(17,i-1), x(18,i-1), u(1,i-1), u(2,i-1), u(3,i-1))*u(1:3,i-1) +...
+                     getG3(x(16,i-1), x(17,i-1), x(18,i-1));
     end
     Jac(:,:,end) = jacobian3(x(16:18,end));
 
-    % Gradient Descent Method Integration
-    for i = 1:size(t,2)
-        if(~isDescendingGradient(i))
-            [TcmX, TcmY] = getGradientTotalCost(x(10,i), x(11,i), mapResolution, gTCMx, gTCMy);
-            descendingYaw = atan2(-TcmY, -TcmX);
-            if(abs(x(12,i) - descendingYaw) < yawThreshold*pi/180)
-                
-                % GDM from the coinciding yaw waypoint
-                iInit = [round(x(10,i)/mapResolution)+1 round(x(11,i)/mapResolution)+1];
-                if(iInit(1)>size(dilatedObstMap,1)-2)
-                    iInit(1) = size(dilatedObstMap,1)-2;
-                end
-                if(iInit(1)<3)
-                    iInit(1) = 3;
-                end
-                if(iInit(2)>size(dilatedObstMap,2)-2)
-                    iInit(2) = size(dilatedObstMap,2)-2;
-                end
-                if(iInit(2)<3)
-                    iInit(2) = 3;
-                end
-                [auxPath,~,~,~] = getPathGDM(totalCostMap,iInit,iGoal,tau);
-                auxPath = (auxPath-1)*mapResolution;
-                
-                while(size(auxPath,1) > 1000)
-                    [auxPath,~,~,~] = getPathGDM(totalCostMap,iInit+sign(2*rand(1,2)-1),iGoal,tau);
-                    auxPath = (auxPath-1)*mapResolution;
-                end
-                
-                yaw = getYaw(auxPath, descendingYaw);
-                auxPath = [auxPath yaw];
-                
-                if(isSafePath(auxPath(:,1),auxPath(:,2),mapResolution,dilatedObstMap) &&...
-                   isSafePath(x(10,1:i),x(11,1:i),mapResolution,dilatedObstMap))
-                    disp(['Hey! I found a coinciding yaw waypoint at index ',num2str(i),', starting GDM!'])
-
-                    % Resize path
-                    x1 = 1:size(auxPath,1);
-                    x2 = linspace(1,size(auxPath,1),size(x,2)-i+1);
-                    resizedPath = interp1(x1,auxPath,x2);
-
-                    startingIndex = i;
-                    reachabilityIndex = startingIndex + ...
-                        getDistanceIndex(resizedPath, [xef yef], reachabilityDistance);
-                    
-                    isDescendingGradient(i:size(x,2)) = 1;
-
-                    x0(10,startingIndex:size(x,2)) = resizedPath(:,1);
-                    x0(11,startingIndex:size(x,2)) = resizedPath(:,2);
-                    x0(12,startingIndex:size(x,2)) = resizedPath(:,3);
-                    
-                    break;
-                end
-
-            end
-        else
-            break;
+    % Multitrajectory costing method
+    for i = 2:size(t,2)-2
+        iInit = [round(x(10,i)/mapResolution)+1 round(x(11,i)/mapResolution)+1];
+        if(iInit(1)>size(totalCostMap,1)-2)
+            iInit(1) = size(totalCostMap,1)-2;
         end
-    end
+        if(iInit(1)<3)
+            iInit(1) = 3;
+        end
+        if(iInit(2)>size(totalCostMap,2)-2)
+            iInit(2) = size(totalCostMap,2)-2;
+        end
+        if(iInit(2)<3)
+            iInit(2) = 3;
+        end
+        
+        
+        [pathi,~] = getPathGDM2(totalCostMap,iInit,iGoal,tau, gTCMx, gTCMy);
+        pathi = (pathi-1)*mapResolution;
+
+        while(size(pathi,1) > 1000)
+            [pathi,~] = getPathGDM2(totalCostMap,iInit+round(2*rand(1,2)-1),iGoal,tau, gTCMx, gTCMy);
+            pathi = (pathi-1)*mapResolution;
+        end
+        
+        % Resize path
+        x1 = 1:size(pathi,1);
+        x2 = linspace(1,size(pathi,1),size(t,2)-i+1);
+        pathi = interp1(x1,pathi,x2);
+        
+        yaw = getYaw(pathi);
+        pathi = [pathi yaw].';
+        
+         
+        if norm(x(10:11,i) - x(10:11,i-1)) > tau*mapResolution && ...
+            norm(x(10:11,i) - x0(10:11,i)) < 2
+            newCost = getTrajectoryCost(pathi, x(10:12,i:end));
+            oldCost = getTrajectoryCost(x0(10:12,i:end), x(10:12,i:end));
+
+            if newCost*1.30 < oldCost && oldCost > 0.05 &&...
+               isSafePath(pathi(1,:),pathi(2,:),mapResolution,dilatedObstMap) && ...
+               DiscreteFrechetDist(pathi, x0(10:12,i:end)) > 0.5
+                x0(10:12,i:end) = pathi;
+                disp(['Changing reference path from waypoint ',num2str(i), '...'])
+            end
+        end
+
+    end  
     
+    % Update reference trajectories    
     xh0 = x0 - x;
     uh0 = u0 - u;    
     
     % Quadratize cost function along the trajectory
     Q = zeros(size(x,1),size(x,1),size(t,2));
+
+    for i = 1:size(t,2)
+        [Tcmx, Tcmy] = getGradientTotalCost(x(10,i), x(11,i), mapResolution, gTCMx, gTCMy);
+        descYaw = atan2(-Tcmy, -Tcmx);
+        
+        headingDeviation = abs(x(12,i) - descYaw);
+        while headingDeviation > 2*pi
+            headingDeviation = abs(headingDeviation - 2*pi);
+        end
+        
+        Q(10:12,10:12,i) = (rtc - rtc*rtor/pi*(3/rtor-4)*headingDeviation + 2*rtc*rtor*(1/rtor-2)/pi^2 * headingDeviation^2)*eye(3,3);
+        
+        if norm([x(10,i) x(11,i)] - [xef yef]) < reachabilityDistance
+            Q(10:12,10:12,i) = Q(10:12,10:12,i)/9999;
+        end
+    end  
+    
+    Q(29,29,:) = tau1c;
+    Q(30,30,:) = tau2c;
+    Q(31,31,:) = tau3c;
+    
     Qend = zeros(size(x,1),size(x,1));
-
-    if(startingIndex > 0 && reachabilityIndex > 0)
-        Q(10,10,startingIndex:reachabilityIndex) = rtc;
-        Q(11,11,startingIndex:reachabilityIndex) = rtc;
-        Q(12,12,startingIndex:reachabilityIndex) = rtc;
-
-        Q(10,10,reachabilityIndex:end) = rtc/9999999;
-        Q(11,11,reachabilityIndex:end) = rtc/9999999;
-        Q(12,12,reachabilityIndex:end) = rtc/9999999;
-    end
-     
+    
     Qend(1,1) = fc;
     Qend(2,2) = fc;
     Qend(3,3) = fc;
@@ -351,9 +399,9 @@ while 1
     Qend(15,15) = fsc;
     
     R = eye(size(u,1));
-    R(1,1) = ac;
-    R(2,2) = ac;
-    R(3,3) = ac;
+    R(1,1) = ac1;
+    R(2,2) = ac2;
+    R(3,3) = ac3;
     R(4,4) = bc;
     R(5,5) = bc;  
     R(6,6) = sc;
@@ -414,6 +462,16 @@ while 1
     % Steering Joints Position
     A(19:22,19:22,1) = eye(4,4);
     
+    % Arm joints acceleration
+    A(26:28,23:25,1) = -1/dt*eye(3,3);
+    
+    % Arm joints torques
+    A(29:31,26:28,1) = getB3(x(16,1), x(17,1), x(18,1));
+    
+    [~,dG] = getG3(x(16,1), x(17,1), x(18,1));
+    A(29:31,16:18,1) = dG;
+
+    
     for i = 2:size(t,2)
         % W2EEx
         A(1,4,i) = cos(x(12,i-1));
@@ -464,6 +522,16 @@ while 1
 
         % Steering Joints Position
         A(19:22,19:22,i) = eye(4,4);
+        
+        % Arm joints acceleration
+        A(26:28,23:25,i) = -1/dt*eye(3,3);
+        
+        % Arm joints torques
+        A(29:31,26:28,i) = getB3(x(16,i-1), x(17,i-1), x(18,i-1));
+        
+        [~,dG] = getG3(x(16,i-1), x(17,i-1), x(18,i-1));
+        A(29:31,16:18,i) = dG;
+
     end
     
     % Actuation (u) matrix
@@ -491,6 +559,15 @@ while 1
     B(19:20,6,1) = dt;
     B(21:22,7,1) = dt;
     
+    % Arm joints speed
+    B(23:25,1:3,1) = eye(3,3);
+    
+    % Arm joints acceleration
+    B(26:28,1:3,1) = 1/dt*eye(3,3);
+
+    % Arm joints torques
+    B(29:31,1:3,1) = getC3(x(16,1), x(17,1), x(18,1), u(1,1), u(2,1), u(3,1));
+
     for i = 2:size(t,2)
         % BTEE
         B(4:9,1:3,i) = dt*Jac(:,:,i-1);
@@ -513,21 +590,27 @@ while 1
         % Steering Joints Position
         B(19:20,6,i) = dt;
         B(21:22,7,i) = dt;
+        
+        % Arm joints speed
+        B(23:25,1:3,i) = eye(3,3);
+        
+        % Arm joints acceleration
+        B(26:28,1:3,i) = 1/dt*eye(3,3);
+
+        % Arm joints torques
+        B(29:31,1:3,i) = getC3(x(16,i-1), x(17,i-1), x(18,i-1), u(1,i-1), u(2,i-1), u(3,i-1));
+
     end    
         
     % Total cost map cost
     Tcmx = zeros(size(Q,1),size(t,2)); 
     if tc > 0
         for i = 1:size(t,2)
-            if(~isDescendingGradient(i))
-                [Tcmx(13,i), Tcmx(14,i)] = getGradientTotalCost(x(10,i), x(11,i), mapResolution, gTCMx, gTCMy);
-                Tcmx(13,i) = tc*Tcmx(13,i);
-                Tcmx(14,i) = tc*Tcmx(14,i);
-                x0(12,i) = atan2(-Tcmx(14,i), -Tcmx(13,i));
-                Q(12,12,i) = tco;
-            end
+            [Tcmx(13,i), Tcmx(14,i)] = getGradientTotalCost(x(10,i), x(11,i), mapResolution, gTCMx, gTCMy);
+            Tcmx(13,i) = tc*Tcmx(13,i);
+            Tcmx(14,i) = tc*Tcmx(14,i);
         end
-    end
+    end  
     
     % LQ problem solution
     M = zeros(size(B,1),size(B,1),size(t,2));
@@ -602,6 +685,14 @@ while 1
                 % Steering Joints Position
                 x(19:20,i) =  x(19:20,i-1) + u(6,i-1)*dt;
                 x(21:22,i) =  x(21:22,i-1) + u(7,i-1)*dt;
+                % Arm velocities
+                x(23:25,i) = u(1:3,i-1);
+                % Arm accelerations
+                x(26:28,i) = (u(1:3,i-1)-x(23:25,i-1))/dt;
+                % Arm torques        
+                x(29:31,i) = getB3(x(16,i-1), x(17,i-1), x(18,i-1))*x(26:28,i-1) +...
+                             getC3(x(16,i-1), x(17,i-1), x(18,i-1), u(1,i-1), u(2,i-1), u(3,i-1))*u(1:3,i-1) +...
+                             getG3(x(16,i-1), x(17,i-1), x(18,i-1));
             end
             J(n) = 1/2*(x(:,end)-x0(:,end)).'*Qend*(x(:,end)-x0(:,end))...
                 + 100*~isSafePath(x(1,:),x(2,:),mapResolution,dilatedObstMap)...
@@ -688,19 +779,14 @@ while 1
     daspect([1 1 1])
     contourf(X,Y,dilatedObstMap+obstMap);
     plot3(x(1,:),x(2,:),x(3,:), 'LineWidth', 5, 'Color', 'y')
-    if startingIndex > 0
-        plot3(x(10,1:startingIndex),x(11,1:startingIndex),zBC*ones(startingIndex), 'LineWidth', 5, 'Color', [1,0.5,0])
-        plot3(x(10,startingIndex:end-1),x(11,startingIndex:end-1),zBC*ones(size(t,2)-startingIndex), 'LineWidth', 5, 'Color', [0.5,0.2,0])
-    else
-        plot3(x(10,1:end-1),x(11,1:end-1),zBC*ones(size(x,2)-1), 'LineWidth', 5, 'Color', [1,0.5,0])
-    end
+    plot3(x(10,1:end-1),x(11,1:end-1),zBC*ones(size(x,2)-1), 'LineWidth', 5, 'Color', [1,0.5,0])
     title('Mobile manipulator trajectories', 'interpreter', ...
     'latex','fontsize',18)
-    plot3(referencePath(:,1),referencePath(:,2), zBC*ones(size(referencePath,1),2), 'LineWidth', 5, 'Color', [0,0,0.6])
+    plot3(x0(10,:),x0(11,:), zBC*ones(size(t,2),2), 'LineWidth', 5, 'Color', [0,0,0.6])
     plot3(xef,yef,zef, 'MarkerSize', 20, 'Marker', '.', 'Color', 'c')
 
     hold off;
-
+    
     disp(['Iteration number ',num2str(iter-1), ', alpha = ', num2str(alfamin), ', endDist = ',num2str(endDist)])
     disp(['Is the path safe? ', num2str(isSafePath(x(10,:),x(11,:),mapResolution,dilatedObstMap))])
 end
@@ -735,7 +821,15 @@ if error == 0
         % Steering Joints Position
         x(19:20,i) =  x(19:20,i-1) + u(6,i-1)*dt;
         x(21:22,i) =  x(21:22,i-1) + u(7,i-1)*dt;
-
+        % Arm velocities
+        x(23:25,i) = u(1:3,i-1);
+        % Arm accelerations
+        x(26:28,i) = (u(1:3,i-1)-x(23:25,i-1))/dt;
+        % Arm torques        
+        x(29:31,i) = getB3(x(16,i-1), x(17,i-1), x(18,i-1))*x(26:28,i-1) +...
+                     getC3(x(16,i-1), x(17,i-1), x(18,i-1), u(1,i-1), u(2,i-1), u(3,i-1))*u(1:3,i-1) +...
+                     getG3(x(16,i-1), x(17,i-1), x(18,i-1));
+        
         if(x(16,i) < armJointsLimits(1,1) || x(16,i) > armJointsLimits(1,2))
             disp(['WARNING: Arm joint 1 is violating its position limits at waypoint ',num2str(i)]);
         end
@@ -748,12 +842,12 @@ if error == 0
     end
 
     toc
-    iu = cumsum(abs(u(1,:)));
-    disp(['Total speed applied joint 1: ',num2str(iu(end)),' rad/s'])
-    iu = cumsum(abs(u(2,:)));
-    disp(['Total speed applied joint 2: ',num2str(iu(end)),' rad/s'])
-    iu = cumsum(abs(u(3,:)));
-    disp(['Total speed applied joint 3: ',num2str(iu(end)),' rad/s'])    
+    iu = cumsum(abs(x(29,:))*dt);
+    disp(['Total torque applied joint 1: ',num2str(iu(end)),' Nm'])
+    iu = cumsum(abs(x(30,:))*dt);
+    disp(['Total torque applied joint 2: ',num2str(iu(end)),' Nm'])
+    iu = cumsum(abs(x(31,:))*dt);
+    disp(['Total torque applied joint 3: ',num2str(iu(end)),' Nm'])    
     iu = cumsum(abs(u(4,:)));
     disp(['Total speed applied right wheels: ',num2str(iu(end)),' rad/s'])
     iu = cumsum(abs(u(5,:)));
@@ -825,29 +919,54 @@ if error == 0
     daspect([1 1 1])
     contourf(X,Y,dilatedObstMap+obstMap);
     plot3(x(1,:),x(2,:),x(3,:), 'LineWidth', 5, 'Color', 'y')
-    if startingIndex > 0
-        plot3(x(10,1:startingIndex),x(11,1:startingIndex),zBC*ones(startingIndex), 'LineWidth', 5, 'Color', [1,0.5,0])
-        plot3(x(10,startingIndex:end-1),x(11,startingIndex:end-1),zBC*ones(size(t,2)-startingIndex), 'LineWidth', 5, 'Color', [0.5,0.2,0])
-    else
-        plot3(x(10,1:end-1),x(11,1:end-1),zBC*ones(size(x,2)-1), 'LineWidth', 5, 'Color', [1,0.5,0])
-    end
+    plot3(x(10,1:end-1),x(11,1:end-1),zBC*ones(size(x,2)-1), 'LineWidth', 5, 'Color', [1,0.5,0])
     title('Mobile manipulator trajectories', 'interpreter', ...
     'latex','fontsize',18)
-    plot3(referencePath(:,1),referencePath(:,2), zBC*ones(size(referencePath,1),2), 'LineWidth', 5, 'Color', [0,0,0.6])
+    plot3(x0(10,:),x0(11,:), zBC*ones(size(t,2),2), 'LineWidth', 5, 'Color', [0,0,0.6])
     plot3(xef,yef,zef, 'MarkerSize', 20, 'Marker', '.', 'Color', 'c')
 
     hold off;
 
 
-%     figure(2)
-%     plot(t,x(16:18,:))
-%     title('Evolution of the arm joints', 'interpreter', ...
-%     'latex','fontsize',18)
-%     legend('$\theta_1$','$\theta_2$','$\theta_3$', 'interpreter', ...
-%            'latex','fontsize',18)
-%     xlabel('$t (s)$', 'interpreter', 'latex','fontsize',18)
-%     ylabel('$\theta (rad)$', 'interpreter', 'latex','fontsize',18)
-%     grid
+    figure(2)
+    plot(t,x(16:18,:))
+    title('Evolution of the arm joints', 'interpreter', ...
+    'latex','fontsize',18)
+    legend('$\theta_1$','$\theta_2$','$\theta_3$', 'interpreter', ...
+           'latex','fontsize',18)
+    xlabel('$t (s)$', 'interpreter', 'latex','fontsize',18)
+    ylabel('$\theta (rad)$', 'interpreter', 'latex','fontsize',18)
+    grid
+    
+    
+    figure(3)
+    plot(t,u(1:3,:))
+    title('Actuating joints speed','interpreter','latex')
+    xlabel('t(s)','interpreter','latex','fontsize',18)
+    ylabel('$\dot\theta(rad/s$)','interpreter','latex','fontsize',18)
+    legend('$\dot\theta_1$','$\dot\theta_2$',...
+           '$\dot\theta_3$','interpreter', ...
+           'latex','fontsize',18)
+       
+    figure(4)
+    plot(t,x(26:28,:))
+    title('Evolution of the arm joints accelerations', 'interpreter', ...
+    'latex','fontsize',18)
+    legend('$\ddot\theta_1$','$\ddot\theta_2$','$\ddot\theta_3$', 'interpreter', ...
+           'latex','fontsize',18)
+    xlabel('$t (s)$', 'interpreter', 'latex','fontsize',18)
+    ylabel('$\ddot\theta (rad/s^2)$', 'interpreter', 'latex','fontsize',18)
+    grid
+    
+    figure(5)
+    plot(t,x(29:31,:))
+    title('Evolution of the applied arm torques', 'interpreter', ...
+    'latex','fontsize',18)
+    legend('$\tau_1$','$\tau_2$','$\tau_3$', 'interpreter', ...
+           'latex','fontsize',18)
+    xlabel('$t (s)$', 'interpreter', 'latex','fontsize',18)
+    ylabel('$\tau (Nm)$', 'interpreter', 'latex','fontsize',18)
+    grid
 %     
 %     figure(3)
 %     plot(t,x(19:22,:))
@@ -860,14 +979,7 @@ if error == 0
 %     ylabel('$\theta (rad)$', 'interpreter', 'latex','fontsize',18)
 %     grid
 %        
-%     figure(4)
-%     plot(t,u(1:3,:))
-%     title('Actuating joints speed','interpreter','latex')
-%     xlabel('t(s)','interpreter','latex','fontsize',18)
-%     ylabel('$\dot\theta(m/s$)','interpreter','latex','fontsize',18)
-%     legend('$\dot\theta_1$','$\dot\theta_2$',...
-%            '$\dot\theta_3$','interpreter', ...
-%            'latex','fontsize',18)
+
 %               
 %     figure(5)
 %     plot(t,u(4:5,:))
