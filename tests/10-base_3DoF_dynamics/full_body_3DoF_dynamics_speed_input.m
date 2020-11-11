@@ -73,7 +73,7 @@ armJointsLimits = [-360 +360;
 xB0 = 2.0;
 yB0 = 2.5;
 zB0 = zBC;
-yawB0 = pi/4;
+yawB0 = 0;
 
 qi = [0, -pi/2, pi/2];
 rollei = 0;
@@ -101,17 +101,18 @@ zei = TW3(3,4);
 fc = 1000000000; % Final state cost, 1000000
 foc = 0; % Final orientation cost, 0
 fsc = 1000000; % Final zero speed cost, 1000000
-rtc = 150; % Reference path max cost 1
+rtc = 20; % Reference path max cost 1
 rtor = 0.25; % Percentage of rtc when wayp orientation = pi/2
+oc = 175.0; % Obstacles limits cost
 
 tau1c = 2.0; % Joint 1 inverse torque constant, 2
 tau2c = 2.0; % Joint 2 inverse torque constant, 2
 tau3c = 2.0; % Joint 3 inverse torque constant, 2
 
-tauWheel = 0.02; % Wheels joint inverse torque constant, 2
+tauWheel = 1.0; % Wheels joint inverse torque constant, 2
 
 % Input costs
-bc = 10; % Base actuation cost, 2
+bc = 100; % Base actuation cost, 2
 sc = 0.1; % Steering cost, 2
 ac1 = 10000000; % Arm actuation cost, 60
 ac2 = 10000000; % Arm actuation cost, 60
@@ -179,6 +180,21 @@ referencePath = interp1(x1,referencePath,x2);
 
 yaw = getYaw(referencePath);
 referencePath = [referencePath yaw].';
+
+
+% Obtaining gradient inside obstacles, for escaping them
+[gOMxini, gOMyini] = getObstaclesEscapingGradient(safeObstMap);
+gOMxini(or(isnan(gOMxini),isinf(gOMxini))) = 0;
+gOMyini(or(isnan(gOMyini),isinf(gOMyini))) = 0;
+
+h1 = fspecial('average',10);
+h2 = fspecial('average',3);
+
+gOMx = filter2(h1,gOMxini);  
+gOMx = filter2(h2,gOMx);    
+
+gOMy = filter2(h1,gOMyini);  
+gOMy = filter2(h2,gOMy);
 
 % State vectors
 sizeStateVector = 43;
@@ -408,14 +424,14 @@ while 1
         
          
         if norm(x(10:11,i) - x(10:11,i-1)) > tau*mapResolution && ...
-            norm(x(10:11,i) - x0(10:11,i)) < 2
+           norm(x(10:11,i) - x0(10:11,i)) < 10*tau*mapResolution
             newCost = getTrajectoryCost(pathi, x(10:12,i:end));
             oldCost = getTrajectoryCost(x0(10:12,i:end), x(10:12,i:end));
 
-            if newCost*1.30 < oldCost && oldCost > 0.05 &&...
-               isSafePath(pathi(1,:),pathi(2,:),mapResolution,dilatedObstMap) && ...
+            if newCost*1.00 < oldCost && oldCost > 0.05 &&...
+               isSafePath([x(10,1:i-1) pathi(1,:)],[x(11,1:i-1) pathi(2,:)],mapResolution,dilatedObstMap) && ...
                DiscreteFrechetDist(pathi, x0(10:12,i:end)) > 0.5
-                %x0(10:12,i:end) = pathi;
+                x0(10:12,i:end) = pathi;
                 disp(['Changing reference path from waypoint ',num2str(i), '...'])
             end
         end
@@ -430,15 +446,18 @@ while 1
     Q = zeros(size(x,1),size(x,1),size(t,2));
 
     for i = 1:size(t,2)
-        [Tcmx, Tcmy] = getGradientTotalCost(x(10,i), x(11,i), mapResolution, gTCMx, gTCMy);
-        descYaw = atan2(-Tcmy, -Tcmx);
-        
-        headingDeviation = abs(x(12,i) - descYaw);
-        while headingDeviation > 2*pi
-            headingDeviation = abs(headingDeviation - 2*pi);
-        end
-        
-        Q(10:12,10:12,i) = (rtc - rtc*rtor/pi*(3/rtor-4)*headingDeviation + 2*rtc*rtor*(1/rtor-2)/pi^2 * headingDeviation^2)*eye(3,3);
+%         [Tcmx, Tcmy] = getGradientTotalCost(x(10,i), x(11,i), mapResolution, gTCMx, gTCMy);
+%         descYaw = atan2(-Tcmy, -Tcmx);
+%         
+%         headingDeviation = abs(x(12,i) - descYaw);
+%         while headingDeviation > 2*pi
+%             headingDeviation = abs(headingDeviation - 2*pi);
+%         end
+%         
+%         % Quadratic cost in function of the heading, greater when similar
+%         to the descient gradient direction of the FMM total cost map
+%         Q(10:12,10:12,i) = (rtc - rtc*rtor/pi*(3/rtor-4)*headingDeviation + 2*rtc*rtor*(1/rtor-2)/pi^2 * headingDeviation^2)*eye(3,3);
+        Q(10:12,10:12,i) = eye(3,3)*rtc;
         
         if norm([x(10,i) x(11,i)] - [xef yef]) < reachabilityDistance
             Q(10:12,10:12,i) = Q(10:12,10:12,i)/9999;
@@ -708,13 +727,21 @@ while 1
         end
     end  
     
+    % Obstacles limits cost
+    Ox = zeros(size(Q,1),size(t,2));
+    for i = 1:size(t,2)-1
+        [Ox(10,i), Ox(11,i)] = getGradientTotalCost(x(10,i), x(11,i), mapResolution, gOMx, gOMy);
+        Ox(10,i) = oc*Ox(10,i);
+        Ox(11,i) = oc*Ox(11,i);
+    end
+    
     % LQ problem solution
     M = zeros(size(B,1),size(B,1),size(t,2));
     P = zeros(size(Q,1),size(Q,2),size(t,2));
     s = zeros(size(Q,1),1,size(t,2));
- 
+    
     P(:,:,end) = Qend;
-    s(:,:,end) = -Qend*xh0(:,end);
+    s(:,:,end) = -Qend*xh0(:,end)+ Tcmx(:,end) + Ox(:,end);
     
     xh = zeros(size(x,1),size(t,2));
     uh = zeros(size(u,1),size(t,2));
@@ -733,7 +760,8 @@ while 1
         M(:,:,i) = inv(eye(size(B,1)) + B(:,:,i)*inv(R)*B(:,:,i).'*P(:,:,i+1));
         P(:,:,i) = Q(:,:,i) + A(:,:,i).'*P(:,:,i+1)*M(:,:,i)*A(:,:,i);
         s(:,:,i) = A(:,:,i).'*(eye(size(Q,1)) - P(:,:,i+1)*M(:,:,i)*B(:,:,i)*inv(R)*B(:,:,i).')*s(:,:,i+1)+...
-            A(:,:,i).'*P(:,:,i+1)*M(:,:,i)*B(:,:,i)*uh0(:,i) - Q(:,:,i)*xh0(:,i);
+            A(:,:,i).'*P(:,:,i+1)*M(:,:,i)*B(:,:,i)*uh0(:,i) - Q(:,:,i)*xh0(:,i)...
+            + Tcmx(:,i) + Ox(:,i);
     end
     
     % Solve forward
@@ -973,16 +1001,20 @@ if error == 0
 
     toc
     iu = cumsum(abs(x(25,:))*dt);
-    disp(['Total torque applied joint 1: ',num2str(iu(end)),' Nm'])
+    disp(['Total torque applied arm joint 1: ',num2str(iu(end)),' Nm'])
     iu = cumsum(abs(x(26,:))*dt);
-    disp(['Total torque applied joint 2: ',num2str(iu(end)),' Nm'])
+    disp(['Total torque applied arm joint 2: ',num2str(iu(end)),' Nm'])
     iu = cumsum(abs(x(27,:))*dt);
-    disp(['Total torque applied joint 3: ',num2str(iu(end)),' Nm'])    
-    iu = cumsum(abs(u(4,:)));
-    disp(['Total speed applied right wheels: ',num2str(iu(end)),' rad/s'])
-    iu = cumsum(abs(u(5,:)));
-    disp(['Total speed applied left wheels: ',num2str(iu(end)),' rad/s'])
-    iu = cumsum(abs(u(6,:))); 
+    disp(['Total torque applied arm joint 3: ',num2str(iu(end)),' Nm'])    
+    iu = cumsum(abs(x(36,:))*dt);
+    disp(['Total torque applied wheel 1: ',num2str(iu(end)),' Nm'])
+    iu = cumsum(abs(x(37,:))*dt);
+    disp(['Total torque applied wheel 2: ',num2str(iu(end)),' Nm'])
+    iu = cumsum(abs(x(38,:))*dt);
+    disp(['Total torque applied wheel 3: ',num2str(iu(end)),' Nm'])
+    iu = cumsum(abs(x(39,:))*dt);
+    disp(['Total torque applied wheel 4: ',num2str(iu(end)),' Nm'])
+    iu = cumsum(abs(u(6,:)));
     disp(['Total speed applied front steering joints: ',num2str(iu(end)),' rad/s'])
     iu = cumsum(abs(u(7,:)));
     disp(['Total speed applied back steering joints: ',num2str(iu(end)),' rad/s'])
@@ -1058,45 +1090,45 @@ if error == 0
     hold off;
 
 
-    figure(2)
-    plot(t,x(16:18,:))
-    title('Evolution of the arm joints', 'interpreter', ...
-    'latex','fontsize',18)
-    legend('$\theta_1$','$\theta_2$','$\theta_3$', 'interpreter', ...
-           'latex','fontsize',18)
-    xlabel('$t (s)$', 'interpreter', 'latex','fontsize',18)
-    ylabel('$\theta (rad)$', 'interpreter', 'latex','fontsize',18)
-    grid
-    
-    
-    figure(3)
-    plot(t,u(1:3,:))
-    title('Actuating joints speed','interpreter','latex')
-    xlabel('t(s)','interpreter','latex','fontsize',18)
-    ylabel('$\dot\theta(rad/s$)','interpreter','latex','fontsize',18)
-    legend('$\dot\theta_1$','$\dot\theta_2$',...
-           '$\dot\theta_3$','interpreter', ...
-           'latex','fontsize',18)
-       
-    figure(4)
-    plot(t,x(22:24,:))
-    title('Evolution of the arm joints accelerations', 'interpreter', ...
-    'latex','fontsize',18)
-    legend('$\ddot\theta_1$','$\ddot\theta_2$','$\ddot\theta_3$', 'interpreter', ...
-           'latex','fontsize',18)
-    xlabel('$t (s)$', 'interpreter', 'latex','fontsize',18)
-    ylabel('$\ddot\theta (rad/s^2)$', 'interpreter', 'latex','fontsize',18)
-    grid
-    
-    figure(5)
-    plot(t,x(25:27,:))
-    title('Evolution of the applied arm torques', 'interpreter', ...
-    'latex','fontsize',18)
-    legend('$\tau_1$','$\tau_2$','$\tau_3$', 'interpreter', ...
-           'latex','fontsize',18)
-    xlabel('$t (s)$', 'interpreter', 'latex','fontsize',18)
-    ylabel('$\tau (Nm)$', 'interpreter', 'latex','fontsize',18)
-    grid
+%     figure(2)
+%     plot(t,x(16:18,:))
+%     title('Evolution of the arm joints', 'interpreter', ...
+%     'latex','fontsize',18)
+%     legend('$\theta_1$','$\theta_2$','$\theta_3$', 'interpreter', ...
+%            'latex','fontsize',18)
+%     xlabel('$t (s)$', 'interpreter', 'latex','fontsize',18)
+%     ylabel('$\theta (rad)$', 'interpreter', 'latex','fontsize',18)
+%     grid
+%     
+%     
+%     figure(3)
+%     plot(t,u(1:3,:))
+%     title('Actuating joints speed','interpreter','latex')
+%     xlabel('t(s)','interpreter','latex','fontsize',18)
+%     ylabel('$\dot\theta(rad/s$)','interpreter','latex','fontsize',18)
+%     legend('$\dot\theta_1$','$\dot\theta_2$',...
+%            '$\dot\theta_3$','interpreter', ...
+%            'latex','fontsize',18)
+%        
+%     figure(4)
+%     plot(t,x(22:24,:))
+%     title('Evolution of the arm joints accelerations', 'interpreter', ...
+%     'latex','fontsize',18)
+%     legend('$\ddot\theta_1$','$\ddot\theta_2$','$\ddot\theta_3$', 'interpreter', ...
+%            'latex','fontsize',18)
+%     xlabel('$t (s)$', 'interpreter', 'latex','fontsize',18)
+%     ylabel('$\ddot\theta (rad/s^2)$', 'interpreter', 'latex','fontsize',18)
+%     grid
+%     
+%     figure(5)
+%     plot(t,x(25:27,:))
+%     title('Evolution of the applied arm torques', 'interpreter', ...
+%     'latex','fontsize',18)
+%     legend('$\tau_1$','$\tau_2$','$\tau_3$', 'interpreter', ...
+%            'latex','fontsize',18)
+%     xlabel('$t (s)$', 'interpreter', 'latex','fontsize',18)
+%     ylabel('$\tau (Nm)$', 'interpreter', 'latex','fontsize',18)
+%     grid
     
     figure(6)
     plot(t,x(28:31,:))
