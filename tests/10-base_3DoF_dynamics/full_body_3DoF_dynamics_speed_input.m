@@ -49,10 +49,15 @@ r = 0.2;
 global wheelWidth;
 wheelWidth = 0.2;
 global wheelMass;
-wheelMass = pi*r*r*wheelWidth*rho;
+wheelMass = 5;
 
 global vehicleMass;
 vehicleMass = 100;
+
+global m1 m2 m3;
+m1 = 3;
+m2 = 9;
+m3 = 9;
 
 global frictionCoefficient;
 frictionCoefficient = 1;
@@ -73,7 +78,7 @@ armJointsLimits = [-360 +360;
 xB0 = 2.0;
 yB0 = 2.5;
 zB0 = zBC;
-yawB0 = 0;
+yawB0 = pi/2;
 
 qi = [0, -pi/2, pi/2];
 rollei = 0;
@@ -101,18 +106,18 @@ zei = TW3(3,4);
 fc = 1000000000; % Final state cost, 1000000
 foc = 0; % Final orientation cost, 0
 fsc = 1000000; % Final zero speed cost, 1000000
-rtc = 20; % Reference path max cost 1
+rtc = 50; % Reference path max cost 1
 rtor = 0.25; % Percentage of rtc when wayp orientation = pi/2
-oc = 175.0; % Obstacles limits cost
+oc = 300.0; % Obstacles repulsive cost
 
 tau1c = 2.0; % Joint 1 inverse torque constant, 2
 tau2c = 2.0; % Joint 2 inverse torque constant, 2
 tau3c = 2.0; % Joint 3 inverse torque constant, 2
 
-tauWheel = 1.0; % Wheels joint inverse torque constant, 2
+tauWheel = 0.8; % Wheels joint inverse torque constant, 2
 
 % Input costs
-bc = 100; % Base actuation cost, 2
+bc = 90; % Base actuation cost, 2
 sc = 0.1; % Steering cost, 2
 ac1 = 10000000; % Arm actuation cost, 60
 ac2 = 10000000; % Arm actuation cost, 60
@@ -121,17 +126,17 @@ ac3 = 10000000; % Arm actuation cost, 60
 
 % Extra costs
 sm = 50; % Influence of diff turns into final speed, tune till convergence
-sm2 = 99999999; % Influence of steer turns into final speed, tune till convergence
+sm2 = 9999999999999999999999; % Influence of steer turns into final speed, tune till convergence
 tc = 0.0; % Total cost map cost, 1.1
 % tco = 0.5; % Total cost map orientation cost, 1.0
 
 tf = 60; % Time vector
-dt = 0.3;
+dt = 0.6;
 t = 0:dt:tf;
 
 distThreshold = 0.031; % When should we stop the algorithm...? (metres)
 
-lineSearchStep = 0.1; % Minimum actuation percentage
+lineSearchStep = 0.30; % Minimum actuation percentage
 
 % iterFCApproaching = 0;
 
@@ -885,10 +890,10 @@ while 1
       
     % Plotting first rover position
     TWB = getTraslation([x(10,1),x(11,1),zBC])*getZRot(x(12,1));
-    TB1 = getTraslation([dfx,dfy,-zBC]);
-    TB2 = getTraslation([-dfx,dfy,-zBC]);
-    TB3 = getTraslation([-dfx,-dfy,-zBC]);
-    TB4 = getTraslation([dfx,-dfy,-zBC]);
+    TB1 = getTraslation([dfy,dfx,-zBC]);
+    TB2 = getTraslation([-dfy,dfx,-zBC]);
+    TB3 = getTraslation([-dfy,-dfx,-zBC]);
+    TB4 = getTraslation([dfy,-dfx,-zBC]);
     TW1 = TWB*TB1;
     TW2 = TWB*TB2;
     TW3 = TWB*TB3;
@@ -1014,10 +1019,10 @@ if error == 0
     disp(['Total torque applied wheel 3: ',num2str(iu(end)),' Nm'])
     iu = cumsum(abs(x(39,:))*dt);
     disp(['Total torque applied wheel 4: ',num2str(iu(end)),' Nm'])
-    iu = cumsum(abs(u(6,:)));
-    disp(['Total speed applied front steering joints: ',num2str(iu(end)),' rad/s'])
-    iu = cumsum(abs(u(7,:)));
-    disp(['Total speed applied back steering joints: ',num2str(iu(end)),' rad/s'])
+%     iu = cumsum(abs(u(6,:)));
+%     disp(['Total speed applied front steering joints: ',num2str(iu(end)),' rad/s'])
+%     iu = cumsum(abs(u(7,:)));
+%     disp(['Total speed applied back steering joints: ',num2str(iu(end)),' rad/s'])
 
     figure(1)
     hold off;
@@ -1046,10 +1051,10 @@ if error == 0
       
     % Plotting first rover position
     TWB = getTraslation([x(10,1),x(11,1),zBC])*getZRot(x(12,1));
-    TB1 = getTraslation([dfx,dfy,-zBC]);
-    TB2 = getTraslation([-dfx,dfy,-zBC]);
-    TB3 = getTraslation([-dfx,-dfy,-zBC]);
-    TB4 = getTraslation([dfx,-dfy,-zBC]);
+    TB1 = getTraslation([dfy,dfx,-zBC]);
+    TB2 = getTraslation([-dfy,dfx,-zBC]);
+    TB3 = getTraslation([-dfy,-dfx,-zBC]);
+    TB4 = getTraslation([dfy,-dfx,-zBC]);
     TW1 = TWB*TB1;
     TW2 = TWB*TB2;
     TW3 = TWB*TB3;
@@ -1159,46 +1164,35 @@ if error == 0
     xlabel('$t (s)$', 'interpreter', 'latex','fontsize',18)
     ylabel('$\tau (Nm)$', 'interpreter', 'latex','fontsize',18)
     grid
-%     
-%     figure(3)
-%     plot(t,x(40:43,:))
-%     title('Evolution of the steering joints', 'interpreter', ...
-%     'latex','fontsize',18)
-%     legend('$\theta_{s1}$','$\theta_{s2}$',...
-%            '$\theta_{s3}$','$\theta_{s4}$', 'interpreter', ...
-%            'latex','fontsize',18)
-%     xlabel('$t (s)$', 'interpreter', 'latex','fontsize',18)
-%     ylabel('$\theta (rad)$', 'interpreter', 'latex','fontsize',18)
-%     grid
-%        
-
-%               
-%     figure(5)
-%     plot(t,u(4:5,:))
-%     title('Actuating wheels speed','interpreter','latex')
-%     xlabel('t(s)','interpreter','latex','fontsize',18)
-%     ylabel('$\omega(m/s$)','interpreter','latex','fontsize',18)
-%     legend('$\omega_R$','$\omega_L$', 'interpreter', ...
-%            'latex','fontsize',18)
-%               
-%     figure(6)
-%     plot(t,u(6:7,:))
-%     title('Actuating steering speed','interpreter','latex')
-%     xlabel('t(s)','interpreter','latex','fontsize',18)
-%     ylabel('$\omega(m/s$)','interpreter','latex','fontsize',18)
-%     legend('$\omega_F$','$\omega_B$', 'interpreter', ...
-%            'latex','fontsize',18)
+    
+    figure(9)
+    plot(t,x(12,:))
+    title('Evolution of the vehicle heading', 'interpreter', ...
+    'latex','fontsize',18)
+    xlabel('$t (s)$', 'interpreter', 'latex','fontsize',18)
+    ylabel('$\psi (rad)$', 'interpreter', 'latex','fontsize',18)
+    grid
+    
+    figure(10)
+    plot(t,x(40:43,:))
+    title('Evolution of the steering joints position', 'interpreter', ...
+    'latex','fontsize',18)
+    legend('$\theta_1$','$\theta_2$','$\theta_3$',...
+            '$\theta_4$', 'interpreter','latex','fontsize',18)
+    xlabel('$t (s)$', 'interpreter', 'latex','fontsize',18)
+    ylabel('$\theta (rad)$', 'interpreter', 'latex','fontsize',18)
+    grid
 
        
     %% Simulation
     mu_k = 1;
     mu_s = 1;
-    vth = 10;
+    vth = 10000;
     
     k = 1e6;
     b = 1e4;
     
-    sim('base_3DoF_dynamics_sim_forces',t(end));
+%     sim('base_3DoF_dynamics_sim_forces',t(end));
 
 end
 
