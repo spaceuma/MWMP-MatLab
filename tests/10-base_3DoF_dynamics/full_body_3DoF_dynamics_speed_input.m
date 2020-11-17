@@ -185,7 +185,7 @@ referencePath = interp1(x1,referencePath,x2);
 
 yaw = getYaw(referencePath);
 referencePath = [referencePath yaw].';
-
+waypSeparation = norm(referencePath(1:2,1)-referencePath(1:2,2));
 
 % Obtaining gradient inside obstacles, for escaping them
 [gOMxini, gOMyini] = getObstaclesEscapingGradient(safeObstMap);
@@ -396,47 +396,52 @@ while 1
 
     % Multitrajectory costing method
     for i = 2:size(t,2)-2
-        iInit = [round(x(10,i)/mapResolution)+1 round(x(11,i)/mapResolution)+1];
-        if(iInit(1)>size(totalCostMap,1)-2)
-            iInit(1) = size(totalCostMap,1)-2;
-        end
-        if(iInit(1)<3)
-            iInit(1) = 3;
-        end
-        if(iInit(2)>size(totalCostMap,2)-2)
-            iInit(2) = size(totalCostMap,2)-2;
-        end
-        if(iInit(2)<3)
-            iInit(2) = 3;
-        end
-        
-        
-        [pathi,~] = getPathGDM2(totalCostMap,iInit,iGoal,tau, gTCMx, gTCMy);
-        pathi = (pathi-1)*mapResolution;
+        if DiscreteFrechetDist(x(10:11,i:end).', x0(10:11,i:end).') > reachabilityDistance && ...
+           norm(x(10:11,i) - x(10:11,i-1)) > waypSeparation && ...
+           norm(x(10:11,i) - x0(10:11,i)) < 10*waypSeparation
+            iInit = [round(x(10,i)/mapResolution)+1 round(x(11,i)/mapResolution)+1];
+            if(iInit(1)>size(totalCostMap,1)-2)
+                iInit(1) = size(totalCostMap,1)-2;
+            end
+            if(iInit(1)<3)
+                iInit(1) = 3;
+            end
+            if(iInit(2)>size(totalCostMap,2)-2)
+                iInit(2) = size(totalCostMap,2)-2;
+            end
+            if(iInit(2)<3)
+                iInit(2) = 3;
+            end
 
-        while(size(pathi,1) > 1000)
-            [pathi,~] = getPathGDM2(totalCostMap,iInit+round(2*rand(1,2)-1),iGoal,tau, gTCMx, gTCMy);
+
+            [pathi,~] = getPathGDM2(totalCostMap,iInit,iGoal,tau, gTCMx, gTCMy);
             pathi = (pathi-1)*mapResolution;
-        end
-        
-        % Resize path
-        x1 = 1:size(pathi,1);
-        x2 = linspace(1,size(pathi,1),size(t,2)-i+1);
-        pathi = interp1(x1,pathi,x2);
-        
-        yaw = getYaw(pathi);
-        pathi = [pathi yaw].';
-        
-         
-        if norm(x(10:11,i) - x(10:11,i-1)) > tau*mapResolution && ...
-           norm(x(10:11,i) - x0(10:11,i)) < 10*tau*mapResolution
-            newCost = getTrajectoryCost(pathi, x(10:12,i:end));
-            oldCost = getTrajectoryCost(x0(10:12,i:end), x(10:12,i:end));
 
-            if newCost*1.00 < oldCost && oldCost > 0.05 &&...
-               isSafePath([x(10,1:i-1) pathi(1,:)],[x(11,1:i-1) pathi(2,:)],mapResolution,dilatedObstMap) && ...
-               DiscreteFrechetDist(pathi, x0(10:12,i:end)) > 0.5
-                x0(10:12,i:end) = pathi;
+            while(size(pathi,1) > 1000)
+                [pathi,~] = getPathGDM2(totalCostMap,iInit+round(2*rand(1,2)-1),iGoal,tau, gTCMx, gTCMy);
+                pathi = (pathi-1)*mapResolution;
+            end
+
+            % Resize path
+            x1 = 1:size(pathi,1);
+            x2 = linspace(1,size(pathi,1),size(t,2)-i+1);
+            pathi = interp1(x1,pathi,x2);
+
+            yaw = getYaw(pathi);
+            pathi = [pathi yaw].';
+            [inter, interIndex1, interIndex2] = getIntesection(pathi, x0(10:12,i:end), waypSeparation/2);
+            endIndex = i+interIndex2-1;
+            
+            pathInt = pathi(:,1:interIndex1);
+
+            newCost = getTrajectoryCost(pathi, x(10:12,i:end), x(10:12,i-1));
+            oldCost = getTrajectoryCost(x0(10:12,i:endIndex), x(10:12,i:end), x(10:12,i-1));
+
+            if newCost*1.50 < oldCost && oldCost > 0.05 && ...
+               isSafePath([x(10,1:i-1) pathInt(1,:)],[x(11,1:i-1) pathInt(2,:)],mapResolution,dilatedObstMap) && ...
+               DiscreteFrechetDist(pathInt.', x0(10:12,i:endIndex).') > 1
+%                 x0(10:12,i:end) = pathi;
+                x0(10:12,i:i+interIndex1-1) = pathInt;
                 disp(['Changing reference path from waypoint ',num2str(i), '...'])
             end
         end
@@ -460,7 +465,7 @@ while 1
 %         end
 %         
 %         % Quadratic cost in function of the heading, greater when similar
-%         to the descient gradient direction of the FMM total cost map
+%         % to the descient gradient direction of the FMM total cost map
 %         Q(10:12,10:12,i) = (rtc - rtc*rtor/pi*(3/rtor-4)*headingDeviation + 2*rtc*rtor*(1/rtor-2)/pi^2 * headingDeviation^2)*eye(3,3);
         Q(10:12,10:12,i) = eye(3,3)*rtc;
         
@@ -1134,54 +1139,54 @@ if error == 0
 %     xlabel('$t (s)$', 'interpreter', 'latex','fontsize',18)
 %     ylabel('$\tau (Nm)$', 'interpreter', 'latex','fontsize',18)
 %     grid
-    
-    figure(6)
-    plot(t,x(28:31,:))
-    title('Evolution of the applied wheel speeds', 'interpreter', ...
-    'latex','fontsize',18)
-    legend('$\omega 1$','$\omega 2$','$\omega 3$',...
-            '$\omega 4$', 'interpreter','latex','fontsize',18)
-    xlabel('$t (s)$', 'interpreter', 'latex','fontsize',18)
-    ylabel('$\omega (rad/s)$', 'interpreter', 'latex','fontsize',18)
-    grid
-    
-    figure(7)
-    plot(t,x(32:35,:))
-    title('Evolution of the applied wheel accelerations', 'interpreter', ...
-    'latex','fontsize',18)
-    legend('$\dot\omega 1$','$\dot\omega 2$','$\dot\omega 3$',...
-            '$\dot\omega 4$', 'interpreter','latex','fontsize',18)
-    xlabel('$t (s)$', 'interpreter', 'latex','fontsize',18)
-    ylabel('$\dot\omega (rad/s^2)$', 'interpreter', 'latex','fontsize',18)
-    grid
-    
-    figure(8)
-    plot(t,x(36:39,:))
-    title('Evolution of the applied wheel torques', 'interpreter', ...
-    'latex','fontsize',18)
-    legend('$\tau_{\omega 1}$','$\tau_{\omega 2}$','$\tau_{\omega 3}$',...
-            '$\tau_{\omega 4}$', 'interpreter','latex','fontsize',18)
-    xlabel('$t (s)$', 'interpreter', 'latex','fontsize',18)
-    ylabel('$\tau (Nm)$', 'interpreter', 'latex','fontsize',18)
-    grid
-    
-    figure(9)
-    plot(t,x(12,:))
-    title('Evolution of the vehicle heading', 'interpreter', ...
-    'latex','fontsize',18)
-    xlabel('$t (s)$', 'interpreter', 'latex','fontsize',18)
-    ylabel('$\psi (rad)$', 'interpreter', 'latex','fontsize',18)
-    grid
-    
-    figure(10)
-    plot(t,x(40:43,:))
-    title('Evolution of the steering joints position', 'interpreter', ...
-    'latex','fontsize',18)
-    legend('$\theta_1$','$\theta_2$','$\theta_3$',...
-            '$\theta_4$', 'interpreter','latex','fontsize',18)
-    xlabel('$t (s)$', 'interpreter', 'latex','fontsize',18)
-    ylabel('$\theta (rad)$', 'interpreter', 'latex','fontsize',18)
-    grid
+%     
+%     figure(6)
+%     plot(t,x(28:31,:))
+%     title('Evolution of the applied wheel speeds', 'interpreter', ...
+%     'latex','fontsize',18)
+%     legend('$\omega 1$','$\omega 2$','$\omega 3$',...
+%             '$\omega 4$', 'interpreter','latex','fontsize',18)
+%     xlabel('$t (s)$', 'interpreter', 'latex','fontsize',18)
+%     ylabel('$\omega (rad/s)$', 'interpreter', 'latex','fontsize',18)
+%     grid
+%     
+%     figure(7)
+%     plot(t,x(32:35,:))
+%     title('Evolution of the applied wheel accelerations', 'interpreter', ...
+%     'latex','fontsize',18)
+%     legend('$\dot\omega 1$','$\dot\omega 2$','$\dot\omega 3$',...
+%             '$\dot\omega 4$', 'interpreter','latex','fontsize',18)
+%     xlabel('$t (s)$', 'interpreter', 'latex','fontsize',18)
+%     ylabel('$\dot\omega (rad/s^2)$', 'interpreter', 'latex','fontsize',18)
+%     grid
+%     
+%     figure(8)
+%     plot(t,x(36:39,:))
+%     title('Evolution of the applied wheel torques', 'interpreter', ...
+%     'latex','fontsize',18)
+%     legend('$\tau_{\omega 1}$','$\tau_{\omega 2}$','$\tau_{\omega 3}$',...
+%             '$\tau_{\omega 4}$', 'interpreter','latex','fontsize',18)
+%     xlabel('$t (s)$', 'interpreter', 'latex','fontsize',18)
+%     ylabel('$\tau (Nm)$', 'interpreter', 'latex','fontsize',18)
+%     grid
+%     
+%     figure(9)
+%     plot(t,x(12,:))
+%     title('Evolution of the vehicle heading', 'interpreter', ...
+%     'latex','fontsize',18)
+%     xlabel('$t (s)$', 'interpreter', 'latex','fontsize',18)
+%     ylabel('$\psi (rad)$', 'interpreter', 'latex','fontsize',18)
+%     grid
+%     
+%     figure(10)
+%     plot(t,x(40:43,:))
+%     title('Evolution of the steering joints position', 'interpreter', ...
+%     'latex','fontsize',18)
+%     legend('$\theta_1$','$\theta_2$','$\theta_3$',...
+%             '$\theta_4$', 'interpreter','latex','fontsize',18)
+%     xlabel('$t (s)$', 'interpreter', 'latex','fontsize',18)
+%     ylabel('$\theta (rad)$', 'interpreter', 'latex','fontsize',18)
+%     grid
 
        
     %% Simulation
