@@ -185,7 +185,10 @@ referencePath = interp1(x1,referencePath,x2);
 
 yaw = getYaw(referencePath);
 referencePath = [referencePath yaw].';
+
 waypSeparation = norm(referencePath(1:2,1)-referencePath(1:2,2));
+
+yawB0 = modulateYaw(yawB0,referencePath(3,1));
 
 % Obtaining gradient inside obstacles, for escaping them
 [gOMxini, gOMyini] = getObstaclesEscapingGradient(safeObstMap);
