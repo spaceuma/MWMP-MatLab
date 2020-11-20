@@ -1,7 +1,11 @@
-function cost = getTrajectoryCost(path, x, prevPose)
+function cost = getTrajectoryCost(path, x, switchIndex)
 
-    headingCost = abs(prevPose(3)-path(3,1));
+    headingCost = 0;
     distCost = DiscreteFrechetDist(path.', x.');
-    cost = headingCost + distCost;
+    
+    for i = 1:size(path,2)
+        headingCost = abs(path(3,i) - x(3,i + switchIndex - 1));
+    end
+    cost = distCost + headingCost;    
 end
 

@@ -78,7 +78,7 @@ armJointsLimits = [-360 +360;
 xB0 = 2.0;
 yB0 = 2.5;
 zB0 = zBC;
-yawB0 = pi/2;
+yawB0 = 0;
 
 qi = [0, -pi/2, pi/2];
 rollei = 0;
@@ -189,6 +189,9 @@ referencePath = [referencePath yaw].';
 waypSeparation = norm(referencePath(1:2,1)-referencePath(1:2,2));
 
 yawB0 = modulateYaw(yawB0,referencePath(3,1));
+for i = 2:size(referencePath,2)
+    referencePath(3,i) = modulateYaw(referencePath(3,i), referencePath(3,i-1));
+end
 
 % Obtaining gradient inside obstacles, for escaping them
 [gOMxini, gOMyini] = getObstaclesEscapingGradient(safeObstMap);
@@ -398,10 +401,16 @@ while 1
     Jac(:,:,end) = jacobian3(x(16:18,end));
 
     % Multitrajectory costing method
+    d = DiscreteFrechetDist(x(10:11,1:end).', x0(10:11,1:end).');
     for i = 2:size(t,2)-2
-        if DiscreteFrechetDist(x(10:11,i:end).', x0(10:11,i:end).') > reachabilityDistance && ...
-           norm(x(10:11,i) - x(10:11,i-1)) > waypSeparation && ...
-           norm(x(10:11,i) - x0(10:11,i)) < 10*waypSeparation
+        % Filtering undesired updates
+        if d < 30*waypSeparation && d > 5*waypSeparation && ...
+            isSafePath([x(10,1:switchIndex-1) pathCandidate(1,:) x(10,interIndex2+1:end)],...
+                          [x(11,1:switchIndex-1) pathCandidate(2,:) x(11,interIndex2+1:end)],...
+                          mapResolution,dilatedObstMap)
+%            norm(x(10:11,i) - x(10:11,i-1)) > waypSeparation && ...
+%            norm(x(10:11,i) - x0(10:11,i)) < 10*waypSeparation
+            % Obtaining the candidate path
             iInit = [round(x(10,i)/mapResolution)+1 round(x(11,i)/mapResolution)+1];
             if(iInit(1)>size(totalCostMap,1)-2)
                 iInit(1) = size(totalCostMap,1)-2;
@@ -423,29 +432,47 @@ while 1
             while(size(pathi,1) > 1000)
                 [pathi,~] = getPathGDM2(totalCostMap,iInit+round(2*rand(1,2)-1),iGoal,tau, gTCMx, gTCMy);
                 pathi = (pathi-1)*mapResolution;
-            end
-
-            % Resize path
-            x1 = 1:size(pathi,1);
-            x2 = linspace(1,size(pathi,1),size(t,2)-i+1);
-            pathi = interp1(x1,pathi,x2);
+            end      
 
             yaw = getYaw(pathi);
             pathi = [pathi yaw].';
-            [inter, interIndex1, interIndex2] = getIntesection(pathi, x0(10:12,i:end), waypSeparation/2);
-            endIndex = i+interIndex2-1;
             
-            pathInt = pathi(:,1:interIndex1);
+            % Compute switch waypoint
+            [switchPose, switchIndex] = getSwitch(x0(10:12,:), pathi);
 
-            newCost = getTrajectoryCost(pathi, x(10:12,i:end), x(10:12,i-1));
-            oldCost = getTrajectoryCost(x0(10:12,i:endIndex), x(10:12,i:end), x(10:12,i-1));
+            % Compute intersection waypoint
+            [inter, interIndex1, interIndex2] = getIntesection(pathi, x0(10:12,switchIndex:end), waypSeparation);
+            interIndex2 = interIndex2 + switchIndex - 1;
+                        
+            % If the candidate path is big enough...
+            if(interIndex1 > 1 && interIndex2 ~= switchIndex)
+                pathCandidate = pathi(:,1:interIndex1);
+                originalPath = x0(10:12,switchIndex:interIndex2);
 
-            if newCost*1.50 < oldCost && oldCost > 0.05 && ...
-               isSafePath([x(10,1:i-1) pathInt(1,:)],[x(11,1:i-1) pathInt(2,:)],mapResolution,dilatedObstMap) && ...
-               DiscreteFrechetDist(pathInt.', x0(10:12,i:endIndex).') > 1
-%                 x0(10:12,i:end) = pathi;
-                x0(10:12,i:i+interIndex1-1) = pathInt;
-                disp(['Changing reference path from waypoint ',num2str(i), '...'])
+                % Resize path
+                x1 = 1:size(pathCandidate,2);
+                x2 = linspace(1,size(pathCandidate,2),size(originalPath,2));
+                pathCandidate = (interp1(x1,pathCandidate.',x2)).';
+
+                % Get path costs (candidate and original)
+                newCost = getTrajectoryCost(pathCandidate, x(10:12,:), switchIndex);
+                oldCost = getTrajectoryCost(originalPath, x(10:12,:), switchIndex);
+
+                % If the cost is reduced, the candidate is safe and the
+                % change is significant, update the reference path
+                if newCost*1.00 < oldCost && ...
+                   isSafePath([x(10,1:switchIndex-1) pathCandidate(1,:) x(10,interIndex2+1:end)],...
+                              [x(11,1:switchIndex-1) pathCandidate(2,:) x(11,interIndex2+1:end)],...
+                              mapResolution,dilatedObstMap) && ...
+                              DiscreteFrechetDist(pathCandidate, originalPath) > 2*waypSeparation
+                    x0(10:12,switchIndex:interIndex2) = pathCandidate;
+                    for j = switchIndex:interIndex2
+                        if j > 1
+                            x0(12,j) = modulateYaw(x0(12,j), x0(12,j-1));
+                        end
+                    end
+                    disp(['Changing reference path from waypoint ',num2str(switchIndex), ' to ',num2str(interIndex2)])
+                end
             end
         end
 
@@ -937,6 +964,7 @@ while 1
     title('Mobile manipulator trajectories', 'interpreter', ...
     'latex','fontsize',18)
     plot3(x0(10,:),x0(11,:), zBC*ones(size(t,2),2), 'LineWidth', 5, 'Color', [0,0,0.6])
+    plot3(referencePath(1,:),referencePath(2,:), zBC*ones(size(t,2),2), 'LineWidth', 5, 'Color', [0,0,1])
     plot3(xef,yef,zef, 'MarkerSize', 20, 'Marker', '.', 'Color', 'c')
 
     hold off;
@@ -1098,6 +1126,8 @@ if error == 0
     title('Mobile manipulator trajectories', 'interpreter', ...
     'latex','fontsize',18)
     plot3(x0(10,:),x0(11,:), zBC*ones(size(t,2),2), 'LineWidth', 5, 'Color', [0,0,0.6])
+    plot3(referencePath(1,:),referencePath(2,:), zBC*ones(size(t,2),2), 'LineWidth', 5, 'Color', [0,0,1])
+
     plot3(xef,yef,zef, 'MarkerSize', 20, 'Marker', '.', 'Color', 'c')
 
     hold off;
