@@ -8,11 +8,6 @@ addpath('../../models/3DoF')
 addpath('../../costs')
 addpath('../../utils')
 
-if isempty(matlab.project.rootProject)
-    matlab.project.loadProject('../../../Simscape/Contact_Forces_Library.prj')
-    cd 'C:\Users\gonzalopd96\Documents\kinematic_planning\tests\10-base_3DoF_dynamics'
-end
-
 clear
 
 tic
@@ -401,15 +396,11 @@ while 1
     Jac(:,:,end) = jacobian3(x(16:18,end));
 
     % Multitrajectory costing method
-    d = DiscreteFrechetDist(x(10:11,1:end).', x0(10:11,1:end).');
+    d = DiscreteFrechetDist(x(10:11,:).', x0(10:11,:).');
     for i = 2:size(t,2)-2
         % Filtering undesired updates
         if d < 30*waypSeparation && d > 5*waypSeparation && ...
-            isSafePath([x(10,1:switchIndex-1) pathCandidate(1,:) x(10,interIndex2+1:end)],...
-                          [x(11,1:switchIndex-1) pathCandidate(2,:) x(11,interIndex2+1:end)],...
-                          mapResolution,dilatedObstMap)
-%            norm(x(10:11,i) - x(10:11,i-1)) > waypSeparation && ...
-%            norm(x(10:11,i) - x0(10:11,i)) < 10*waypSeparation
+           isSafePath(x(10,:),x(11,:), mapResolution,dilatedObstMap)
             % Obtaining the candidate path
             iInit = [round(x(10,i)/mapResolution)+1 round(x(11,i)/mapResolution)+1];
             if(iInit(1)>size(totalCostMap,1)-2)
@@ -424,7 +415,6 @@ while 1
             if(iInit(2)<3)
                 iInit(2) = 3;
             end
-
 
             [pathi,~] = getPathGDM2(totalCostMap,iInit,iGoal,tau, gTCMx, gTCMy);
             pathi = (pathi-1)*mapResolution;
@@ -1223,14 +1213,8 @@ if error == 0
 
        
     %% Simulation
-    mu_k = 1;
-    mu_s = 1;
-    vth = 10000;
-    
-    k = 1e6;
-    b = 1e4;
-    
-%     sim('base_3DoF_dynamics_sim_forces',t(end));
+   
+    sim('base_3DoF_dynamics_sim',t(end));
 
 end
 
