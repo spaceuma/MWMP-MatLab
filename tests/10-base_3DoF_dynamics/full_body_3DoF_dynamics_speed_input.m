@@ -54,8 +54,8 @@ m1 = 3;
 m2 = 9;
 m3 = 9;
 
-global frictionCoefficient;
-frictionCoefficient = 1;
+global rollingResistance;
+rollingResistance = 0.0036;
 
 global g;
 g = 9.81;
@@ -73,14 +73,14 @@ armJointsLimits = [-360 +360;
 xB0 = 2.0;
 yB0 = 2.5;
 zB0 = zBC;
-yawB0 = 0;
+yawB0 = pi/2;
 
 qi = [0, -pi/2, pi/2];
 rollei = 0;
 pitchei = pi/2;
 yawei = 0;
 
-xef = 2.5;
+xef = 8.5;
 yef = 8.7;
 zef = 0.2;
 rollef = 0;
@@ -142,7 +142,7 @@ tau = 0.5; % GDM step size
 
 %% Algorithm
 % FMM to compute totalCostMap
-load('obstMap3','obstMap')
+load('obstMap2','obstMap')
 dilatedObstMap = dilateObstMap(obstMap, riskDistance, mapResolution);
 safeObstMap = dilateObstMap(obstMap, safetyDistance, mapResolution);
 
@@ -382,13 +382,13 @@ while 1
         x(35,i) = (u(5,i-1) - x(31,i-1))/dt;
         % Wheels torques
         x(36,i) = (getWheelInertia(wheelMass,r)+vehicleMass/4*r*r)*x(32,i-1)...
-            + frictionCoefficient*vehicleMass*g*r/4;
+            + rollingResistance*vehicleMass*g*r/4;
         x(37,i) = (getWheelInertia(wheelMass,r)+vehicleMass/4*r*r)*x(33,i-1)...
-            + frictionCoefficient*vehicleMass*g*r/4;
+            + rollingResistance*vehicleMass*g*r/4;
         x(38,i) = (getWheelInertia(wheelMass,r)+vehicleMass/4*r*r)*x(34,i-1)...
-            + frictionCoefficient*vehicleMass*g*r/4;
+            + rollingResistance*vehicleMass*g*r/4;
         x(39,i) = (getWheelInertia(wheelMass,r)+vehicleMass/4*r*r)*x(35,i-1)...
-            + frictionCoefficient*vehicleMass*g*r/4;
+            + rollingResistance*vehicleMass*g*r/4;
         % Steering Joints Position
         x(40:41,i) = x(40:41,i-1) + u(6,i-1)*dt;
         x(42:43,i) = x(42:43,i-1) + u(7,i-1)*dt;
@@ -854,13 +854,13 @@ while 1
                 x(35,i) = (u(5,i-1) - x(31,i-1))/dt;
                 % Wheels torques
                 x(36,i) = (getWheelInertia(wheelMass,r)+vehicleMass/4*r*r)*x(32,i-1)...
-                    + frictionCoefficient*vehicleMass*g*r/4;
+                    + rollingResistance*vehicleMass*g*r/4;
                 x(37,i) = (getWheelInertia(wheelMass,r)+vehicleMass/4*r*r)*x(33,i-1)...
-                    + frictionCoefficient*vehicleMass*g*r/4;
+                    + rollingResistance*vehicleMass*g*r/4;
                 x(38,i) = (getWheelInertia(wheelMass,r)+vehicleMass/4*r*r)*x(34,i-1)...
-                    + frictionCoefficient*vehicleMass*g*r/4;
+                    + rollingResistance*vehicleMass*g*r/4;
                 x(39,i) = (getWheelInertia(wheelMass,r)+vehicleMass/4*r*r)*x(35,i-1)...
-                    + frictionCoefficient*vehicleMass*g*r/4;
+                    + rollingResistance*vehicleMass*g*r/4;
                 % Steering Joints Position
                 x(40:41,i) = x(40:41,i-1) + u(6,i-1)*dt;
                 x(42:43,i) = x(42:43,i-1) + u(7,i-1)*dt;
@@ -1008,13 +1008,13 @@ if error == 0
         x(35,i) = (u(5,i-1) - x(31,i-1))/dt;
         % Wheels torques
         x(36,i) = (getWheelInertia(wheelMass,r)+vehicleMass/4*r*r)*x(32,i-1)...
-            + frictionCoefficient*vehicleMass*g*r/4;
+            + rollingResistance*vehicleMass*g*r/4;
         x(37,i) = (getWheelInertia(wheelMass,r)+vehicleMass/4*r*r)*x(33,i-1)...
-            + frictionCoefficient*vehicleMass*g*r/4;
+            + rollingResistance*vehicleMass*g*r/4;
         x(38,i) = (getWheelInertia(wheelMass,r)+vehicleMass/4*r*r)*x(34,i-1)...
-            + frictionCoefficient*vehicleMass*g*r/4;
+            + rollingResistance*vehicleMass*g*r/4;
         x(39,i) = (getWheelInertia(wheelMass,r)+vehicleMass/4*r*r)*x(35,i-1)...
-            + frictionCoefficient*vehicleMass*g*r/4;
+            + rollingResistance*vehicleMass*g*r/4;
         % Steering Joints Position
         x(40:41,i) = x(40:41,i-1) + u(6,i-1)*dt;
         x(42:43,i) = x(42:43,i-1) + u(7,i-1)*dt;
@@ -1163,35 +1163,35 @@ if error == 0
 %     ylabel('$\tau (Nm)$', 'interpreter', 'latex','fontsize',18)
 %     grid
 %     
-%     figure(6)
-%     plot(t,x(28:31,:))
-%     title('Evolution of the applied wheel speeds', 'interpreter', ...
-%     'latex','fontsize',18)
-%     legend('$\omega 1$','$\omega 2$','$\omega 3$',...
-%             '$\omega 4$', 'interpreter','latex','fontsize',18)
-%     xlabel('$t (s)$', 'interpreter', 'latex','fontsize',18)
-%     ylabel('$\omega (rad/s)$', 'interpreter', 'latex','fontsize',18)
-%     grid
-%     
-%     figure(7)
-%     plot(t,x(32:35,:))
-%     title('Evolution of the applied wheel accelerations', 'interpreter', ...
-%     'latex','fontsize',18)
-%     legend('$\dot\omega 1$','$\dot\omega 2$','$\dot\omega 3$',...
-%             '$\dot\omega 4$', 'interpreter','latex','fontsize',18)
-%     xlabel('$t (s)$', 'interpreter', 'latex','fontsize',18)
-%     ylabel('$\dot\omega (rad/s^2)$', 'interpreter', 'latex','fontsize',18)
-%     grid
-%     
-%     figure(8)
-%     plot(t,x(36:39,:))
-%     title('Evolution of the applied wheel torques', 'interpreter', ...
-%     'latex','fontsize',18)
-%     legend('$\tau_{\omega 1}$','$\tau_{\omega 2}$','$\tau_{\omega 3}$',...
-%             '$\tau_{\omega 4}$', 'interpreter','latex','fontsize',18)
-%     xlabel('$t (s)$', 'interpreter', 'latex','fontsize',18)
-%     ylabel('$\tau (Nm)$', 'interpreter', 'latex','fontsize',18)
-%     grid
+    figure(6)
+    plot(t,x(28:31,:))
+    title('Evolution of the applied wheel speeds', 'interpreter', ...
+    'latex','fontsize',18)
+    legend('$\omega 1$','$\omega 2$','$\omega 3$',...
+            '$\omega 4$', 'interpreter','latex','fontsize',18)
+    xlabel('$t (s)$', 'interpreter', 'latex','fontsize',18)
+    ylabel('$\omega (rad/s)$', 'interpreter', 'latex','fontsize',18)
+    grid
+    
+    figure(7)
+    plot(t,x(32:35,:))
+    title('Evolution of the applied wheel accelerations', 'interpreter', ...
+    'latex','fontsize',18)
+    legend('$\dot\omega 1$','$\dot\omega 2$','$\dot\omega 3$',...
+            '$\dot\omega 4$', 'interpreter','latex','fontsize',18)
+    xlabel('$t (s)$', 'interpreter', 'latex','fontsize',18)
+    ylabel('$\dot\omega (rad/s^2)$', 'interpreter', 'latex','fontsize',18)
+    grid
+    
+    figure(8)
+    plot(t,x(36:39,:))
+    title('Evolution of the applied wheel torques', 'interpreter', ...
+    'latex','fontsize',18)
+    legend('$\tau_{\omega 1}$','$\tau_{\omega 2}$','$\tau_{\omega 3}$',...
+            '$\tau_{\omega 4}$', 'interpreter','latex','fontsize',18)
+    xlabel('$t (s)$', 'interpreter', 'latex','fontsize',18)
+    ylabel('$\tau (Nm)$', 'interpreter', 'latex','fontsize',18)
+    grid
 %     
 %     figure(9)
 %     plot(t,x(12,:))
