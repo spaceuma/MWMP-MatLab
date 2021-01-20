@@ -76,7 +76,7 @@ while 1
         % Según Sideris, debería ser como sigue, aunque con esto no estamos
         % realimentando el vector de referencia
 %         xs0(:,i) = Q(:,:,i)*x(:,i) + x0(:,i);
-%         us0(:,i) = R*u(:,i) + u0(:,i);
+%         us0(:,i) = R(:,:,i)*u(:,i) + u0(:,i);
     end
     
 
