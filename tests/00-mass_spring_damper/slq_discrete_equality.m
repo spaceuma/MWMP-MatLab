@@ -14,8 +14,8 @@ yi = 0;
 vi = 0;
 
 tf = 15;
-yf = 0;
-vf = -1;
+yf = 0.05;
+vf = 0;
 
 dt = 0.05;
 t = 0:dt:tf;
@@ -95,33 +95,37 @@ while 1
     
     % Constraints definition
     % State input constraints
+    numStateInputConstraints = 1;
+    tl = zeros(numStateInputConstraints);
+    tl(1) = 100;
     p = zeros(size(t));
-    p(100) = 0;
-
+    p(tl(1)) = 1;
 
     C = zeros(max(p),numStates,size(t,2));
     D = zeros(max(p),numInputs,size(t,2));
     r = zeros(max(p),size(t,2));
     
-%     C(1,:,100) = zeros(1,numStates);
-%     D(1,:,100) = 1;
-%     r(1,100) = -1;
+    C(1,:,tl(1)) = zeros(1,numStates);
+    D(1,:,tl(1)) = 1;
+    r(1,tl(1)) = -1;
     
     % Pure state constraints
-    numPureStateConstraints = 0;
+    numPureStateConstraints = 2;
     tk = zeros(numPureStateConstraints);
     tk(1) = 50;
+    tk(2) = 250;
     q = zeros(size(t));
-    q(tk(1)) = 0;
+    q(tk(1)) = 1;
+    q(tk(2)) = 1;
     
     G = zeros(max(q),numStates,size(t,2));
     h = zeros(max(q),size(t,2));
     
-%     G(1,1,tk(1)) = 1;
-%     h(1,tk(1)) = -1;
-% 
-%     G(2,2,tk(1)) = 1;
-%     h(2,tk(1)) = -0.5;
+    G(1,1,tk(1)) = 1;
+    h(1,tk(1)) = -0.1;
+
+    G(1,2,tk(2)) = 1;
+    h(1,tk(2)) = -0.00;
     
     % Predefinitions
     Dh = zeros(max(p),max(p),size(t,2));
@@ -189,7 +193,7 @@ while 1
             F((k-1)*max(q)+1:k*max(q),(j-1)*max(q)+1:j*max(q)) = Fkj(:,:,1);
         end
 
-        H((k-1)*max(q)+1:k*max(q)) = h(:,k);
+        H((k-1)*max(q)+1:k*max(q)) = h(:,tk(k));
         Gamma((k-1)*max(q)+1:k*max(q),:) = Gammak(:,:,1,k);
         y((k-1)*max(q)+1:k*max(q)) = yk(:,1);        
 
@@ -207,7 +211,6 @@ while 1
                 sum = sum + Gammak(:,:,i,k).'*nu((k-1)*max(q)+1:k*max(q));
             end
         end
-        sum
         s(:,i) = z(:,i) + sum;
     end
     
@@ -228,7 +231,7 @@ while 1
     end
    
     % Exit condition
-    if norm(us)<=0.000001*norm(u) || iter >= 50
+    if norm(us)<=0.000001*norm(u) || iter >= 2
         iter = iter-1;
         break;
     else
@@ -252,34 +255,8 @@ while 1
 %         u = u + alfamin*us;
         x = x + xs;
         u = u + us;
-%         xk = xsk;
-%         uk = usk;
 
         iter = iter+1;
-        figure(1)
-        plot(t,x(1,:))
-        title('Mass position evolution','interpreter','latex')
-        xlabel('t(s)','interpreter','latex')
-        ylabel('y(m)','interpreter','latex')
-        hold on
-        plot(tf,yf,'Marker','o','MarkerFaceColor','red')
-        hold off
-        
-        figure(2)
-        plot(t,x(2,:))
-        title('Mass speed evolution','interpreter','latex')
-        xlabel('t(s)','interpreter','latex')
-        ylabel('v(m/s)','interpreter','latex')
-        hold on
-        plot(tf,vf,'Marker','o','MarkerFaceColor','red')
-        hold off
-
-        figure(3)
-        plot(t,u)
-        title('Actuating force (u)','interpreter','latex')
-        xlabel('t(s)','interpreter','latex')
-        ylabel('F(N)','interpreter','latex')
-        hold off
     end   
 end
 disp(['SLQ found the optimal control input within ',num2str(iter),' iterations'])
@@ -295,6 +272,8 @@ xlabel('t(s)','interpreter','latex')
 ylabel('y(m)','interpreter','latex')
 hold on
 plot(tf,yf,'Marker','o','MarkerFaceColor','red')
+plot((tk(1)-1)*dt,-h(1,tk(1)),'Marker','o','MarkerFaceColor','red')
+hold off
 
 figure(2)
 plot(t,x(2,:))
@@ -303,6 +282,8 @@ xlabel('t(s)','interpreter','latex')
 ylabel('v(m/s)','interpreter','latex')
 hold on
 plot(tf,vf,'Marker','o','MarkerFaceColor','red')
+plot((tk(2)-1)*dt,-h(1,tk(2)),'Marker','o','MarkerFaceColor','red')
+hold off
 
 figure(3)
 plot(t,u)
@@ -310,6 +291,7 @@ title('Actuating force (u)','interpreter','latex')
 xlabel('t(s)','interpreter','latex')
 ylabel('F(N)','interpreter','latex')
 hold on
-
+plot((tl(1)-1)*dt,-r(1,tl(1)),'Marker','o','MarkerFaceColor','red')
+hold off
 
 
