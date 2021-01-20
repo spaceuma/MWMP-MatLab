@@ -57,8 +57,8 @@ while 1
         Q(:,:,i) = 0*eye(numStates,numStates);
     end
     
-    Q(:,:,end) = [10000000 0;
-                  0 10000000];
+    Q(:,:,end) = [0 0;
+                  0 0];
         
     R = zeros(numInputs,numInputs,size(t,2));
     for i = 1:size(t,2)
@@ -110,13 +110,16 @@ while 1
     r(1,tl(1)) = -1;
     
     % Pure state constraints
-    numPureStateConstraints = 2;
+    numPureStateConstraints = 3;
     tk = zeros(numPureStateConstraints);
     tk(1) = 50;
     tk(2) = 250;
+    tk(3) = size(t,2);
+    
     q = zeros(size(t));
     q(tk(1)) = 1;
     q(tk(2)) = 1;
+    q(tk(3)) = 2;
     
     G = zeros(max(q),numStates,size(t,2));
     h = zeros(max(q),size(t,2));
@@ -125,7 +128,12 @@ while 1
     h(1,tk(1)) = -0.1;
 
     G(1,2,tk(2)) = 1;
-    h(1,tk(2)) = -0.00;
+    h(1,tk(2)) = -0.1;
+    
+    G(1,1,tk(3)) = 1;
+    h(1,tk(3)) = -yf;
+    G(2,2,tk(3)) = 1;
+    h(2,tk(3)) = -vf;
     
     % Predefinitions
     Dh = zeros(max(p),max(p),size(t,2));
@@ -200,8 +208,23 @@ while 1
     end
        
     nu = zeros(max(q)*numPureStateConstraints,1);
-    nu(:) = F\(-Gamma*xs(:,1) - y - H);
-    
+    invF = zeros(size(F));
+    if(~det(F))
+        correctIndex = [];
+        currentIndex = 1;
+        for k = 1:numPureStateConstraints
+            tConstraint = tk(k);
+            correctIndex = [correctIndex currentIndex:currentIndex+q(tConstraint)-1];
+            currentIndex = currentIndex + max(q);            
+        end
+        Faux = F(correctIndex,correctIndex);
+        invFaux = inv(Faux);
+        invF(correctIndex,correctIndex) = invFaux;
+    else
+        invF = inv(F);
+    end
+    nu(:) = invF*(-Gamma*xs(:,1) - y - H);
+
     s = zeros(numStates,size(t,2));
 
     for i = 1:size(t,2)

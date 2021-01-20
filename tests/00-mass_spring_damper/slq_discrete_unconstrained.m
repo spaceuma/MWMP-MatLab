@@ -12,8 +12,8 @@ yi = 0;
 vi = 0;
 
 tf = 15;
-yf = 1;
-vf = 0;
+yf = 0;
+vf = -18;
 
 g = 9.81;
  
@@ -137,28 +137,30 @@ toc
 iu = cumsum(abs(u));
 disp(['Total force applied: ',num2str(iu(end)),' N'])
 
-figure(1)
+figure(4)
 plot(t,x(1,:))
 title('Mass position evolution','interpreter','latex')
 xlabel('t(s)','interpreter','latex')
 ylabel('y(m)','interpreter','latex')
 hold on
 plot(tf,yf,'Marker','o','MarkerFaceColor','red')
+hold off
 
-figure(2)
+figure(5)
 plot(t,x(2,:))
 title('Mass speed evolution','interpreter','latex')
 xlabel('t(s)','interpreter','latex')
 ylabel('v(m/s)','interpreter','latex')
 hold on
 plot(tf,vf,'Marker','o','MarkerFaceColor','red')
+hold off
 
-figure(3)
+figure(6)
 plot(t(1:end-1),u)
 title('Actuating force (u)','interpreter','latex')
 xlabel('t(s)','interpreter','latex')
 ylabel('F(N)','interpreter','latex')
-hold on
+hold off
 
 
 
