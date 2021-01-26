@@ -1,7 +1,6 @@
 clear
 
 tic
-lineSearchStep = 0.2;
 
 % System properties
 mass = 1;
@@ -14,17 +13,17 @@ yi = 0;
 vi = 0;
 
 tf = 15;
-yf = 0.05;
-vf = 0;
+yf = 0.15;
+vf = 0.0;
 
-yMax = 3;
-yMin = -3;
+yMax = 300;
+yMin = -300;
 
-vMax = 2;
-vMin = -2;
+vMax = 5555;
+vMin = -5555;
 
 FMax = 1;
-FMin = -1;
+FMin = -561;
 
 dt = 0.05;
 t = 0:dt:tf;
@@ -35,13 +34,9 @@ x = zeros(numStates,size(t,2));
 x(1,1) = yi;
 x(2,1) = vi;
 
-xs = zeros(numStates,size(t,2));
-
 % Initial control law
 numInputs = 1;
 u = zeros(numInputs,size(t,2));
-
-us = zeros(numInputs,size(t,2));
 
 % Target state and control trajectories
 x0 = zeros(numStates,size(t,2));
@@ -53,7 +48,8 @@ u0 = zeros(numInputs,size(t,2));
 % Constraints matrices definition
 % State input constraints
 numStateInputConstraints = 2;
-I = zeros(numStateInputConstraints,size(t,2));
+I0 = zeros(numStateInputConstraints,size(t,2));
+I = I0;
 C = zeros(numStateInputConstraints,numStates,size(t,2));
 D = zeros(numStateInputConstraints,numInputs,size(t,2));
 r = zeros(numStateInputConstraints,size(t,2));
@@ -66,12 +62,15 @@ r(2,:) = FMin;
 
 % Pure state constraints
 numPureStateConstraints = 4;
-J = zeros(numPureStateConstraints,size(t,2));
+J0 = zeros(numPureStateConstraints,size(t,2));
+% J0(1,end) = 1;
+J = J0;
 G = zeros(numPureStateConstraints,numStates,size(t,2));
 h = zeros(numPureStateConstraints,size(t,2));
 
 G(1,1,:) = 1;
 h(1,:) = -yMax;
+% h(1,end) = -yf;
 
 G(2,1,:) = -1;
 h(2,:) = yMin;
@@ -82,16 +81,8 @@ h(3,:) = -vMax;
 G(4,2,:) = -1;
 h(4,:) = vMin;
 
-
-% PRUEBA
-I(1,[48 53 68]) = 1;
-
-J(1,[145 150]) = 1;
-
-J(4,200) = 1;
-
 % SLQR algorithm
-iter = 1;
+iter = 0;
 while 1   
 %     % Forward integrate system equations
 %     for i = 2:size(t,2)
@@ -99,6 +90,9 @@ while 1
 %         xk(1,i) = xk(1,i-1) + dt*xk(2,i-1);
 %         xk(2,i) = xk(2,i-1) + dt*a;
 %     end
+
+    xs = zeros(numStates,size(t,2));
+    us = zeros(numInputs,size(t,2));
         
     % Quadratize cost function along the trajectory
     Q = zeros(numStates,numStates,size(t,2));
@@ -106,13 +100,15 @@ while 1
         Q(:,:,i) = 0*eye(numStates,numStates);
     end
     
-    Q(:,:,end) = [10000000 0;
-                  0 10000000];
+    Q(:,:,end) = [10000000000 0;
+                  0 10000000000];
         
     R = zeros(numInputs,numInputs,size(t,2));
     for i = 1:size(t,2)
         R(:,:,i) = 1*eye(numInputs,numInputs);
     end
+    
+    K = zeros(numStates,numInputs,size(t,2));
     
     % Define the sequential state and input vectors
     xs0 = zeros(numStates,size(t,2));
@@ -145,13 +141,15 @@ while 1
     % Active Constraints definition
     % State input constraints
     tl = [];
-    p = [];
+    p = cell(size(t,2),1);
     paux = zeros(numStateInputConstraints,1);
-
+    pl = zeros(numStateInputConstraints,1);
+    
     for i = 1:size(t,2)
         anyActiveConstraint = false;
         for j = 1:numStateInputConstraints
             if I(j,i)
+                p{i} = [p{i}; j];
                 paux(j) = 1;
                 anyActiveConstraint = true;
             end
@@ -160,34 +158,41 @@ while 1
             tl = [tl i];
         end
     end
+
+    numActiveSIConstraints = sum(paux);
+    lp = zeros(numActiveSIConstraints,1);
+
+    index = 1;
     for i = 1:numStateInputConstraints
         if paux(i)
-            p = [p i];
+            pl(i) = index;
+            lp(index) = i;
+            index = index+1;
         end
     end
-    numActiveSIConstraints = size(p,2);
-
+    
     Cl = zeros(numActiveSIConstraints,numStates,size(t,2));
     Dl = zeros(numActiveSIConstraints,numInputs,size(t,2));
     rl = zeros(numActiveSIConstraints,size(t,2));
     
-    if(numActiveSIConstraints)
-        Cl(:,:,tl) = C(p,:,tl);
-        Dl(:,:,tl) = D(p,:,tl);
-        rl(:,tl) = r(p,tl);
+    for i = tl
+        Cl(pl(p{i}),:,i) = C(p{i},:,i);
+        Dl(pl(p{i}),:,i) = D(p{i},:,i);
+%         rl(pl(p{i}),i) = r(p{i},i);
     end
     
     
     % Pure state constraints
     tk = [];
-    q = [];    
+    q = cell(size(t,2),1);
     qaux = zeros(numPureStateConstraints,1);
-
+    ql = zeros(numPureStateConstraints,1);
 
     for i = 1:size(t,2)
         anyActiveConstraint = false;
         for j = 1:numPureStateConstraints
             if J(j,i)
+                q{i} = [q{i}; j];
                 qaux(j) = 1;
                 anyActiveConstraint = true;
             end
@@ -196,20 +201,26 @@ while 1
             tk = [tk i];
         end
     end
+
+    numActivePSConstraints = sum(qaux);
+    lq = zeros(numActivePSConstraints,1);
+    
+    index = 1;
     for i = 1:numPureStateConstraints
         if qaux(i)
-            q = [q i];
+            ql(i) = index;
+            lq(index) = i;
+            index = index+1;
         end
     end
-    numActivePSConstraints = size(q,2);
     
     
     Gk = zeros(numActivePSConstraints,numStates,size(t,2));
     hk = zeros(numActivePSConstraints,size(t,2));
     
-    if(numActivePSConstraints)
-        Gk(:,:,tk) = G(q,:,tk);
-        hk(:,tk) = h(q,tk);
+    for i = tk
+        Gk(ql(q{i}),:,i) = G(q{i},:,i);
+%         hk(ql(q{i}),i) = h(q{i},i);
     end
     
     % Predefinitions
@@ -223,19 +234,19 @@ while 1
     x0h = zeros(numStates,size(t,2));
     u0h = zeros(numStates,size(t,2));
     
-    for i = 1:size(tl,2)
-        Dh(:,:,tl(i)) = inv(Dl(:,:,tl(i))/R(:,:,tl(i))*Dl(:,:,tl(i)).');
+    for i = tl
+        Dh(pl(p{i}),pl(p{i}),i) = inv(Dl(pl(p{i}),:,i)/R(:,:,i)*Dl(pl(p{i}),:,i).');
     end
     
     for i = 1:size(t,2)
 
-        E(:,:,i) = Cl(:,:,i);
+        E(:,:,i) = Cl(:,:,i) - Dl(:,:,i)/R(:,:,i)*K(:,:,i).';
         rh(:,i) = rl(:,i) - Dl(:,:,i)/R(:,:,i)*us0(:,i);
         
-        Ah(:,:,i) = A(:,:,i) - B(:,:,i)/R(:,:,i)*Dl(:,:,i).'*Dh(:,:,i)*E(:,:,i);
+        Ah(:,:,i) = A(:,:,i) - B(:,:,i)/R(:,:,i)*(K(:,:,i).' + Dl(:,:,i).'*Dh(:,:,i)*E(:,:,i));
         Rh(:,:,i) = B(:,:,i)/R(:,:,i)*(eye(numInputs,numInputs)-Dl(:,:,i).'*Dh(:,:,i)*Dl(:,:,i)/R(:,:,i))*B(:,:,i).';
-        Qh(:,:,i) = Q(:,:,i) + E(:,:,i).'*Dh(:,:,i)*E(:,:,i);
-        x0h(:,i) = xs0(:,i) + E(:,:,i).'*Dh(:,:,i)*rh(:,i);
+        Qh(:,:,i) = Q(:,:,i) - K(:,:,i)/R(:,:,i)*K(:,:,i).' + E(:,:,i).'*Dh(:,:,i)*E(:,:,i);
+        x0h(:,i) = xs0(:,i) - K(:,:,i)/R(:,:,i)*us0(:,i).' + E(:,:,i).'*Dh(:,:,i)*rh(:,i);
         u0h(:,i) = -B(:,:,i)/R(:,:,i)*(us0(:,i) + Dl(:,:,i).'*Dh(:,:,i)*rh(:,i));
     end
     
@@ -286,17 +297,16 @@ while 1
 
     end
     
-    nu = zeros(numActivePSConstraints*size(tk,2),1);
+    nuV = zeros(numActivePSConstraints*size(tk,2),1);
+    
     invF = zeros(size(F));
     if(~det(F))
         Faux = F;
         currentIndex = 0;
         correctIndex = [];
         for i = tk
-            for j = 1:numActivePSConstraints
-                if(J(q(j),i))
-                    correctIndex = [correctIndex currentIndex+j];
-                end
+            for j = 1:size(q{i},1)
+                correctIndex = [correctIndex currentIndex+ql(q{i}(j))];
             end
             currentIndex = currentIndex + numActivePSConstraints;
         end
@@ -307,24 +317,29 @@ while 1
     else
         invF = inv(F);
     end
-    nu(:) = invF*(-Gamma*xs(:,1) - y - H);
-
+    
+    nuV(:) = invF*(-Gamma*xs(:,1) - y - H);
+    
+    nu = zeros(numActivePSConstraints,size(t,2));
+    for i = 1:size(tk,2)
+        nu(:,tk(i)) = nuV((i-1)*numActivePSConstraints+1:i*numActivePSConstraints);
+    end   
+    
     s = zeros(numStates,size(t,2));
-
     for i = 1:size(t,2)
-        sum = 0;
+        sumG = 0;
         for k = 1:size(tk,2)
             if (tk(k) > i)
-                sum = sum + Gammak(:,:,i,k).'*nu((k-1)*numActivePSConstraints+1:k*numActivePSConstraints);
+                sumG = sumG + Gammak(:,:,i,k).'*nu(:,tk(k));
             end
         end
-        s(:,i) = z(:,i) + sum;
+        s(:,i) = z(:,i) + sumG;
     end
     
     v = zeros(numStates,size(t,2));
     lambda = zeros(numStates,size(t,2));
     mu = zeros(numActiveSIConstraints,size(t,2));
-    
+
 %     xsk(:,1) = zeros(numStates,1);
 %     xs(:,1) = xs0(:,1);
 
@@ -334,37 +349,151 @@ while 1
         xs(:,i+1) = M(:,:,i)*Ah(:,:,i)*xs(:,i) + v(:,i);
         lambda(:,i+1) = P(:,:,i+1)*xs(:,i+1) + s(:,i+1);
         mu(:,i) = Dh(:,:,i)*(E(:,:,i)*xs(:,i) - Dl(:,:,i)/R(:,:,i)*B(:,:,i).'*lambda(:,i+1) + rh(:,i));
-        us(:,i) = -R(:,:,i)\(B(:,:,i).'*lambda(:,i+1) + Dl(:,:,i).'*mu(:,i) + us0(:,i));
+        us(:,i) = -R(:,:,i)\(K(:,:,i).'*xs(:,i) + B(:,:,i).'*lambda(:,i+1) + Dl(:,:,i).'*mu(:,i) + us0(:,i));
     end
-   
-    % Exit condition
-    step3 = true;
-    if norm(us)>0.000001*norm(u)
-        % Step 2
+    iter = iter+1;
 
+    step3 = true;
+    if norm(us)>=0.001*norm(u)
+        % Step 2
+        rhoi = ones(numStateInputConstraints,size(t,2));
+        deltai = ones(numStateInputConstraints,size(t,2));
+        
+        rhoj = ones(numPureStateConstraints,size(t,2));
+        deltaj = ones(numPureStateConstraints,size(t,2));
+
+        for n = 1:size(t,2)
+            for i = 1:numStateInputConstraints
+                if(~I(i,n))
+                    rhoi(i,n) = C(i,:,n)*x(:,n) + D(i,:,n)*u(:,n) + r(i,n);
+                    deltai(i,n) = C(i,:,n)*xs(:,n) + D(i,:,n)*us(:,n);
+                end
+            end
+            for j = 1:numPureStateConstraints
+                if(~J(j,n))
+                    rhoj(j,n) = G(j,:,n)*x(:,n) + h(j,n);
+                    deltaj(j,n) = G(j,:,n)*xs(:,n);
+                end
+            end
+        end
+        
+        thetak = min(-rhoi(~I & deltai>0)./deltai(~I & deltai>0));
+        betak = min(-rhoj(~J & deltaj>0)./deltaj(~J & deltaj>0));
+
+        alfak = min([1 thetak betak]);
         
         % Update controller
 %         x = x + alfak*xs;
-%         u = u + alfak*us;
-
-%         
-%         if alfak == 1
-%             step3 = true;
-%         else
-%             step3 = false;
-%         end
+        u = u + alfak*us;
+        
+        if alfak == 1
+            step3 = true;
+        else
+            step3 = false;
+            for n = 1:size(t,2)
+                for i = 1:numStateInputConstraints
+                    if(-rhoi(i,n)/deltai(i,n) == alfak)
+                        I(i,n) = 1;
+                    end
+                end
+                for j = 1:numPureStateConstraints
+                    if(-rhoj(j,n)/deltaj(j,n) == alfak)
+                        J(j,n) = 1;
+                    end
+                end
+            end
+        end
     end
     if step3
         % Step 3
-        
-        if iter >= 2
-            iter = iter-1;
-            break;
+
+        if size(tl,2) > 0
+            minMu = zeros(1,size(t,2));
+            iS = zeros(1,size(t,2));
+
+            for m = tl
+                minMu(m) = 99999999;
+                for i = 1:size(p{m},1)
+                    if I(p{m}(i),m) && ~I0(p{m}(i),m) && mu(i,m) < minMu(m)
+                        minMu(m) = mu(i,m);
+                        iS(m) = i;
+                    end
+                end
+                if minMu(m) == 99999999
+                    minMu(m) = 0;
+                end
+            end
+            
+            [minimumMu, mS] = min(minMu);
+        else
+            minMu = zeros(1,size(t,2));
+            iS = ones(1,size(t,2));
+            [minimumMu, mS] = min(minMu);
         end
-    end   
-    x = x + xs;
-    u = u + us;
-    iter = iter+1;
+
+        if size(tk,2) > 0
+            minNu = zeros(1,size(t,2));
+            jS = zeros(1,size(t,2));
+
+            for l = tk
+                minNu(l) = 99999999;
+                for j = 1:size(q{l},1)
+                    if J(q{l}(j),l) && ~J0(q{l}(j),l) && nu(j,l) < minNu(l)
+                        minNu(l) = nu(j,l);
+                        jS(l) = j;
+                    end
+                end
+                if minNu(l) == 99999999
+                    minNu(l) = 0;
+                end
+            end
+            [minimumNu, lS] = min(minNu);
+
+        else
+            minNu = zeros(1,size(t,2));
+            jS = ones(1,size(t,2));
+            [minimumNu, lS] = min(minNu);
+        end
+        
+        
+        if minimumMu >= 0 && minimumNu >=0
+            x = x + xs;
+            break;
+        else
+            if minimumMu >= minimumNu && size(p{mS},1) > 0
+                I(p{mS}(iS(mS)),mS) = 0;
+            elseif minimumMu < minimumNu && size(q{lS},1) > 0
+                J(q{lS}(jS(lS)),lS) = 0;
+            end
+        end
+    end
+    xaux = x + xs;
+    figure(1)
+    plot(t,xaux(1,:))
+    title('Mass position evolution','interpreter','latex')
+    xlabel('t(s)','interpreter','latex')
+    ylabel('y(m)','interpreter','latex')
+    hold on
+    plot(tf,yf,'Marker','o','MarkerFaceColor','red')
+    hold off
+
+    figure(2)
+    plot(t,xaux(2,:))
+    title('Mass speed evolution','interpreter','latex')
+    xlabel('t(s)','interpreter','latex')
+    ylabel('v(m/s)','interpreter','latex')
+    hold on
+    plot(tf,vf,'Marker','o','MarkerFaceColor','red')
+    hold off
+
+    figure(3)
+    plot(t,u)
+    title('Actuating force (u)','interpreter','latex')
+    xlabel('t(s)','interpreter','latex')
+    ylabel('F(N)','interpreter','latex')
+    hold on
+    hold off
+    
 end
 disp(['SLQ found the optimal control input within ',num2str(iter),' iterations'])
 toc
@@ -379,7 +508,6 @@ xlabel('t(s)','interpreter','latex')
 ylabel('y(m)','interpreter','latex')
 hold on
 plot(tf,yf,'Marker','o','MarkerFaceColor','red')
-% plot((tk(1)-1)*dt,-hk(1,tk(1)),'Marker','o','MarkerFaceColor','red')
 hold off
 
 figure(2)
@@ -389,7 +517,6 @@ xlabel('t(s)','interpreter','latex')
 ylabel('v(m/s)','interpreter','latex')
 hold on
 plot(tf,vf,'Marker','o','MarkerFaceColor','red')
-% plot((tk(2)-1)*dt,-hk(1,tk(2)),'Marker','o','MarkerFaceColor','red')
 hold off
 
 figure(3)
@@ -398,7 +525,6 @@ title('Actuating force (u)','interpreter','latex')
 xlabel('t(s)','interpreter','latex')
 ylabel('F(N)','interpreter','latex')
 hold on
-% plot((tl(1)-1)*dt,-rl(1,tl(1)),'Marker','o','MarkerFaceColor','red')
 hold off
 
 

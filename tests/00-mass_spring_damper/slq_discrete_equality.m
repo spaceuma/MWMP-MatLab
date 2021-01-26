@@ -1,7 +1,6 @@
 clear
 
 tic
-lineSearchStep = 0.2;
 
 % System properties
 mass = 1;
