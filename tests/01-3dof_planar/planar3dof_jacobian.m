@@ -1,4 +1,7 @@
-init = cputime;
+clear
+
+tic
+
 % System properties
 a1 = 0.20;
 a2 = 0.15;
@@ -22,7 +25,8 @@ t = 0:dt:tf;
 q = zeros(3,size(t,2));
 q(:,1) = inverso3([xei yei thetai],-1);
 
-x = zeros(6,size(t,2));
+numStates = 6;
+x = zeros(numStates,size(t,2));
 x(1,1) = xei;
 x(2,1) = yei;
 x(3,1) = thetai;
@@ -31,10 +35,11 @@ x(5,1) = 0;
 x(6,1) = 0;
 
 % Initial control law
-u = zeros(3,size(t,2));
+numInputs = 3;
+u = zeros(numInputs,size(t,2));
 
 % Target state and control trajectories
-x0 = zeros(6,size(t,2));
+x0 = zeros(numStates,size(t,2));
 x0(1,end) = xef;
 x0(2,end) = yef;
 x0(3,end) = thetaf;
@@ -42,11 +47,14 @@ x0(4,end) = 0;
 x0(5,end) = 0;
 x0(6,end) = 0;
 
-u0 = zeros(3,size(t,2));
+u0 = zeros(numInputs,size(t,2));
 
-Jac = zeros(3,size(u,1),size(t,2));
+Jac = zeros(numInputs,numInputs,size(t,2));
 
 % SLQR algorithm
+lineSearchStep = 0.2;
+maxIter = 500; % Maximum number of iterations
+
 iter = 1;
 while 1   
     % Forward integrate system equations
@@ -59,26 +67,32 @@ while 1
     end
     Jac(:,:,end) = jacobiano3(q(:,end));
     
+    % Update reference trajectories    
     xh0 = x0 - x;
-    uh0 = u0 - u;
+    uh0 = u0 - u;  
     
     
-    % Quadratize cost function along the trajectory
-    Q = [0 0 0 0 0 0;
-         0 0 0 0 0 0;
-         0 0 0 0 0 0;
-         0 0 0 0 0 0;
-         0 0 0 0 0 0;
-         0 0 0 0 0 0];
+    % Quadratize cost function along the trajectory    
+    Q = zeros(size(x,1),size(x,1),size(t,2));
+
+    for i = 1:size(t,2)
+        Q(:,:,i) = [0 0 0 0 0 0;
+                    0 0 0 0 0 0;
+                    0 0 0 0 0 0;
+                    0 0 0 0 0 0;
+                    0 0 0 0 0 0;
+                    0 0 0 0 0 0];
+    end
      
-    Qend = [1000000 0 0 0 0 0;
-            0 1000000 0 0 0 0;
-            0 0 1000000 0 0 0;
-            0 0 0 0 0 0;
-            0 0 0 0 0 0;
-            0 0 0 0 0 0];
+    Qend = zeros(size(x,1),size(x,1));
+    Qend(:,:) = [1000000 0 0 0 0 0;
+                 0 1000000 0 0 0 0;
+                 0 0 1000000 0 0 0;
+                 0 0 0       1000000 0 0;
+                 0 0 0       0 1000000 0;
+                 0 0 0       0 0 1000000];
         
-    R = [100 0 0;
+    R = [1 0 0;
          0 1 0;
          0 0 1];
 
@@ -107,11 +121,12 @@ while 1
     M = zeros(size(B,1),size(B,1),size(t,2));
     P = zeros(size(Q,1),size(Q,2),size(t,2));
     s = zeros(size(Q,1),1,size(t,2));
+    
     P(:,:,end) = Qend;
     s(:,:,end) = -Qend*xh0(:,end);
     
-    xh = zeros(6,size(t,2));
-    uh = zeros(3,size(t,2));
+    xh = zeros(numStates,size(t,2));
+    uh = zeros(numInputs,size(t,2));
     v = zeros(size(xh));
     lambdah = zeros(size(s));
     
@@ -124,26 +139,36 @@ while 1
     
     % Solve backward
     for i = size(t,2)-1:-1:1
-        M(:,:,i) = inv(eye(size(B,1)) + B(:,:,i)*inv(R)*B(:,:,i).'*P(:,:,i+1));
-        P(:,:,i) = Q + A(:,:,i).'*P(:,:,i+1)*M(:,:,i)*A(:,:,i);
-        s(:,:,i) = A(:,:,i).'*(eye(size(Q,1)) - P(:,:,i+1)*M(:,:,i)*B(:,:,i)*inv(R)*B(:,:,i).')*s(:,:,i+1)+...
-            A(:,:,i).'*P(:,:,i+1)*M(:,:,i)*B(:,:,i)*uh0(:,i) - Q*xh0(:,i);
+        M(:,:,i) = inv(eye(size(B,1)) + B(:,:,i)/R*B(:,:,i).'*P(:,:,i+1));
+        P(:,:,i) = Q(:,:,i) + A(:,:,i).'*P(:,:,i+1)*M(:,:,i)*A(:,:,i);
+        s(:,:,i) = A(:,:,i).'*(eye(size(Q,1)) - P(:,:,i+1)*M(:,:,i)*B(:,:,i)/R*B(:,:,i).')*s(:,:,i+1)+...
+            A(:,:,i).'*P(:,:,i+1)*M(:,:,i)*B(:,:,i)*uh0(:,i) - Q(:,:,i)*xh0(:,i);
     end
     
     % Solve forward
     for i = 1:size(t,2)-1
-        v(:,i) = M(:,:,i)*B(:,:,i)*(uh0(:,i)-inv(R)*B(:,:,i).'*s(:,:,i+1));
+        v(:,i) = M(:,:,i)*B(:,:,i)*(uh0(:,i)-R\B(:,:,i).'*s(:,:,i+1));
         xh(:,i+1) = M(:,:,i)*A(:,:,i)*xh(:,i)+v(:,i);
         lambdah(:,:,i+1) = P(:,:,i+1)*xh(:,i+1)+s(:,:,i+1);
-        uh(:,i) = uh0(:,i)-inv(R)*B(:,:,i).'*lambdah(:,:,i+1);
+        uh(:,i) = uh0(:,i)-R\B(:,:,i).'*lambdah(:,:,i+1);
     end
+    
+    iter = iter+1;
+
     
     % Exit condition
     if norm(uh)<0.00001*norm(u)
+        disp(['SLQ found the optimal control input within ',num2str(iter-1),' iterations'])
+        for i = 2:size(t,2)
+                q(:,i) = q(:,i-1) + x(4:6,i-1)*dt;
+                Jac(:,:,i-1) = jacobiano3(q(:,i-1));
+                x(1:3,i) = x(1:3,i-1) + Jac(:,:,i-1)*x(4:6,i-1)*dt;       
+                x(4:6,i) = x(4:6,i-1) + u(:,i-1)*dt; 
+        end
         break;
     else
         % Line search to optimize alfa
-        alfa = 1:-0.1:0.0001;
+        alfa = 1:-lineSearchStep:0.0001;
         J = zeros(size(alfa));
         uk = u;
         for n = 1:size(alfa,2)
@@ -156,22 +181,23 @@ while 1
             end
             J(n) = 1/2*(x(:,end)-x0(:,end)).'*Qend*(x(:,end)-x0(:,end));
             for i = 1:size(t,2)-1
-                J(n) = J(n) + 1/2*((x(:,i)-x0(:,i)).'*Q*(x(:,i)-x0(:,i)) + (u(:,i)-u0(:,i)).'*R*(u(:,i)-u0(:,i)));
+                J(n) = J(n) + 1/2*((x(:,i)-x0(:,i)).'*Q(:,:,i)*(x(:,i)-x0(:,i))...
+                    + (u(:,i)-u0(:,i)).'*R*(u(:,i)-u0(:,i)));
             end            
         end
         [mincost, ind] = min(J);
         alfamin = alfa(ind);
         
         % Update controller
-        disp(alfamin)
         u = uk + alfamin*uh;
-%         u = u + uh;
-
     end
     
-    disp(iter)
-    iter = iter+1;
-    toc
+    if iter > maxIter
+        cprintf('err','SLQR failed to converge to a solution\n')
+        error = 1;
+        break;
+    end
+    
     
     figure(1)
     hold off;
@@ -183,26 +209,19 @@ while 1
     plot(x(1,:),x(2,:))
     title('State of the manipulator', 'interpreter', ...
     'latex','fontsize',18)
+    xlabel('$x(m)$', 'interpreter', 'latex','fontsize',18)
+    ylabel('$y(m)$', 'interpreter', 'latex','fontsize',18)
+
 end
-endt = cputime;
-disp(['SLQ found the optimal control input within ',num2str(iter-1),' iterations'])
-disp(['Elapsed execution time: ',num2str(endt-init),' seconds'])
+
+toc
+
 iu = cumsum(abs(u(1,:)));
 disp(['Total acc applied joint 1: ',num2str(iu(end)),' m/s^2'])
 iu = cumsum(abs(u(2,:)));
 disp(['Total acc applied joint 2: ',num2str(iu(end)),' m/s^2'])
 iu = cumsum(abs(u(3,:)));
 disp(['Total acc applied joint 3: ',num2str(iu(end)),' m/s^2'])
-
-figure()
-plot(t,x)
-title('Evolution of the state', 'interpreter', ...
-'latex','fontsize',18)
-legend('$x_{ee}$','$y_{ee}$','$\theta_{ee}$','$\tau_1^.$','$\tau_2^.$','$\tau_3^.$', 'interpreter', ...
-'latex','fontsize',18)
-xlabel('$t (s)$', 'interpreter', 'latex','fontsize',18)
-ylabel('$\theta (rad)$', 'interpreter', 'latex','fontsize',18)
-grid
 
 figure(1)
 hold off;
@@ -214,15 +233,29 @@ plot([0 T01(1,4) T02(1,4) T03(1,4)],[0 T01(2,4) T02(2,4) T03(2,4)]);
 plot(x(1,:),x(2,:))
 title('State of the manipulator', 'interpreter', ...
 'latex','fontsize',18)
+xlabel('$x(m)$', 'interpreter', 'latex','fontsize',18)
+ylabel('$y(m)$', 'interpreter', 'latex','fontsize',18)
 
-figure()
+
+
+figure(2)
+plot(t,x)
+title('Evolution of the state', 'interpreter', ...
+'latex','fontsize',18)
+legend('$x_{ee}$','$y_{ee}$','$\theta_{ee}$','$\tau_1^.$','$\tau_2^.$','$\tau_3^.$', 'interpreter', ...
+'latex','fontsize',18)
+xlabel('$t (s)$', 'interpreter', 'latex','fontsize',18)
+ylabel('$\theta (rad)$', 'interpreter', 'latex','fontsize',18)
+grid
+
+figure(3)
 plot(t,u)
-title('Actuating acc (u)','interpreter','latex')
-xlabel('t(s)','interpreter','latex')
-ylabel('$a(m/s^2$)','interpreter','latex')
+title('Actuating acc (u)','interpreter','latex','fontsize',18)
+xlabel('t(s)','interpreter','latex','fontsize',18)
+ylabel('$a(m/s^2$)','interpreter','latex','fontsize',18)
 legend('$Joint 1$','$Joint 2$','$Joint 3$', 'interpreter', ...
 'latex','fontsize',18)
-hold on
+hold off
 
 
 
