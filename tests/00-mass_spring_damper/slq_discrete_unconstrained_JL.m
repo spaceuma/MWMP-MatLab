@@ -1,5 +1,4 @@
 tic
-lineSearchStep = 0.2;
 
 % Constraints
 ti = 0;
@@ -21,6 +20,7 @@ x0 = zeros(2,size(t,2));
 u0 = zeros(1,size(t,2));
 
 % SLQR algorithm
+lineSearchStep = 0.2;
 iter = 1;
 while 1   
     % Forward integrate system equations

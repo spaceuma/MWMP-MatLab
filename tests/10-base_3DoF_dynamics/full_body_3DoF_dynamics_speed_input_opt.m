@@ -332,9 +332,6 @@ u0 = zeros(sizeInputVector,size(t,2)-1);
 
 Jac = zeros(6,3,size(t,2));
 
-% GDM initialization
-reachabilityIndex = 0;
-
 % % Plotting stuff
 % map = [0 0.6   0
 %        0.6 0.3 0
@@ -790,14 +787,7 @@ while 1
     uh = zeros(size(u,1),size(t,2)-1);
     v = zeros(size(xh));
     lambdah = zeros(size(s));
-    
-%     xh(1,1) = 0;
-%     xh(2,1) = yei;
-%     xh(3,1) = thetai;
-%     xh(4,1) = 0;
-%     xh(5,1) = 0;
-%     xh(6,1) = 0;
-    
+        
     % Solve backward
     for i = size(t,2)-1:-1:1
         M(:,:,i) = inv(eye(size(B,1)) + B(:,:,i)/R*B(:,:,i).'*P(:,:,i+1));
@@ -892,7 +882,6 @@ while 1
         
         % Update controller
         u = uk + alfamin*uh;
-
     end
     
     
@@ -1043,97 +1032,97 @@ if error == 0
         end        
     end
 
-    toc
-    iu = cumsum(abs(x(25,:))*dt);
-    disp(['Total torque applied arm joint 1: ',num2str(iu(end)),' Nm'])
-    iu = cumsum(abs(x(26,:))*dt);
-    disp(['Total torque applied arm joint 2: ',num2str(iu(end)),' Nm'])
-    iu = cumsum(abs(x(27,:))*dt);
-    disp(['Total torque applied arm joint 3: ',num2str(iu(end)),' Nm'])    
-    iu = cumsum(abs(x(36,:))*dt);
-    disp(['Total torque applied wheel 1: ',num2str(iu(end)),' Nm'])
-    iu = cumsum(abs(x(37,:))*dt);
-    disp(['Total torque applied wheel 2: ',num2str(iu(end)),' Nm'])
-    iu = cumsum(abs(x(38,:))*dt);
-    disp(['Total torque applied wheel 3: ',num2str(iu(end)),' Nm'])
-    iu = cumsum(abs(x(39,:))*dt);
-    disp(['Total torque applied wheel 4: ',num2str(iu(end)),' Nm'])
+toc
+iu = cumsum(abs(x(25,:))*dt);
+disp(['Total torque applied arm joint 1: ',num2str(iu(end)),' Nm'])
+iu = cumsum(abs(x(26,:))*dt);
+disp(['Total torque applied arm joint 2: ',num2str(iu(end)),' Nm'])
+iu = cumsum(abs(x(27,:))*dt);
+disp(['Total torque applied arm joint 3: ',num2str(iu(end)),' Nm'])    
+iu = cumsum(abs(x(36,:))*dt);
+disp(['Total torque applied wheel 1: ',num2str(iu(end)),' Nm'])
+iu = cumsum(abs(x(37,:))*dt);
+disp(['Total torque applied wheel 2: ',num2str(iu(end)),' Nm'])
+iu = cumsum(abs(x(38,:))*dt);
+disp(['Total torque applied wheel 3: ',num2str(iu(end)),' Nm'])
+iu = cumsum(abs(x(39,:))*dt);
+disp(['Total torque applied wheel 4: ',num2str(iu(end)),' Nm'])
 %     iu = cumsum(abs(u(6,:)));
 %     disp(['Total speed applied front steering joints: ',num2str(iu(end)),' rad/s'])
 %     iu = cumsum(abs(u(7,:)));
 %     disp(['Total speed applied back steering joints: ',num2str(iu(end)),' rad/s'])
 
-    figure(1)
-    hold off;
-    % Plotting first arm config
-    [TB0, TB1, TB2, TB3] = direct3(x(16:18,1));
-    TWB = getTraslation([x(10,1),x(11,1),zBC])*getZRot(x(12,1));
-    TW0 = TWB*TB0;
-    TW1 = TWB*TB1;
-    TW2 = TWB*TB2;
-    TW3 = TWB*TB3;
-    plot3([TW0(1,4) TW1(1,4) TW2(1,4) TW3(1,4)],...
-          [TW0(2,4) TW1(2,4) TW2(2,4) TW3(2,4)],...
-          [TW0(3,4) TW1(3,4) TW2(3,4) TW3(3,4)], 'Color', 'r', 'LineWidth', 2.5);
-    hold on;
-    
-    % Plotting last arm config
-    [TB0, TB1, TB2, TB3] = direct3(x(16:18,end-1));
-    TWB = getTraslation([x(10,end-1),x(11,end-1),zBC])*getZRot(x(12,end-1));
-    TW0 = TWB*TB0;
-    TW1 = TWB*TB1;
-    TW2 = TWB*TB2;
-    TW3 = TWB*TB3;
-    plot3([TW0(1,4) TW1(1,4) TW2(1,4) TW3(1,4)],...
-          [TW0(2,4) TW1(2,4) TW2(2,4) TW3(2,4)],...
-          [TW0(3,4) TW1(3,4) TW2(3,4) TW3(3,4)], 'Color', 'r', 'LineWidth', 2.5);
-      
-    % Plotting first rover position
-    TWB = getTraslation([x(10,1),x(11,1),zBC])*getZRot(x(12,1));
-    TB1 = getTraslation([dfy,dfx,-zBC]);
-    TB2 = getTraslation([-dfy,dfx,-zBC]);
-    TB3 = getTraslation([-dfy,-dfx,-zBC]);
-    TB4 = getTraslation([dfy,-dfx,-zBC]);
-    TW1 = TWB*TB1;
-    TW2 = TWB*TB2;
-    TW3 = TWB*TB3;
-    TW4 = TWB*TB4;
-    plot3([TWB(1,4) TW1(1,4) TWB(1,4) TW2(1,4) TWB(1,4) TW3(1,4) TWB(1,4) TW4(1,4)],...
+figure(1)
+hold off;
+% Plotting first arm config
+[TB0, TB1, TB2, TB3] = direct3(x(16:18,1));
+TWB = getTraslation([x(10,1),x(11,1),zBC])*getZRot(x(12,1));
+TW0 = TWB*TB0;
+TW1 = TWB*TB1;
+TW2 = TWB*TB2;
+TW3 = TWB*TB3;
+plot3([TW0(1,4) TW1(1,4) TW2(1,4) TW3(1,4)],...
+      [TW0(2,4) TW1(2,4) TW2(2,4) TW3(2,4)],...
+      [TW0(3,4) TW1(3,4) TW2(3,4) TW3(3,4)], 'Color', 'r', 'LineWidth', 2.5);
+hold on;
+
+% Plotting last arm config
+[TB0, TB1, TB2, TB3] = direct3(x(16:18,end-1));
+TWB = getTraslation([x(10,end-1),x(11,end-1),zBC])*getZRot(x(12,end-1));
+TW0 = TWB*TB0;
+TW1 = TWB*TB1;
+TW2 = TWB*TB2;
+TW3 = TWB*TB3;
+plot3([TW0(1,4) TW1(1,4) TW2(1,4) TW3(1,4)],...
+      [TW0(2,4) TW1(2,4) TW2(2,4) TW3(2,4)],...
+      [TW0(3,4) TW1(3,4) TW2(3,4) TW3(3,4)], 'Color', 'r', 'LineWidth', 2.5);
+
+% Plotting first rover position
+TWB = getTraslation([x(10,1),x(11,1),zBC])*getZRot(x(12,1));
+TB1 = getTraslation([dfy,dfx,-zBC]);
+TB2 = getTraslation([-dfy,dfx,-zBC]);
+TB3 = getTraslation([-dfy,-dfx,-zBC]);
+TB4 = getTraslation([dfy,-dfx,-zBC]);
+TW1 = TWB*TB1;
+TW2 = TWB*TB2;
+TW3 = TWB*TB3;
+TW4 = TWB*TB4;
+plot3([TWB(1,4) TW1(1,4) TWB(1,4) TW2(1,4) TWB(1,4) TW3(1,4) TWB(1,4) TW4(1,4)],...
+      [TWB(2,4) TW1(2,4) TWB(2,4) TW2(2,4) TWB(2,4) TW3(2,4) TWB(2,4) TW4(2,4)],...
+      [TWB(3,4) TW1(3,4) TWB(3,4) TW2(3,4) TWB(3,4) TW3(3,4) TWB(3,4) TW4(3,4)], 'Color', 'r', 'LineWidth', 2.5);
+hold on;
+
+quiver3(TWB(1,4), TWB(2,4), TWB(3,4), cos(x(12,1))/2, sin(x(12,1))/2, 0, 'Color', 'r', 'LineWidth', 2, 'MaxHeadSize', 0.7)
+quiver3(TWB(1,4), TWB(2,4), TWB(3,4), -sin(x(12,1))/2, cos(x(12,1))/2, 0, 'Color', 'g', 'LineWidth', 2, 'MaxHeadSize', 0.7)
+quiver3(TWB(1,4), TWB(2,4), TWB(3,4), 0, 0, 1/2, 'Color', 'c', 'LineWidth', 2, 'MaxHeadSize', 0.7) 
+
+% Plotting last rover position
+TWB = getTraslation([x(10,end-1),x(11,end-1),zBC])*getZRot(x(12,end-1));
+TW1 = TWB*TB1;
+TW2 = TWB*TB2;
+TW3 = TWB*TB3;
+TW4 = TWB*TB4;
+plot3([TWB(1,4) TW1(1,4) TWB(1,4) TW2(1,4) TWB(1,4) TW3(1,4) TWB(1,4) TW4(1,4)],...
           [TWB(2,4) TW1(2,4) TWB(2,4) TW2(2,4) TWB(2,4) TW3(2,4) TWB(2,4) TW4(2,4)],...
           [TWB(3,4) TW1(3,4) TWB(3,4) TW2(3,4) TWB(3,4) TW3(3,4) TWB(3,4) TW4(3,4)], 'Color', 'r', 'LineWidth', 2.5);
-    hold on;
-   
-    quiver3(TWB(1,4), TWB(2,4), TWB(3,4), cos(x(12,1))/2, sin(x(12,1))/2, 0, 'Color', 'r', 'LineWidth', 2, 'MaxHeadSize', 0.7)
-    quiver3(TWB(1,4), TWB(2,4), TWB(3,4), -sin(x(12,1))/2, cos(x(12,1))/2, 0, 'Color', 'g', 'LineWidth', 2, 'MaxHeadSize', 0.7)
-    quiver3(TWB(1,4), TWB(2,4), TWB(3,4), 0, 0, 1/2, 'Color', 'c', 'LineWidth', 2, 'MaxHeadSize', 0.7) 
-    
-    % Plotting last rover position
-    TWB = getTraslation([x(10,end-1),x(11,end-1),zBC])*getZRot(x(12,end-1));
-    TW1 = TWB*TB1;
-    TW2 = TWB*TB2;
-    TW3 = TWB*TB3;
-    TW4 = TWB*TB4;
-    plot3([TWB(1,4) TW1(1,4) TWB(1,4) TW2(1,4) TWB(1,4) TW3(1,4) TWB(1,4) TW4(1,4)],...
-              [TWB(2,4) TW1(2,4) TWB(2,4) TW2(2,4) TWB(2,4) TW3(2,4) TWB(2,4) TW4(2,4)],...
-              [TWB(3,4) TW1(3,4) TWB(3,4) TW2(3,4) TWB(3,4) TW3(3,4) TWB(3,4) TW4(3,4)], 'Color', 'r', 'LineWidth', 2.5);
 
-    quiver3(TWB(1,4), TWB(2,4), TWB(3,4), cos(x(12,end-1))/2, sin(x(12,end-1))/2, 0, 'Color', 'r', 'LineWidth', 2, 'MaxHeadSize', 0.7)
-    quiver3(TWB(1,4), TWB(2,4), TWB(3,4), -sin(x(12,end-1))/2, cos(x(12,end-1))/2, 0, 'Color', 'g', 'LineWidth', 2, 'MaxHeadSize', 0.7)
-    quiver3(TWB(1,4), TWB(2,4), TWB(3,4), 0, 0, 1/2, 'Color', 'c', 'LineWidth', 2, 'MaxHeadSize', 0.7)
-      
-    % Plotting scenario
-    daspect([1 1 1])
-    contourf(X,Y,dilatedObstMap+obstMap);
-    plot3(x(1,:),x(2,:),x(3,:), 'LineWidth', 5, 'Color', 'y')
-    plot3(x(10,1:end-1),x(11,1:end-1),zBC*ones(size(x,2)-1), 'LineWidth', 5, 'Color', [1,0.5,0])
-    title('Mobile manipulator trajectories', 'interpreter', ...
-    'latex','fontsize',18)
-    plot3(x0(10,:),x0(11,:), zBC*ones(size(t,2),2), 'LineWidth', 5, 'Color', [0,0,0.6])
-    plot3(referencePath(1,:),referencePath(2,:), zBC*ones(size(t,2),2), 'LineWidth', 5, 'Color', [0,0,1])
+quiver3(TWB(1,4), TWB(2,4), TWB(3,4), cos(x(12,end-1))/2, sin(x(12,end-1))/2, 0, 'Color', 'r', 'LineWidth', 2, 'MaxHeadSize', 0.7)
+quiver3(TWB(1,4), TWB(2,4), TWB(3,4), -sin(x(12,end-1))/2, cos(x(12,end-1))/2, 0, 'Color', 'g', 'LineWidth', 2, 'MaxHeadSize', 0.7)
+quiver3(TWB(1,4), TWB(2,4), TWB(3,4), 0, 0, 1/2, 'Color', 'c', 'LineWidth', 2, 'MaxHeadSize', 0.7)
 
-    plot3(xef,yef,zef, 'MarkerSize', 20, 'Marker', '.', 'Color', 'c')
+% Plotting scenario
+daspect([1 1 1])
+contourf(X,Y,dilatedObstMap+obstMap);
+plot3(x(1,:),x(2,:),x(3,:), 'LineWidth', 5, 'Color', 'y')
+plot3(x(10,1:end-1),x(11,1:end-1),zBC*ones(size(x,2)-1), 'LineWidth', 5, 'Color', [1,0.5,0])
+title('Mobile manipulator trajectories', 'interpreter', ...
+'latex','fontsize',18)
+plot3(x0(10,:),x0(11,:), zBC*ones(size(t,2),2), 'LineWidth', 5, 'Color', [0,0,0.6])
+plot3(referencePath(1,:),referencePath(2,:), zBC*ones(size(t,2),2), 'LineWidth', 5, 'Color', [0,0,1])
 
-    hold off;
+plot3(xef,yef,zef, 'MarkerSize', 20, 'Marker', '.', 'Color', 'c')
+
+hold off;
 
 
 %     figure(2)
@@ -1176,35 +1165,35 @@ if error == 0
 %     ylabel('$\tau (Nm)$', 'interpreter', 'latex','fontsize',18)
 %     grid
 %     
-    figure(6)
-    plot(t,x(28:31,:))
-    title('Evolution of the applied wheel speeds', 'interpreter', ...
-    'latex','fontsize',18)
-    legend('$\omega 1$','$\omega 2$','$\omega 3$',...
-            '$\omega 4$', 'interpreter','latex','fontsize',18)
-    xlabel('$t (s)$', 'interpreter', 'latex','fontsize',18)
-    ylabel('$\omega (rad/s)$', 'interpreter', 'latex','fontsize',18)
-    grid
-    
-    figure(7)
-    plot(t,x(32:35,:))
-    title('Evolution of the applied wheel accelerations', 'interpreter', ...
-    'latex','fontsize',18)
-    legend('$\dot\omega 1$','$\dot\omega 2$','$\dot\omega 3$',...
-            '$\dot\omega 4$', 'interpreter','latex','fontsize',18)
-    xlabel('$t (s)$', 'interpreter', 'latex','fontsize',18)
-    ylabel('$\dot\omega (rad/s^2)$', 'interpreter', 'latex','fontsize',18)
-    grid
-    
-    figure(8)
-    plot(t,x(36:39,:))
-    title('Evolution of the applied wheel torques', 'interpreter', ...
-    'latex','fontsize',18)
-    legend('$\tau_{\omega 1}$','$\tau_{\omega 2}$','$\tau_{\omega 3}$',...
-            '$\tau_{\omega 4}$', 'interpreter','latex','fontsize',18)
-    xlabel('$t (s)$', 'interpreter', 'latex','fontsize',18)
-    ylabel('$\tau (Nm)$', 'interpreter', 'latex','fontsize',18)
-    grid
+figure(6)
+plot(t,x(28:31,:))
+title('Evolution of the applied wheel speeds', 'interpreter', ...
+'latex','fontsize',18)
+legend('$\omega 1$','$\omega 2$','$\omega 3$',...
+        '$\omega 4$', 'interpreter','latex','fontsize',18)
+xlabel('$t (s)$', 'interpreter', 'latex','fontsize',18)
+ylabel('$\omega (rad/s)$', 'interpreter', 'latex','fontsize',18)
+grid
+
+figure(7)
+plot(t,x(32:35,:))
+title('Evolution of the applied wheel accelerations', 'interpreter', ...
+'latex','fontsize',18)
+legend('$\dot\omega 1$','$\dot\omega 2$','$\dot\omega 3$',...
+        '$\dot\omega 4$', 'interpreter','latex','fontsize',18)
+xlabel('$t (s)$', 'interpreter', 'latex','fontsize',18)
+ylabel('$\dot\omega (rad/s^2)$', 'interpreter', 'latex','fontsize',18)
+grid
+
+figure(8)
+plot(t,x(36:39,:))
+title('Evolution of the applied wheel torques', 'interpreter', ...
+'latex','fontsize',18)
+legend('$\tau_{\omega 1}$','$\tau_{\omega 2}$','$\tau_{\omega 3}$',...
+        '$\tau_{\omega 4}$', 'interpreter','latex','fontsize',18)
+xlabel('$t (s)$', 'interpreter', 'latex','fontsize',18)
+ylabel('$\tau (Nm)$', 'interpreter', 'latex','fontsize',18)
+grid
 %     
 %     figure(9)
 %     plot(t,x(12,:))
@@ -1224,9 +1213,9 @@ if error == 0
 %     ylabel('$\theta (rad)$', 'interpreter', 'latex','fontsize',18)
 %     grid
 
-       
-    %% Simulation
-   
+
+%% Simulation
+
 %     sim('base_3DoF_dynamics_sim',t(end));
 
 end
