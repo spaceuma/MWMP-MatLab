@@ -84,7 +84,7 @@ while 1
     
     
     % Quadratize cost function along the trajectory    
-    Q = zeros(size(x,1),size(x,1),size(t,2));
+    Q = zeros(numStates,numStates,size(t,2));
     for i = 1:size(t,2)
         Q(:,:,i) = [0 0 0 0 0 0;
                     0 0 0 0 0 0;
@@ -94,7 +94,7 @@ while 1
                     0 0 0 0 0 0];
     end
      
-    Qend = zeros(size(x,1),size(x,1));
+    Qend = zeros(numStates,numStates);
     Qend(:,:) = [1000000 0 0 0 0 0;
                  0 1000000 0 0 0 0;
                  0 0 1000000 0 0 0;
@@ -107,7 +107,7 @@ while 1
          0 0 1];
 
     % Linearize the system dynamics and constraints along the trajectory    
-    A = zeros(size(x,1),size(x,1),size(t,2));
+    A = zeros(numStates,numStates,size(t,2));
     for i = 1:size(t,2)
         A(:,:,i) = [1 0 0 dt*Jac(1,1,i) dt*Jac(1,2,i) dt*Jac(1,3,i);
                     0 1 0 dt*Jac(2,1,i) dt*Jac(2,2,i) dt*Jac(2,3,i);
@@ -117,7 +117,7 @@ while 1
                     0 0 0 0        0        1];
     end
     
-    B = zeros(size(x,1),size(u,1),size(t,2));
+    B = zeros(numStates,numInputs,size(t,2));
     for i = 1:size(t,2)
         B(:,:,i) = [0  0  0;
                     0  0  0;
@@ -216,9 +216,10 @@ while 1
 
 end
 
-toc
 
 %% Results
+toc
+
 iu = cumsum(abs(u(1,:)));
 disp(['Total acc applied joint 1: ',num2str(iu(end)),' m/s^2'])
 iu = cumsum(abs(u(2,:)));

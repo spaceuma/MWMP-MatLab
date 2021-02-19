@@ -61,7 +61,6 @@ D(2,1,:) = -1;
 r(2,:) = FMin;
 
 % Pure state constraints
-numPureStateConstraints = 4;
 J0 = zeros(numPureStateConstraints,size(t,2));
 % J0(1,end) = 1;
 J = J0;
