@@ -2,22 +2,27 @@ clear
 
 tic
 
+%% Initialization
 % System properties
+% Arm links length
 a1 = 0.20;
 a2 = 0.15;
 a3 = 0.10;
 
-% Constraints 
+% Constraints
+% Initial conditions
 ti = 0;
 xei = 0.2;
 yei = 0;
 thetai = 0;
 
+% Goal
 tf = 15;
 xef = 0.1;
 yef = 0.1;
 thetaf = -pi/2;
- 
+
+% Time profile
 dt = 0.05;
 t = 0:dt:tf;
 
@@ -27,16 +32,19 @@ q(:,1) = inverso3([xei yei thetai],-1);
 
 numStates = 6;
 x = zeros(numStates,size(t,2));
+% End effector position
 x(1,1) = xei;
 x(2,1) = yei;
+% End effector orientation
 x(3,1) = thetai;
+% Arm joints speed
 x(4,1) = 0;
 x(5,1) = 0;
 x(6,1) = 0;
 
 % Initial control law
 numInputs = 3;
-u = zeros(numInputs,size(t,2));
+u = zeros(numInputs,size(t,2)); % Arm joints acceleration
 
 % Target state and control trajectories
 x0 = zeros(numStates,size(t,2));
@@ -51,18 +59,21 @@ u0 = zeros(numInputs,size(t,2));
 
 Jac = zeros(numInputs,numInputs,size(t,2));
 
-% SLQR algorithm
+%% SLQR algorithm
 lineSearchStep = 0.2;
 maxIter = 500; % Maximum number of iterations
 
 iter = 1;
 while 1   
-    % Forward integrate system equations
-    tic
+    % Forward integrate system equations    
     for i = 2:size(t,2)
+        % Arm joints position
         q(:,i) = q(:,i-1) + x(4:6,i-1)*dt;
+        % Jacobian matrix
         Jac(:,:,i-1) = jacobiano3(q(:,i-1));
-        x(1:3,i) = x(1:3,i-1) + Jac(:,:,i-1)*x(4:6,i-1)*dt;       
+        % End effector pose
+        x(1:3,i) = x(1:3,i-1) + Jac(:,:,i-1)*x(4:6,i-1)*dt;
+        % Arm joints velocities
         x(4:6,i) = x(4:6,i-1) + u(:,i-1)*dt;       
     end
     Jac(:,:,end) = jacobiano3(q(:,end));
@@ -74,7 +85,6 @@ while 1
     
     % Quadratize cost function along the trajectory    
     Q = zeros(size(x,1),size(x,1),size(t,2));
-
     for i = 1:size(t,2)
         Q(:,:,i) = [0 0 0 0 0 0;
                     0 0 0 0 0 0;
@@ -129,14 +139,7 @@ while 1
     uh = zeros(numInputs,size(t,2));
     v = zeros(size(xh));
     lambdah = zeros(size(s));
-    
-%     xh(1,1) = 0;
-%     xh(2,1) = yei;
-%     xh(3,1) = thetai;
-%     xh(4,1) = 0;
-%     xh(5,1) = 0;
-%     xh(6,1) = 0;
-    
+       
     % Solve backward
     for i = size(t,2)-1:-1:1
         M(:,:,i) = inv(eye(size(B,1)) + B(:,:,i)/R*B(:,:,i).'*P(:,:,i+1));
@@ -154,7 +157,6 @@ while 1
     end
     
     iter = iter+1;
-
     
     % Exit condition
     if norm(uh)<0.00001*norm(u)
@@ -216,6 +218,7 @@ end
 
 toc
 
+%% Results
 iu = cumsum(abs(u(1,:)));
 disp(['Total acc applied joint 1: ',num2str(iu(end)),' m/s^2'])
 iu = cumsum(abs(u(2,:)));
