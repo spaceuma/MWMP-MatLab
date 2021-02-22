@@ -15,11 +15,17 @@ t = 0:dt:tf;
 numStates = 2;
 x = zeros(numStates,size(t,2));
 x(1,1) = 0;
-x(2,:) = -1;
+x(2,1) = -1;
 
 % Initial control law
 numInputs = 1;
 u = zeros(numInputs,size(t,2));
+
+% Forward integrate system dynamics
+for i = 2:size(t,2)
+    x(1,i) = x(1,i-1) + dt*x(2,i-1);
+    x(2,i) = x(2,i-1)*(1-dt) + dt*u(1,i);
+end
 
 % Target state and control trajectories
 x0 = zeros(numStates,size(t,2));
@@ -58,12 +64,6 @@ end
 % SLQR algorithm
 iter = 0;
 while 1   
-    % Forward integrate system dynamics
-    for i = 2:size(t,2)
-        x(1,i) = x(1,i-1) + dt*x(2,i-1);
-        x(2,i) = x(2,i-1)*(1-dt) + dt*u(1,i);
-    end
-    
     figure(1)
     subplot(2,1,1)
     plot(t,x(1,:),'Color','r')
@@ -116,7 +116,7 @@ while 1
 %         us0(:,i) = R(:,:,i)*(u(:,i) - u0(:,i));
         
         % Según Sideris, debería ser como sigue, aunque con esto no estamos
-        % realimentando el vector de referencia
+        % realimentando el vector de referencia...
         xs0(:,i) = Q(:,:,i)*x(:,i) + K(:,:,i)*u(:,i) + x0(:,i);
         us0(:,i) = R(:,:,i)*u(:,i) + K(:,:,i).'*x(:,i) + u0(:,i);
     end
@@ -297,27 +297,6 @@ while 1
     end
     
     nuV = zeros(numActivePSConstraints*size(tk,2),1);
-    
-%     invF = zeros(size(F));
-%     if(~det(F))
-%         Faux = F;
-%         currentIndex = 0;
-%         correctIndex = [];
-%         for i = tk
-%             for j = 1:size(q{i},1)
-%                 correctIndex = [correctIndex currentIndex+ql(q{i}(j))];
-%             end
-%             currentIndex = currentIndex + numActivePSConstraints;
-%         end
-%         
-%         Faux = F(correctIndex,correctIndex);
-%         invFaux = inv(Faux);
-%         invF(correctIndex,correctIndex) = invFaux;
-%     else
-%         invF = inv(F);
-%     end    
-%     nuV(:) = invF*(-Gamma*xs(:,1) - y - H);
-
     nuV(:) = F\(-Gamma*xs(:,1) - y - H);
     
     nu = zeros(numActivePSConstraints,size(t,2));
@@ -339,13 +318,10 @@ while 1
     else
         s(:,:) = z(:,:);
     end
-    
+        
     v = zeros(numStates,size(t,2));
     lambda = zeros(numStates,size(t,2));
     mu = zeros(numActiveSIConstraints,size(t,2));
-
-%     xsk(:,1) = zeros(numStates,1);
-%     xs(:,1) = xs0(:,1);
 
     % Solve forward
     for i = 1:size(t,2)-1
@@ -380,14 +356,14 @@ while 1
                 end
             end
         end
-        
+              
         thetak = min(-rhoi(~I & deltai>0)./deltai(~I & deltai>0));
         betak = min(-rhoj(~J & deltaj>0)./deltaj(~J & deltaj>0));
 
         alfak = min([1 thetak betak]);
         
         % Update controller
-%         x = x + alfak*xs;
+        x = x + alfak*xs;
         u = u + alfak*us;
         
         if alfak == 1
@@ -401,7 +377,7 @@ while 1
                     end
                 end
                 for j = 1:numPureStateConstraints
-                    if(-rhoj(j,n)/deltaj(j,n) == alfak && ~J(j,n)&& n > 1)
+                    if(-rhoj(j,n)/deltaj(j,n) == alfak && ~J(j,n)&& n > 1)                        
                         J(j,n) = 1;
                     end
                 end
@@ -458,14 +434,11 @@ while 1
             minimumNu = 0;
             lS = 1;
             jS = 1;
-        end
-        
+        end        
         
         if minimumMu >= -1e-5 && minimumNu >=-1e-5 && norm(us)<0.0001*norm(u)
-            for i = 2:size(t,2)
-                x(1,i) = x(1,i-1) + dt*x(2,i-1);
-                x(2,i) = x(2,i-1)*(1-dt) + dt*u(1,i);
-            end
+            x = x + xs;
+            u = u + us;
             break;
         else
             if minimumMu >= minimumNu && size(p{mS},1) > 0
@@ -480,11 +453,6 @@ end
 disp(['SLQ found the optimal control input within ',num2str(iter),' iterations'])
 toc
 
-
-% h = zeros(1,size(t,2));
-% for k = 1:size(t,2)
-%     h(1,k) = -8*((k+1)*dt-0.5)^2+0.5;
-% end
 figure(1)
 subplot(2,1,1)
 plot(t,x(1,:),'Color','r')
