@@ -1,5 +1,4 @@
 clear
-
 tic
 
 % System properties
@@ -14,16 +13,16 @@ vi = 0;
 
 tf = 15;
 yf = 0.15;
-vf = 0.0;
+vf = 0.1;
 
-yMax = 300;
-yMin = -300;
+yMax = 1;
+yMin = -1;
 
-vMax = 5555;
-vMin = -5555;
+vMax = 0.15;
+vMin = -0.15;
 
-FMax = 1;
-FMin = -561;
+FMax = 10;
+FMin = -10;
 
 dt = 0.05;
 t = 0:dt:tf;
@@ -37,6 +36,13 @@ x(2,1) = vi;
 % Initial control law
 numInputs = 1;
 u = zeros(numInputs,size(t,2));
+
+% Forward integrate system dynamics
+for i = 2:size(t,2)
+    a = (u(i-1) - springK*x(1,i-1) - damperB*x(2,i-1))/mass;
+    x(1,i) = x(1,i-1) + dt*x(2,i-1);
+    x(2,i) = x(2,i-1) + dt*a;
+end
 
 % Target state and control trajectories
 x0 = zeros(numStates,size(t,2));
@@ -61,15 +67,14 @@ D(2,1,:) = -1;
 r(2,:) = FMin;
 
 % Pure state constraints
+numPureStateConstraints = 4;
 J0 = zeros(numPureStateConstraints,size(t,2));
-% J0(1,end) = 1;
 J = J0;
 G = zeros(numPureStateConstraints,numStates,size(t,2));
 h = zeros(numPureStateConstraints,size(t,2));
 
 G(1,1,:) = 1;
 h(1,:) = -yMax;
-% h(1,end) = -yf;
 
 G(2,1,:) = -1;
 h(2,:) = yMin;
@@ -83,13 +88,33 @@ h(4,:) = vMin;
 % SLQR algorithm
 iter = 0;
 while 1   
-%     % Forward integrate system equations
-%     for i = 2:size(t,2)
-%         a = (uk(i-1) - springK*xk(1,i-1) - damperB*xk(2,i-1))/mass;
-%         xk(1,i) = xk(1,i-1) + dt*xk(2,i-1);
-%         xk(2,i) = xk(2,i-1) + dt*a;
-%     end
+    figure(1)
+    plot(t,x(1,:))
+    title('Mass position evolution','interpreter','latex')
+    xlabel('t(s)','interpreter','latex')
+    ylabel('y(m)','interpreter','latex')
+    hold on
+    plot(tf,yf,'Marker','o','MarkerFaceColor','red')
+    hold off
 
+    figure(2)
+    plot(t,x(2,:))
+    title('Mass speed evolution','interpreter','latex')
+    xlabel('t(s)','interpreter','latex')
+    ylabel('v(m/s)','interpreter','latex')
+    hold on
+    plot(tf,vf,'Marker','o','MarkerFaceColor','red')
+    hold off
+
+    figure(3)
+    plot(t,u)
+    title('Actuating force (u)','interpreter','latex')
+    xlabel('t(s)','interpreter','latex')
+    ylabel('F(N)','interpreter','latex')
+    hold on
+    hold off
+    
+    
     xs = zeros(numStates,size(t,2));
     us = zeros(numInputs,size(t,2));
         
@@ -99,8 +124,8 @@ while 1
         Q(:,:,i) = 0*eye(numStates,numStates);
     end
     
-    Q(:,:,end) = [10000000000 0;
-                  0 10000000000];
+    Q(:,:,end) = [1000000000 0;
+                  0 1000000000];
         
     R = zeros(numInputs,numInputs,size(t,2));
     for i = 1:size(t,2)
@@ -280,6 +305,12 @@ while 1
             yk(:,n) = yk(:,n+1) + Gammak(:,:,n+1,k)*M(:,:,n)*(u0h(:,n) - Rh(:,:,n) * z(:,n+1));
         end
 
+        H((k-1)*numActivePSConstraints+1:k*numActivePSConstraints) = hk(:,tk(k));
+        Gamma((k-1)*numActivePSConstraints+1:k*numActivePSConstraints,:) = Gammak(:,:,1,k);
+        y((k-1)*numActivePSConstraints+1:k*numActivePSConstraints) = yk(:,1);        
+
+    end
+    for k = 1:size(tk,2)
         for j = 1:size(tk,2)
             minConstraintIndex = min(tk(k),tk(j));
             Fkj = zeros(numActivePSConstraints,numActivePSConstraints,minConstraintIndex);
@@ -289,35 +320,10 @@ while 1
             F((k-1)*numActivePSConstraints+1:k*numActivePSConstraints,...
               (j-1)*numActivePSConstraints+1:j*numActivePSConstraints) = Fkj(:,:,1);
         end
-
-        H((k-1)*numActivePSConstraints+1:k*numActivePSConstraints) = hk(:,tk(k));
-        Gamma((k-1)*numActivePSConstraints+1:k*numActivePSConstraints,:) = Gammak(:,:,1,k);
-        y((k-1)*numActivePSConstraints+1:k*numActivePSConstraints) = yk(:,1);        
-
     end
     
     nuV = zeros(numActivePSConstraints*size(tk,2),1);
-    
-    invF = zeros(size(F));
-    if(~det(F))
-        Faux = F;
-        currentIndex = 0;
-        correctIndex = [];
-        for i = tk
-            for j = 1:size(q{i},1)
-                correctIndex = [correctIndex currentIndex+ql(q{i}(j))];
-            end
-            currentIndex = currentIndex + numActivePSConstraints;
-        end
-        
-        Faux = F(correctIndex,correctIndex);
-        invFaux = inv(Faux);
-        invF(correctIndex,correctIndex) = invFaux;
-    else
-        invF = inv(F);
-    end
-    
-    nuV(:) = invF*(-Gamma*xs(:,1) - y - H);
+    nuV(:) = F\(-Gamma*xs(:,1) - y - H);
     
     nu = zeros(numActivePSConstraints,size(t,2));
     for i = 1:size(tk,2)
@@ -325,22 +331,23 @@ while 1
     end   
     
     s = zeros(numStates,size(t,2));
-    for i = 1:size(t,2)
-        sumG = 0;
-        for k = 1:size(tk,2)
-            if (tk(k) > i)
-                sumG = sumG + Gammak(:,:,i,k).'*nu(:,tk(k));
+    if numActivePSConstraints
+        for i = 1:size(t,2)
+            sumG = 0;
+            for k = 1:size(tk,2)
+                if (tk(k) >= i)
+                    sumG = sumG + Gammak(:,:,i,k).'*nu(:,tk(k));
+                end
             end
+            s(:,i) = z(:,i) + sumG;
         end
-        s(:,i) = z(:,i) + sumG;
+    else
+        s(:,:) = z(:,:);
     end
-    
+        
     v = zeros(numStates,size(t,2));
     lambda = zeros(numStates,size(t,2));
     mu = zeros(numActiveSIConstraints,size(t,2));
-
-%     xsk(:,1) = zeros(numStates,1);
-%     xs(:,1) = xs0(:,1);
 
     % Solve forward
     for i = 1:size(t,2)-1
@@ -353,7 +360,7 @@ while 1
     iter = iter+1;
 
     step3 = true;
-    if norm(us)>=0.001*norm(u)
+    if norm(us)>=0.0001*norm(u)
         % Step 2
         rhoi = ones(numStateInputConstraints,size(t,2));
         deltai = ones(numStateInputConstraints,size(t,2));
@@ -375,14 +382,14 @@ while 1
                 end
             end
         end
-        
+              
         thetak = min(-rhoi(~I & deltai>0)./deltai(~I & deltai>0));
         betak = min(-rhoj(~J & deltaj>0)./deltaj(~J & deltaj>0));
 
         alfak = min([1 thetak betak]);
         
         % Update controller
-%         x = x + alfak*xs;
+        x = x + alfak*xs;
         u = u + alfak*us;
         
         if alfak == 1
@@ -391,21 +398,20 @@ while 1
             step3 = false;
             for n = 1:size(t,2)
                 for i = 1:numStateInputConstraints
-                    if(-rhoi(i,n)/deltai(i,n) == alfak)
+                    if(-rhoi(i,n)/deltai(i,n) == alfak && ~I(i,n) && n < size(t,2))
                         I(i,n) = 1;
                     end
                 end
                 for j = 1:numPureStateConstraints
-                    if(-rhoj(j,n)/deltaj(j,n) == alfak)
+                    if(-rhoj(j,n)/deltaj(j,n) == alfak && ~J(j,n)&& n > 1)                        
                         J(j,n) = 1;
                     end
                 end
             end
         end
     end
-    if step3
+    if step3        
         % Step 3
-
         if size(tl,2) > 0
             minMu = zeros(1,size(t,2));
             iS = zeros(1,size(t,2));
@@ -423,11 +429,12 @@ while 1
                 end
             end
             
-            [minimumMu, mS] = min(minMu);
+            [minimumMu, maux] = min(minMu(1,tl));
+            mS = tl(maux);
         else
-            minMu = zeros(1,size(t,2));
-            iS = ones(1,size(t,2));
-            [minimumMu, mS] = min(minMu);
+            minimumMu = 0;
+            mS = 1;
+            iS = 1;
         end
 
         if size(tk,2) > 0
@@ -435,28 +442,29 @@ while 1
             jS = zeros(1,size(t,2));
 
             for l = tk
-                minNu(l) = 99999999;
+                minNu(1,l) = 99999999;
                 for j = 1:size(q{l},1)
-                    if J(q{l}(j),l) && ~J0(q{l}(j),l) && nu(j,l) < minNu(l)
-                        minNu(l) = nu(j,l);
+                    if J(q{l}(j),l) && ~J0(q{l}(j),l) && nu(j,l) < minNu(1,l)
+                        minNu(1,l) = nu(j,l);
                         jS(l) = j;
                     end
                 end
-                if minNu(l) == 99999999
-                    minNu(l) = 0;
+                if minNu(1,l) == 99999999
+                    minNu(1,l) = 0;
                 end
             end
-            [minimumNu, lS] = min(minNu);
+            [minimumNu, laux] = min(minNu(1,tk));
+            lS = tk(laux);
 
         else
-            minNu = zeros(1,size(t,2));
-            jS = ones(1,size(t,2));
-            [minimumNu, lS] = min(minNu);
-        end
+            minimumNu = 0;
+            lS = 1;
+            jS = 1;
+        end        
         
-        
-        if minimumMu >= 0 && minimumNu >=0
+        if minimumMu >= -1e-5 && minimumNu >=-1e-5 && norm(us)<=0.0001*norm(u)
             x = x + xs;
+            u = u + us;
             break;
         else
             if minimumMu >= minimumNu && size(p{mS},1) > 0
@@ -466,32 +474,6 @@ while 1
             end
         end
     end
-    xaux = x + xs;
-    figure(1)
-    plot(t,xaux(1,:))
-    title('Mass position evolution','interpreter','latex')
-    xlabel('t(s)','interpreter','latex')
-    ylabel('y(m)','interpreter','latex')
-    hold on
-    plot(tf,yf,'Marker','o','MarkerFaceColor','red')
-    hold off
-
-    figure(2)
-    plot(t,xaux(2,:))
-    title('Mass speed evolution','interpreter','latex')
-    xlabel('t(s)','interpreter','latex')
-    ylabel('v(m/s)','interpreter','latex')
-    hold on
-    plot(tf,vf,'Marker','o','MarkerFaceColor','red')
-    hold off
-
-    figure(3)
-    plot(t,u)
-    title('Actuating force (u)','interpreter','latex')
-    xlabel('t(s)','interpreter','latex')
-    ylabel('F(N)','interpreter','latex')
-    hold on
-    hold off
     
 end
 disp(['SLQ found the optimal control input within ',num2str(iter),' iterations'])

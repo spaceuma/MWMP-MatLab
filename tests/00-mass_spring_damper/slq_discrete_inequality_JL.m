@@ -436,7 +436,7 @@ while 1
             jS = 1;
         end        
         
-        if minimumMu >= -1e-5 && minimumNu >=-1e-5 && norm(us)<0.0001*norm(u)
+        if minimumMu >= -1e-5 && minimumNu >=-1e-5 && norm(us)<=0.0001*norm(u)
             x = x + xs;
             u = u + us;
             break;
