@@ -24,7 +24,7 @@ u = zeros(numInputs,size(t,2));
 % Forward integrate system dynamics
 for i = 2:size(t,2)
     x(1,i) = x(1,i-1) + dt*x(2,i-1);
-    x(2,i) = x(2,i-1)*(1-dt) + dt*u(1,i);
+    x(2,i) = x(2,i-1)*(1-dt) + dt*u(1,i-1);
 end
 
 % Target state and control trajectories
@@ -366,6 +366,12 @@ while 1
         x = x + alfak*xs;
         u = u + alfak*us;
         
+%         % Forward integrate system dynamics
+%         for i = 2:size(t,2)
+%             x(1,i) = x(1,i-1) + dt*x(2,i-1);
+%             x(2,i) = x(2,i-1)*(1-dt) + dt*u(1,i-1);
+%         end
+        
         if alfak == 1
             step3 = true;
         else
@@ -439,6 +445,13 @@ while 1
         if minimumMu >= -1e-5 && minimumNu >=-1e-5 && norm(us)<=0.0001*norm(u)
             x = x + xs;
             u = u + us;
+            
+%             % Forward integrate system dynamics
+%             for i = 2:size(t,2)
+%                 x(1,i) = x(1,i-1) + dt*x(2,i-1);
+%                 x(2,i) = x(2,i-1)*(1-dt) + dt*u(1,i-1);
+%             end
+
             break;
         else
             if minimumMu >= minimumNu && size(p{mS},1) > 0
