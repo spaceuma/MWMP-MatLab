@@ -77,3 +77,6 @@ tests/10-base_3DoF_dynamics/base_3DoF_dynamics_sim_forces.slx.autosave
 tests/05-sherpa_tt_simpleBase/slprj/sim/varcache/base_3DoF_dynamics_sim/checksumOfCache.mat
 tests/05-sherpa_tt_simpleBase/slprj/sim/varcache/base_3DoF_dynamics_sim/tmwinternal/simulink_cache.xml
 tests/05-sherpa_tt_simpleBase/slprj/sim/varcache/base_3DoF_dynamics_sim/varInfo.mat
+tests/12-3DoF_dynamics/slprj/sim/varcache/manipulator3DoF/checksumOfCache.mat
+tests/12-3DoF_dynamics/slprj/sim/varcache/manipulator3DoF/tmwinternal/simulink_cache.xml
+tests/12-3DoF_dynamics/slprj/sim/varcache/manipulator3DoF/varInfo.mat
