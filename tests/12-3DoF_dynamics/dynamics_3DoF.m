@@ -87,7 +87,7 @@ lineSearchStep = 0.30;
 distThreshold = 0.005;
 
 % Maximum number of iterations
-maxIter = 500;
+maxIter = 100;
 
 %% State space model
 % State vectors
@@ -155,7 +155,6 @@ Jac = zeros(6,3,size(t,2));
 
 %% SLQR algorithm
 iter = 1;
-error = 0;
 while 1   
     % Forward integrate system equations
     x = forwardIntegrateSystem(x, u, dt);
@@ -339,8 +338,10 @@ while 1
     disp(['Iteration number ',num2str(iter-1),...
           ', distance to goal = ',num2str(endDist)]);
     
-    if (norm(uh)<=0.0001*norm(u) || (norm(uh)<=0.2*norm(u))&&(endDist<distThreshold))
-        disp(['SLQ found the optimal control input within ',num2str(iter-1),' iterations'])
+    if (norm(uh)<=0.0001*norm(u) ||...
+       (norm(uh)<=0.2*norm(u))&&(endDist<distThreshold))
+        disp(['SLQ found the optimal control input within ',...
+              num2str(iter-1),' iterations'])
         break;
     else
         % Line search to optimize alfa
@@ -366,103 +367,101 @@ while 1
     
     
     if iter > maxIter
-        cprintf('err','SLQR failed to converge to a solution\n')
-        error = 1;
-        break;
+        cprintf('err','MMKP failed to generate a motion plan\n')
+        if endDist > distThreshold
+            error('The goal was not reachable');
+        elseif norm(uh)>0.0001*norm(u)
+            error('The SLQR algorithm failed to converge');
+        else
+            error('Something unexpected prevented SLQR to converge');
+        end
     end
               
 end
 
 %% Plots
-
-if error == 0
     
-    x = forwardIntegrateSystem(x, u, dt);
-    
-    toc
-    iu = cumsum(abs(x(16,:))*dt);
-    disp(['Total torque applied arm joint 1: ',num2str(iu(end)),' Nm'])
-    iu = cumsum(abs(x(17,:))*dt);
-    disp(['Total torque applied arm joint 2: ',num2str(iu(end)),' Nm'])
-    iu = cumsum(abs(x(18,:))*dt);
-    disp(['Total torque applied arm joint 3: ',num2str(iu(end)),' Nm'])    
+x = forwardIntegrateSystem(x, u, dt);
 
-        figure(1)
-    hold off;
-    % Plotting first arm config
-    [TW0, TW1, TW2, TW3] = direct3(x(7:9,1));
-    plot3([0 TW0(1,4) TW1(1,4) TW2(1,4) TW3(1,4)],...
-          [0 TW0(2,4) TW1(2,4) TW2(2,4) TW3(2,4)],...
-          [0 TW0(3,4) TW1(3,4) TW2(3,4) TW3(3,4)], 'Color', 'r', 'LineWidth', 2.5);
-    hold on;
+toc
+iu = cumsum(abs(x(16,:))*dt);
+disp(['Total torque applied arm joint 1: ',num2str(iu(end)),' Nm'])
+iu = cumsum(abs(x(17,:))*dt);
+disp(['Total torque applied arm joint 2: ',num2str(iu(end)),' Nm'])
+iu = cumsum(abs(x(18,:))*dt);
+disp(['Total torque applied arm joint 3: ',num2str(iu(end)),' Nm'])    
 
-    % Plotting last arm config
-    [TW0, TW1, TW2, TW3] = direct3(x(7:9,end));
-    plot3([0 TW0(1,4) TW1(1,4) TW2(1,4) TW3(1,4)],...
-          [0 TW0(2,4) TW1(2,4) TW2(2,4) TW3(2,4)],...
-          [0 TW0(3,4) TW1(3,4) TW2(3,4) TW3(3,4)], 'Color', 'r', 'LineWidth', 2.5);
-    hold on;
+figure(1)
+hold off;
+% Plotting first arm config
+[TW0, TW1, TW2, TW3] = direct3(x(7:9,1));
+plot3([0 TW0(1,4) TW1(1,4) TW2(1,4) TW3(1,4)],...
+      [0 TW0(2,4) TW1(2,4) TW2(2,4) TW3(2,4)],...
+      [0 TW0(3,4) TW1(3,4) TW2(3,4) TW3(3,4)], 'Color', 'r', 'LineWidth', 2.5);
+hold on;
 
-    % Plotting scenario
-    daspect([1 1 1])
-    plot3(x(1,:),x(2,:),x(3,:), 'LineWidth', 5, 'Color', 'y')
-    title('Manipulator trajectories', 'interpreter', ...
-    'latex','fontsize',18)
-    plot3(xei,yei,zei, 'MarkerSize', 20, 'Marker', '.', 'Color', 'b')
-    plot3(xef,yef,zef, 'MarkerSize', 20, 'Marker', '.', 'Color', 'c')
-    
-    quiver3(0, 0, 0, 1/4, 0, 0, 'Color', 'r', 'LineWidth', 2, 'MaxHeadSize', 0.7)
-    quiver3(0, 0, 0, 0, 1/4, 0, 'Color', 'g', 'LineWidth', 2, 'MaxHeadSize', 0.7)
-    quiver3(0, 0, 0, 0, 0, 1/4, 'Color', 'c', 'LineWidth', 2, 'MaxHeadSize', 0.7) 
+% Plotting last arm config
+[TW0, TW1, TW2, TW3] = direct3(x(7:9,end));
+plot3([0 TW0(1,4) TW1(1,4) TW2(1,4) TW3(1,4)],...
+      [0 TW0(2,4) TW1(2,4) TW2(2,4) TW3(2,4)],...
+      [0 TW0(3,4) TW1(3,4) TW2(3,4) TW3(3,4)], 'Color', 'r', 'LineWidth', 2.5);
+hold on;
 
-    hold off;
+% Plotting scenario
+daspect([1 1 1])
+plot3(x(1,:),x(2,:),x(3,:), 'LineWidth', 5, 'Color', 'y')
+title('Manipulator trajectories', 'interpreter', ...
+'latex','fontsize',18)
+plot3(xei,yei,zei, 'MarkerSize', 20, 'Marker', '.', 'Color', 'b')
+plot3(xef,yef,zef, 'MarkerSize', 20, 'Marker', '.', 'Color', 'c')
+
+quiver3(0, 0, 0, 1/4, 0, 0, 'Color', 'r', 'LineWidth', 2, 'MaxHeadSize', 0.7)
+quiver3(0, 0, 0, 0, 1/4, 0, 'Color', 'g', 'LineWidth', 2, 'MaxHeadSize', 0.7)
+quiver3(0, 0, 0, 0, 0, 1/4, 'Color', 'c', 'LineWidth', 2, 'MaxHeadSize', 0.7) 
+
+hold off;
 
 
-    figure(2)
-    plot(t,x(7:9,:))
-    title('Evolution of the arm joints position', 'interpreter', ...
-    'latex','fontsize',18)
-    legend('$\theta_1$','$\theta_2$','$\theta_3$', 'interpreter', ...
-           'latex','fontsize',18)
-    xlabel('$t (s)$', 'interpreter', 'latex','fontsize',18)
-    ylabel('$\theta (rad)$', 'interpreter', 'latex','fontsize',18)
-    grid
-    
-    
-    figure(3)
-    plot(t,u(1:3,:))
-    title('Actuating arm joints speed','interpreter','latex')
-    xlabel('t(s)','interpreter','latex','fontsize',18)
-    ylabel('$\dot\theta(rad/s$)','interpreter','latex','fontsize',18)
-    legend('$\dot\theta_1$','$\dot\theta_2$',...
-           '$\dot\theta_3$','interpreter', ...
-           'latex','fontsize',18)
-       
-    figure(4)
-    plot(t,x(13:15,:))
-    title('Evolution of the arm joints accelerations', 'interpreter', ...
-    'latex','fontsize',18)
-    legend('$\ddot\theta_1$','$\ddot\theta_2$','$\ddot\theta_3$', 'interpreter', ...
-           'latex','fontsize',18)
-    xlabel('$t (s)$', 'interpreter', 'latex','fontsize',18)
-    ylabel('$\ddot\theta (rad/s^2)$', 'interpreter', 'latex','fontsize',18)
-    grid
-    
-    figure(5)
-    plot(t,x(16:18,:))
-    title('Evolution of the applied arm torques', 'interpreter', ...
-    'latex','fontsize',18)
-    legend('$\tau_1$','$\tau_2$','$\tau_3$', 'interpreter', ...
-           'latex','fontsize',18)
-    xlabel('$t (s)$', 'interpreter', 'latex','fontsize',18)
-    ylabel('$\tau (Nm)$', 'interpreter', 'latex','fontsize',18)
-    grid
-    
+figure(2)
+plot(t,x(7:9,:))
+title('Evolution of the arm joints position', 'interpreter', ...
+'latex','fontsize',18)
+legend('$\theta_1$','$\theta_2$','$\theta_3$', 'interpreter', ...
+       'latex','fontsize',18)
+xlabel('$t (s)$', 'interpreter', 'latex','fontsize',18)
+ylabel('$\theta (rad)$', 'interpreter', 'latex','fontsize',18)
+grid
+
+figure(3)
+plot(t,u(1:3,:))
+title('Actuating arm joints speed','interpreter','latex')
+xlabel('t(s)','interpreter','latex','fontsize',18)
+ylabel('$\dot\theta(rad/s$)','interpreter','latex','fontsize',18)
+legend('$\dot\theta_1$','$\dot\theta_2$',...
+       '$\dot\theta_3$','interpreter', ...
+       'latex','fontsize',18)
+
+figure(4)
+plot(t,x(13:15,:))
+title('Evolution of the arm joints accelerations', 'interpreter', ...
+'latex','fontsize',18)
+legend('$\ddot\theta_1$','$\ddot\theta_2$','$\ddot\theta_3$', 'interpreter', ...
+       'latex','fontsize',18)
+xlabel('$t (s)$', 'interpreter', 'latex','fontsize',18)
+ylabel('$\ddot\theta (rad/s^2)$', 'interpreter', 'latex','fontsize',18)
+grid
+
+figure(5)
+plot(t,x(16:18,:))
+title('Evolution of the applied arm torques', 'interpreter', ...
+'latex','fontsize',18)
+legend('$\tau_1$','$\tau_2$','$\tau_3$', 'interpreter', ...
+       'latex','fontsize',18)
+xlabel('$t (s)$', 'interpreter', 'latex','fontsize',18)
+ylabel('$\tau (Nm)$', 'interpreter', 'latex','fontsize',18)
+grid
+
 
 %% Simulation
-
-    sim('manipulator3DoF',t(end));
-
-end
-
+sim('manipulator3DoF',t(end));
 

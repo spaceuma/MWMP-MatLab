@@ -810,10 +810,11 @@ while 1
             error('The generated path is not safe');
         elseif endDist > distThreshold
             error('The goal was not reachable');
-        elseif norm(uh)>0.2*norm(u)
+        elseif norm(uh)>0.0001*norm(u)
             error('The SLQR algorithm failed to converge');
+        else
+            error('Something unexpected prevented SLQR to converge');
         end
-        break;
     end
     
 %     figure(1)
