@@ -80,3 +80,9 @@ tests/05-sherpa_tt_simpleBase/slprj/sim/varcache/base_3DoF_dynamics_sim/varInfo.
 tests/12-3DoF_dynamics/slprj/sim/varcache/manipulator3DoF/checksumOfCache.mat
 tests/12-3DoF_dynamics/slprj/sim/varcache/manipulator3DoF/tmwinternal/simulink_cache.xml
 tests/12-3DoF_dynamics/slprj/sim/varcache/manipulator3DoF/varInfo.mat
+tests/03-5dof_planar (not updated)/slprj/sim/varcache/dof5_planar/checksumOfCache.mat
+tests/03-5dof_planar (not updated)/slprj/sim/varcache/dof5_planar/tmwinternal/simulink_cache.xml
+tests/03-5dof_planar (not updated)/slprj/sim/varcache/dof5_planar/varInfo.mat
+tests/13-3DoF_inequality/slprj/sim/varcache/manipulator3DoF/checksumOfCache.mat
+tests/13-3DoF_inequality/slprj/sim/varcache/manipulator3DoF/tmwinternal/simulink_cache.xml
+tests/13-3DoF_inequality/slprj/sim/varcache/manipulator3DoF/varInfo.mat

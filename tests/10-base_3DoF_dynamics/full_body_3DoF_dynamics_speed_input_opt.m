@@ -7,6 +7,7 @@ addpath('../../models/3DoF')
 
 addpath('../../costs')
 addpath('../../utils')
+addpath('../../simscape')
 
 clear
 
