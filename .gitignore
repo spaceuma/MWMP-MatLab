@@ -89,3 +89,9 @@ tests/13-3DoF_inequality/slprj/sim/varcache/manipulator3DoF/varInfo.mat
 tests/10b-base_3DoF_kinematics/slprj/sim/varcache/base_3DoF_dynamics_sim/checksumOfCache.mat
 tests/10b-base_3DoF_kinematics/slprj/sim/varcache/base_3DoF_dynamics_sim/tmwinternal/simulink_cache.xml
 tests/10b-base_3DoF_kinematics/slprj/sim/varcache/base_3DoF_dynamics_sim/varInfo.mat
+tests/14-3DoF_inequality/slprj/sim/varcache/wave2019/varInfo.mat
+tests/14-3DoF_inequality/slprj/sim/varcache/wave2019/tmwinternal/simulink_cache.xml
+tests/14-3DoF_inequality/slprj/sim/varcache/wave2019/checksumOfCache.mat
+tests/14-3DoF_inequality/slprj/sim/varcache/forceposition2019/varInfo.mat
+tests/14-3DoF_inequality/slprj/sim/varcache/forceposition2019/tmwinternal/simulink_cache.xml
+tests/14-3DoF_inequality/slprj/sim/varcache/forceposition2019/checksumOfCache.mat

@@ -189,6 +189,10 @@ while 1
     quiver3(0, 0, 0, 1/4, 0, 0, 'Color', 'r', 'LineWidth', 2, 'MaxHeadSize', 0.7)
     quiver3(0, 0, 0, 0, 1/4, 0, 'Color', 'g', 'LineWidth', 2, 'MaxHeadSize', 0.7)
     quiver3(0, 0, 0, 0, 0, 1/4, 'Color', 'c', 'LineWidth', 2, 'MaxHeadSize', 0.7) 
+    
+    quiver3(TW3(1,4), TW3(2,4), TW3(3,4), TW3(1,1), TW3(2,1), TW3(3,1), 'Color', 'r', 'LineWidth', 2, 'MaxHeadSize', 0.7)
+    quiver3(TW3(1,4), TW3(2,4), TW3(3,4), TW3(1,2), TW3(2,2), TW3(3,2), 'Color', 'g', 'LineWidth', 2, 'MaxHeadSize', 0.7)
+    quiver3(TW3(1,4), TW3(2,4), TW3(3,4), TW3(1,3), TW3(2,3), TW3(3,3), 'Color', 'c', 'LineWidth', 2, 'MaxHeadSize', 0.7)
 
     hold off;
     
@@ -464,5 +468,5 @@ grid
 
 
 %% Simulation
-sim('manipulator3DoF',t(end));
+% sim('manipulator3DoF',t(end));
 
