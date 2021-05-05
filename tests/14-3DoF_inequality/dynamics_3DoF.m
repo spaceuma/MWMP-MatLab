@@ -171,28 +171,33 @@ h1 = plot3([0 TW0(1,4) TW1(1,4) TW2(1,4) TW3(1,4)],...
            'Color', [0.8 0.8 0.8], 'LineWidth', 2.5);
 hold on;
 
+% Plotting the ee frame
+h2 = plotFrame(TW3, 1, 0.1);    
+
+
 % Plotting last arm config
 [TW0, TW1, TW2, TW3] = direct3(x(7:9,end));
-h2 = plot3([0 TW0(1,4) TW1(1,4) TW2(1,4) TW3(1,4)],...
+h3 = plot3([0 TW0(1,4) TW1(1,4) TW2(1,4) TW3(1,4)],...
            [0 TW0(2,4) TW1(2,4) TW2(2,4) TW3(2,4)],...
            [0 TW0(3,4) TW1(3,4) TW2(3,4) TW3(3,4)],...
            'Color', [0.8 0.8 0.8], 'LineWidth', 2.5);
        
+% Plotting the ee frame
+h4 = plotFrame(TW3, 1, 0.1);
+
+       
 % Plotting starting and goal ee poses
-h3 = plot3(xei,yei,zei, 'MarkerSize', 20, 'Marker', '.', 'Color', 'b');
-h4 = plot3(xef,yef,zef, 'MarkerSize', 20, 'Marker', '.', 'Color', 'b');
+h5 = plot3(xei,yei,zei, 'MarkerSize', 20, 'Marker', '.', 'Color', 'b');
+h6 = plot3(xef,yef,zef, 'MarkerSize', 20, 'Marker', '.', 'Color', 'b');
 
 % Plotting the reference frame
-h5 = plotFrame([1 0 0 0;
+h7 = plotFrame([1 0 0 0;
                 0 1 0 0;
                 0 0 1 0;
                 0 0 0 1], 1, 0.2, 'W');
        
 % Plotting the ee path
-h6 = plot3(x(1,:),x(2,:),x(3,:), 'LineWidth', 5, 'Color', 'y');
-
-% Plotting the ee frame
-h7 = plotFrame(TW3, 1, 0.1);
+h8 = plot3(x(1,:),x(2,:),x(3,:), 'LineWidth', 5, 'Color', 'y');
 
 title('Manipulator trajectories', 'interpreter', ...
       'latex','fontsize',18);
@@ -211,18 +216,19 @@ while 1
         figure(1)
         hold on;
 
-        delete(h7);
-        h7 = plotFrame(TW3, 1, 0.1);    
-
-        delete(h2);
+        delete(h3);
         [TW0, TW1, TW2, TW3] = direct3(x(7:9,end));    
-        h2 = plot3([0 TW0(1,4) TW1(1,4) TW2(1,4) TW3(1,4)],...
+        h3 = plot3([0 TW0(1,4) TW1(1,4) TW2(1,4) TW3(1,4)],...
                    [0 TW0(2,4) TW1(2,4) TW2(2,4) TW3(2,4)],...
                    [0 TW0(3,4) TW1(3,4) TW2(3,4) TW3(3,4)],...
                    'Color', [0.8 0.8 0.8], 'LineWidth', 2.5);
+                       
+        delete(h4);
+        h4 = plotFrame(TW3, 1, 0.1);  
+        
+        delete(h8);
+        h8 = plot3(x(1,:),x(2,:),x(3,:), 'LineWidth', 5, 'Color', 'y');  
 
-        delete(h6);
-        h6 = plot3(x(1,:),x(2,:),x(3,:), 'LineWidth', 5, 'Color', 'y');
         hold off;
     end
     
@@ -424,22 +430,22 @@ disp(['Total torque applied arm joint 2: ',num2str(iu(end)),' Nm'])
 iu = cumsum(abs(x(18,:))*dt);
 disp(['Total torque applied arm joint 3: ',num2str(iu(end)),' Nm'])    
 
-% Updating the plot
 figure(1)
 hold on;
 
-delete(h7);
-h7 = plotFrame(TW3, 1, 0.1);    
-
-delete(h2);
+delete(h3);
 [TW0, TW1, TW2, TW3] = direct3(x(7:9,end));    
-h2 = plot3([0 TW0(1,4) TW1(1,4) TW2(1,4) TW3(1,4)],...
+h3 = plot3([0 TW0(1,4) TW1(1,4) TW2(1,4) TW3(1,4)],...
            [0 TW0(2,4) TW1(2,4) TW2(2,4) TW3(2,4)],...
            [0 TW0(3,4) TW1(3,4) TW2(3,4) TW3(3,4)],...
            'Color', [0.8 0.8 0.8], 'LineWidth', 2.5);
 
-delete(h6);
-h6 = plot3(x(1,:),x(2,:),x(3,:), 'LineWidth', 5, 'Color', 'y');
+delete(h4);
+h4 = plotFrame(TW3, 1, 0.1);  
+
+delete(h8);
+h8 = plot3(x(1,:),x(2,:),x(3,:), 'LineWidth', 5, 'Color', 'y');  
+
 hold off;
 
 % figure(2)
