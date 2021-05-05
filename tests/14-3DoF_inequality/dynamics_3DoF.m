@@ -90,6 +90,9 @@ distThreshold = 0.005;
 % Maximum number of iterations
 maxIter = 100;
 
+% Activate/deactivate dynamic plotting during the simulation
+dynamicPlotting = 0;
+
 %% State space model
 % State vectors
 numStates = 18;
@@ -204,22 +207,24 @@ while 1
     x = forwardIntegrateSystem(x, u, dt);    
     
     % Updating the plot
-    figure(1)
-    hold on;
+    if dynamicPlotting
+        figure(1)
+        hold on;
 
-    delete(h7);
-    h7 = plotFrame(TW3, 1, 0.1);    
+        delete(h7);
+        h7 = plotFrame(TW3, 1, 0.1);    
 
-    delete(h2);
-    [TW0, TW1, TW2, TW3] = direct3(x(7:9,end));    
-    h2 = plot3([0 TW0(1,4) TW1(1,4) TW2(1,4) TW3(1,4)],...
-               [0 TW0(2,4) TW1(2,4) TW2(2,4) TW3(2,4)],...
-               [0 TW0(3,4) TW1(3,4) TW2(3,4) TW3(3,4)],...
-               'Color', [0.8 0.8 0.8], 'LineWidth', 2.5);
+        delete(h2);
+        [TW0, TW1, TW2, TW3] = direct3(x(7:9,end));    
+        h2 = plot3([0 TW0(1,4) TW1(1,4) TW2(1,4) TW3(1,4)],...
+                   [0 TW0(2,4) TW1(2,4) TW2(2,4) TW3(2,4)],...
+                   [0 TW0(3,4) TW1(3,4) TW2(3,4) TW3(3,4)],...
+                   'Color', [0.8 0.8 0.8], 'LineWidth', 2.5);
 
-    delete(h6);
-    h6 = plot3(x(1,:),x(2,:),x(3,:), 'LineWidth', 5, 'Color', 'y');
-    hold off;
+        delete(h6);
+        h6 = plot3(x(1,:),x(2,:),x(3,:), 'LineWidth', 5, 'Color', 'y');
+        hold off;
+    end
     
     % Update reference trajectories    
     xh0 = x0 - x;
