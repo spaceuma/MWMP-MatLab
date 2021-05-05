@@ -168,14 +168,14 @@ while 1
     [TW0, TW1, TW2, TW3] = direct3(x(7:9,1));
     plot3([0 TW0(1,4) TW1(1,4) TW2(1,4) TW3(1,4)],...
           [0 TW0(2,4) TW1(2,4) TW2(2,4) TW3(2,4)],...
-          [0 TW0(3,4) TW1(3,4) TW2(3,4) TW3(3,4)], 'Color', 'r', 'LineWidth', 2.5);
+          [0 TW0(3,4) TW1(3,4) TW2(3,4) TW3(3,4)], 'Color', [0.8 0.8 0.8], 'LineWidth', 2.5);
     hold on;
 
     % Plotting last arm config
     [TW0, TW1, TW2, TW3] = direct3(x(7:9,end));
     plot3([0 TW0(1,4) TW1(1,4) TW2(1,4) TW3(1,4)],...
           [0 TW0(2,4) TW1(2,4) TW2(2,4) TW3(2,4)],...
-          [0 TW0(3,4) TW1(3,4) TW2(3,4) TW3(3,4)], 'Color', 'r', 'LineWidth', 2.5);
+          [0 TW0(3,4) TW1(3,4) TW2(3,4) TW3(3,4)], 'Color', [0.8 0.8 0.8], 'LineWidth', 2.5);
     hold on;
 
     % Plotting scenario
@@ -184,19 +184,16 @@ while 1
     title('Manipulator trajectories', 'interpreter', ...
     'latex','fontsize',18)
     plot3(xei,yei,zei, 'MarkerSize', 20, 'Marker', '.', 'Color', 'b')
-    plot3(xef,yef,zef, 'MarkerSize', 20, 'Marker', '.', 'Color', 'c')
+    plot3(xef,yef,zef, 'MarkerSize', 20, 'Marker', '.', 'Color', 'b')
     
-    quiver3(0, 0, 0, 1/4, 0, 0, 'Color', 'r', 'LineWidth', 2, 'MaxHeadSize', 0.7)
-    quiver3(0, 0, 0, 0, 1/4, 0, 'Color', 'g', 'LineWidth', 2, 'MaxHeadSize', 0.7)
-    quiver3(0, 0, 0, 0, 0, 1/4, 'Color', 'c', 'LineWidth', 2, 'MaxHeadSize', 0.7) 
+    plotFrame([1 0 0 0;
+               0 1 0 0;
+               0 0 1 0;
+               0 0 0 1], 1, 0.2, 'W');
     
-    quiver3(TW3(1,4), TW3(2,4), TW3(3,4), TW3(1,1), TW3(2,1), TW3(3,1), 'Color', 'r', 'LineWidth', 2, 'MaxHeadSize', 0.7)
-    quiver3(TW3(1,4), TW3(2,4), TW3(3,4), TW3(1,2), TW3(2,2), TW3(3,2), 'Color', 'g', 'LineWidth', 2, 'MaxHeadSize', 0.7)
-    quiver3(TW3(1,4), TW3(2,4), TW3(3,4), TW3(1,3), TW3(2,3), TW3(3,3), 'Color', 'c', 'LineWidth', 2, 'MaxHeadSize', 0.7)
+    plotFrame(TW3, 1, 0.1);
 
-    hold off;
-    
-    
+    hold off;    
     
     % Update reference trajectories    
     xh0 = x0 - x;
@@ -402,69 +399,72 @@ hold off;
 [TW0, TW1, TW2, TW3] = direct3(x(7:9,1));
 plot3([0 TW0(1,4) TW1(1,4) TW2(1,4) TW3(1,4)],...
       [0 TW0(2,4) TW1(2,4) TW2(2,4) TW3(2,4)],...
-      [0 TW0(3,4) TW1(3,4) TW2(3,4) TW3(3,4)], 'Color', 'r', 'LineWidth', 2.5);
+      [0 TW0(3,4) TW1(3,4) TW2(3,4) TW3(3,4)], 'Color', [0.8 0.8 0.8], 'LineWidth', 2.5);
 hold on;
+daspect([1 1 1])
+
 
 % Plotting last arm config
 [TW0, TW1, TW2, TW3] = direct3(x(7:9,end));
 plot3([0 TW0(1,4) TW1(1,4) TW2(1,4) TW3(1,4)],...
       [0 TW0(2,4) TW1(2,4) TW2(2,4) TW3(2,4)],...
-      [0 TW0(3,4) TW1(3,4) TW2(3,4) TW3(3,4)], 'Color', 'r', 'LineWidth', 2.5);
+      [0 TW0(3,4) TW1(3,4) TW2(3,4) TW3(3,4)], 'Color', [0.8 0.8 0.8], 'LineWidth', 2.5);
 hold on;
 
 % Plotting scenario
-daspect([1 1 1])
 plot3(x(1,:),x(2,:),x(3,:), 'LineWidth', 5, 'Color', 'y')
 title('Manipulator trajectories', 'interpreter', ...
 'latex','fontsize',18)
 plot3(xei,yei,zei, 'MarkerSize', 20, 'Marker', '.', 'Color', 'b')
-plot3(xef,yef,zef, 'MarkerSize', 20, 'Marker', '.', 'Color', 'c')
+plot3(xef,yef,zef, 'MarkerSize', 20, 'Marker', '.', 'Color', 'b')
 
-quiver3(0, 0, 0, 1/4, 0, 0, 'Color', 'r', 'LineWidth', 2, 'MaxHeadSize', 0.7)
-quiver3(0, 0, 0, 0, 1/4, 0, 'Color', 'g', 'LineWidth', 2, 'MaxHeadSize', 0.7)
-quiver3(0, 0, 0, 0, 0, 1/4, 'Color', 'c', 'LineWidth', 2, 'MaxHeadSize', 0.7) 
+plotFrame([1 0 0 0;
+           0 1 0 0;
+           0 0 1 0;
+           0 0 0 1], 1, 0.2, 'W');
+
+plotFrame(TW3, 1, 0.1);
 
 hold off;
 
-
-figure(2)
-plot(t,x(7:9,:))
-title('Evolution of the arm joints position', 'interpreter', ...
-'latex','fontsize',18)
-legend('$\theta_1$','$\theta_2$','$\theta_3$', 'interpreter', ...
-       'latex','fontsize',18)
-xlabel('$t (s)$', 'interpreter', 'latex','fontsize',18)
-ylabel('$\theta (rad)$', 'interpreter', 'latex','fontsize',18)
-grid
-
-figure(3)
-plot(t,u(1:3,:))
-title('Actuating arm joints speed','interpreter','latex')
-xlabel('t(s)','interpreter','latex','fontsize',18)
-ylabel('$\dot\theta(rad/s$)','interpreter','latex','fontsize',18)
-legend('$\dot\theta_1$','$\dot\theta_2$',...
-       '$\dot\theta_3$','interpreter', ...
-       'latex','fontsize',18)
-
-figure(4)
-plot(t,x(13:15,:))
-title('Evolution of the arm joints accelerations', 'interpreter', ...
-'latex','fontsize',18)
-legend('$\ddot\theta_1$','$\ddot\theta_2$','$\ddot\theta_3$', 'interpreter', ...
-       'latex','fontsize',18)
-xlabel('$t (s)$', 'interpreter', 'latex','fontsize',18)
-ylabel('$\ddot\theta (rad/s^2)$', 'interpreter', 'latex','fontsize',18)
-grid
-
-figure(5)
-plot(t,x(16:18,:))
-title('Evolution of the applied arm torques', 'interpreter', ...
-'latex','fontsize',18)
-legend('$\tau_1$','$\tau_2$','$\tau_3$', 'interpreter', ...
-       'latex','fontsize',18)
-xlabel('$t (s)$', 'interpreter', 'latex','fontsize',18)
-ylabel('$\tau (Nm)$', 'interpreter', 'latex','fontsize',18)
-grid
+% figure(2)
+% plot(t,x(7:9,:))
+% title('Evolution of the arm joints position', 'interpreter', ...
+% 'latex','fontsize',18)
+% legend('$\theta_1$','$\theta_2$','$\theta_3$', 'interpreter', ...
+%        'latex','fontsize',18)
+% xlabel('$t (s)$', 'interpreter', 'latex','fontsize',18)
+% ylabel('$\theta (rad)$', 'interpreter', 'latex','fontsize',18)
+% grid
+% 
+% figure(3)
+% plot(t,u(1:3,:))
+% title('Actuating arm joints speed','interpreter','latex')
+% xlabel('t(s)','interpreter','latex','fontsize',18)
+% ylabel('$\dot\theta(rad/s$)','interpreter','latex','fontsize',18)
+% legend('$\dot\theta_1$','$\dot\theta_2$',...
+%        '$\dot\theta_3$','interpreter', ...
+%        'latex','fontsize',18)
+% 
+% figure(4)
+% plot(t,x(13:15,:))
+% title('Evolution of the arm joints accelerations', 'interpreter', ...
+% 'latex','fontsize',18)
+% legend('$\ddot\theta_1$','$\ddot\theta_2$','$\ddot\theta_3$', 'interpreter', ...
+%        'latex','fontsize',18)
+% xlabel('$t (s)$', 'interpreter', 'latex','fontsize',18)
+% ylabel('$\ddot\theta (rad/s^2)$', 'interpreter', 'latex','fontsize',18)
+% grid
+% 
+% figure(5)
+% plot(t,x(16:18,:))
+% title('Evolution of the applied arm torques', 'interpreter', ...
+% 'latex','fontsize',18)
+% legend('$\tau_1$','$\tau_2$','$\tau_3$', 'interpreter', ...
+%        'latex','fontsize',18)
+% xlabel('$t (s)$', 'interpreter', 'latex','fontsize',18)
+% ylabel('$\tau (Nm)$', 'interpreter', 'latex','fontsize',18)
+% grid
 
 
 %% Simulation
