@@ -59,28 +59,11 @@ rollef = 0;
 pitchef = pi;
 yawef = 0;
 
-%% Time horizon estimation
-expectedTimeArrival = 5;
-tf = expectedTimeArrival; % Time vector
-dt = tf/200;
-t = 0:dt:tf;
 
-%% Costs
-% State costs
-fc = 1000000000; % Final state cost, 1000000000
-foc = 0; % Final orientation cost, 0
-fsc = 1000000000; % Final zero speed cost, 1000000000
+%% Configuration variables
+% Number of timesteps
+timeSteps = 200;
 
-tau1c = 0.005; % Joint 1 inverse torque constant, 2
-tau2c = 0.005; % Joint 2 inverse torque constant, 2
-tau3c = 0.005; % Joint 3 inverse torque constant, 2
-
-% Input costs
-ac1 = 100; % Arm actuation cost
-ac2 = 100; % Arm actuation cost
-ac3 = 100; % Arm actuation cost
-
-%% Other variables
 % Minimum step actuation percentage
 lineSearchStep = 0.30; 
 
@@ -88,15 +71,41 @@ lineSearchStep = 0.30;
 distThreshold = 0.005;
 
 % Maximum number of iterations
-maxIter = 100;
+maxIter = 10000;
+
+% Percentage of constrained timesteps for resampling
+resamplingThreshold = 30;
 
 % Activate/deactivate dynamic plotting during the simulation
-dynamicPlotting = 1;
+dynamicPlotting = 0;
+
+%% Time horizon estimation
+expectedTimeArrival = 5;
+tf = expectedTimeArrival; % Time vector
+dt = tf/(timeSteps-1);
+t = 0:dt:tf;
+
+%% Costs
+time_ratio = tf/5; % Ratio for the costs to ensure convergence
+
+% State costs
+fc = 1000000000/time_ratio; % Final state cost, 1000000000
+foc = 0/time_ratio; % Final orientation cost, 0
+fsc = 1000000000/time_ratio; % Final zero speed cost, 1000000000
+
+tau1c = 0.005/time_ratio; % Joint 1 inverse torque constant, 2
+tau2c = 0.005/time_ratio; % Joint 2 inverse torque constant, 2
+tau3c = 0.005/time_ratio; % Joint 3 inverse torque constant, 2
+
+% Input costs
+ac1 = 100000*time_ratio; % Arm actuation cost
+ac2 = 100000*time_ratio; % Arm actuation cost
+ac3 = 100000*time_ratio; % Arm actuation cost
 
 %% State space model
 % State vectors
 numStates = 18;
-x = zeros(numStates,size(t,2));
+x = zeros(numStates,timeSteps);
 % WTEE
 x(1,1) = xei;
 x(2,1) = yei;
@@ -123,10 +132,10 @@ x(18,1) = 0;
 
 % Initial control law
 numInputs = 3;
-u = zeros(numInputs,size(t,2));
+u = zeros(numInputs,timeSteps);
 
 % Target state and control trajectories
-x0 = zeros(numStates,size(t,2));
+x0 = zeros(numStates,timeSteps);
 
 % WTEE
 x0(1,end) = xef;
@@ -152,45 +161,43 @@ x0(16,end) = 0;
 x0(17,end) = 0;
 x0(18,end) = 0;
 
-u0 = zeros(numInputs,size(t,2));
-
-Jac = zeros(6,3,size(t,2));
+u0 = zeros(numInputs,timeSteps);
 
 % Forward integrate system equations
 x = forwardIntegrateSystem(x, u, dt);
 
 %% Constraints matrices definition
 % State input constraints
-numStateInputConstraints = 2;
-I0 = zeros(numStateInputConstraints,size(t,2));
+numStateInputConstraints = 0;
+I0 = zeros(numStateInputConstraints,timeSteps);
 I = I0;
-C = zeros(numStateInputConstraints,numStates,size(t,2));
-D = zeros(numStateInputConstraints,numInputs,size(t,2));
-r = zeros(numStateInputConstraints,size(t,2));
+C = zeros(numStateInputConstraints,numStates,timeSteps);
+D = zeros(numStateInputConstraints,numInputs,timeSteps);
+r = zeros(numStateInputConstraints,timeSteps);
 
-% The state input constraints are defined as:
-% C*x + D*u + r <= 0
-D(1,3,:) = 1;
-r(1,:) = -0.8;
-
-D(2,3,:) = -1;
-r(2,:) = -0.8;
+% % The state input constraints are defined as:
+% % C*x + D*u + r <= 0
+% D(1,3,:) = 1;
+% r(1,:) = -0.8;
+% 
+% D(2,3,:) = -1;
+% r(2,:) = -0.8;
 
 % Pure state constraints
-numPureStateConstraints = 0;
-J0 = zeros(numPureStateConstraints,size(t,2));
+numPureStateConstraints = 2;
+J0 = zeros(numPureStateConstraints,timeSteps);
 J = J0;
-G = zeros(numPureStateConstraints,numStates,size(t,2));
-h = zeros(numPureStateConstraints,size(t,2));
+G = zeros(numPureStateConstraints,numStates,timeSteps);
+h = zeros(numPureStateConstraints,timeSteps);
 
-% The pure state constraints are defined as:
-% G*x + h <= 0
-
-% G(1,36,:) = 1;
-% h(1,:) = -wheelTorqueLimit;
+% % The pure state constraints are defined as:
+% % G*x + h <= 0
 % 
-% G(5,36,:) = -1;
-% h(5,:) = -wheelTorqueLimit;
+G(1,9,:) = 1;
+h(1,:) = -1.8;
+
+G(2,9,:) = -1;
+h(2,:) = -1.8;
 
 
 %% Visualization stuff
@@ -241,10 +248,7 @@ hold off;
 
 %% SLQR algorithm
 iter = 1;
-while 1   
-    % Forward integrate system equations
-    x = forwardIntegrateSystem(x, u, dt);    
-    
+while 1      
     % Updating the plot
     if dynamicPlotting
         figure(1);
@@ -264,10 +268,20 @@ while 1
         h8 = plot3(x(1,:),x(2,:),x(3,:), 'LineWidth', 5, 'Color', 'y');  
 
         hold off;
+        
+        figure(2)
+        plot(t,x(7:9,:))
+        title('Evolution of the arm joints position', 'interpreter', ...
+        'latex','fontsize',18)
+        legend('$\theta_1$','$\theta_2$','$\theta_3$', 'interpreter', ...
+               'latex','fontsize',18)
+        xlabel('$t (s)$', 'interpreter', 'latex','fontsize',18)
+        ylabel('$\theta (rad)$', 'interpreter', 'latex','fontsize',18)
+        grid
     end
         
     % Quadratize cost function along the trajectory
-    Q = zeros(numStates,numStates,size(t,2));
+    Q = zeros(numStates,numStates,timeSteps);
     
     Q(16,16,:) = tau1c;
     Q(17,17,:) = tau2c;
@@ -286,22 +300,22 @@ while 1
     Q(17,17,end) = tau2c;
     Q(18,18,end) = tau3c;
     
-    R = zeros(numInputs,numInputs,size(t,2));
+    R = zeros(numInputs,numInputs,timeSteps);
     R(1,1,:) = ac1;
     R(2,2,:) = ac2;
     R(3,3,:) = ac3;
     
-    K = zeros(numStates,numInputs,size(t,2));
+    K = zeros(numStates,numInputs,timeSteps);
         
     % Update reference trajectories    
-    xs = zeros(numStates,size(t,2));
-    us = zeros(numInputs,size(t,2));
+    xs = zeros(numStates,timeSteps);
+    us = zeros(numInputs,timeSteps);
     
     % Define the sequential state and input vectors
-    xs0 = zeros(numStates,size(t,2));
-    us0 = zeros(numInputs,size(t,2));
+    xs0 = zeros(numStates,timeSteps);
+    us0 = zeros(numInputs,timeSteps);
 
-    for i = 1:size(t,2)
+    for i = 1:timeSteps
         xs0(:,i) = Q(:,:,i)*(x(:,i) - x0(:,i));
         us0(:,i) = R(:,:,i)*(u(:,i) - u0(:,i));
         
@@ -311,13 +325,9 @@ while 1
 %         us0(:,i) = R(:,:,i)*u(:,i) + u0(:,i);
     end
     
-    % Linearize the system dynamics and constraints along the trajectory  
-    for i = 2:size(t,2)
-        Jac(:,:,i-1) = jacobian3(x(7:9,i-1));
-    end
-    
+    % Linearize the system dynamics and constraints along the trajectory      
     % State (x) matrix
-    A = zeros(numStates,numStates,size(t,2));
+    A = zeros(numStates,numStates,timeSteps);
 
     % W2EE
     A(1:6,1:6,1) = eye(6,6);
@@ -331,10 +341,10 @@ while 1
     % Arm joints torques
     A(16:18,13:15,1) = getB3(x(7,1), x(8,1), x(9,1));
     
-    [~,dG] = getG3(x(7,1), x(8,1), x(9,1));
-    A(16:18,7:9,1) = dG;
+%     [~,dG] = getG3(x(7,1), x(8,1), x(9,1));
+%     A(16:18,7:9,1) = dG;
         
-    for i = 2:size(t,2)
+    for i = 2:timeSteps
         % W2EE
         A(1:6,1:6,i) = eye(6,6);
 
@@ -347,15 +357,15 @@ while 1
         % Arm joints torques
         A(16:18,13:15,i) = getB3(x(7,i-1), x(8,i-1), x(9,i-1));
 
-        [~,dG] = getG3(x(7,i-1), x(8,i-1), x(9,i-1));
-        A(16:18,7:9,i) = dG;
+%         [~,dG] = getG3(x(7,i-1), x(8,i-1), x(9,i-1));
+%         A(16:18,7:9,i) = dG;
     end
     
     % Actuation (u) matrix
-    B = zeros(numStates,numInputs,size(t,2));
+    B = zeros(numStates,numInputs,timeSteps);
         
     % WTEE
-    B(1:6,1:3,1) = dt*Jac(:,:,1);
+    B(1:6,1:3,1) = dt*jacobian3(x(7:9,1));
     
     % Arm joints Position
     B(7:9,1:3,1) = dt*eye(3,3);
@@ -369,9 +379,9 @@ while 1
     % Arm joints torques
     B(16:18,1:3,1) = getC3(x(7,1), x(8,1), x(9,1), u(1,1), u(2,1), u(3,1));
     
-    for i = 2:size(t,2)
+    for i = 2:timeSteps
         % WTEE
-        B(1:6,1:3,i) = dt*Jac(:,:,i-1);
+        B(1:6,1:3,i) = dt*jacobian3(x(7:9,i-1));
 
         % Arm joints Position
         B(7:9,1:3,i) = dt*eye(3,3);
@@ -390,11 +400,11 @@ while 1
     % Active Constraints definition
     % State input constraints
     tl = [];
-    p = cell(size(t,2),1);
+    p = cell(timeSteps,1);
     paux = zeros(numStateInputConstraints,1);
     pl = zeros(numStateInputConstraints,1);
     
-    for i = 1:size(t,2)
+    for i = 1:timeSteps
         anyActiveConstraint = false;
         for j = 1:numStateInputConstraints
             if I(j,i)
@@ -420,9 +430,9 @@ while 1
         end
     end
     
-    Cl = zeros(numActiveSIConstraints,numStates,size(t,2));
-    Dl = zeros(numActiveSIConstraints,numInputs,size(t,2));
-    rl = zeros(numActiveSIConstraints,size(t,2));
+    Cl = zeros(numActiveSIConstraints,numStates,timeSteps);
+    Dl = zeros(numActiveSIConstraints,numInputs,timeSteps);
+    rl = zeros(numActiveSIConstraints,timeSteps);
     
     for i = tl
         Cl(pl(p{i}),:,i) = C(p{i},:,i);
@@ -433,11 +443,11 @@ while 1
     
     % Pure state constraints
     tk = [];
-    q = cell(size(t,2),1);
+    q = cell(timeSteps,1);
     qaux = zeros(numPureStateConstraints,1);
     ql = zeros(numPureStateConstraints,1);
 
-    for i = 1:size(t,2)
+    for i = 1:timeSteps
         anyActiveConstraint = false;
         for j = 1:numPureStateConstraints
             if J(j,i)
@@ -464,8 +474,8 @@ while 1
     end
     
     
-    Gk = zeros(numActivePSConstraints,numStates,size(t,2));
-    hk = zeros(numActivePSConstraints,size(t,2));
+    Gk = zeros(numActivePSConstraints,numStates,timeSteps);
+    hk = zeros(numActivePSConstraints,timeSteps);
     
     for i = tk
         Gk(ql(q{i}),:,i) = G(q{i},:,i);
@@ -473,21 +483,21 @@ while 1
     end
     
     % Predefinitions
-    Dh = zeros(numActiveSIConstraints,numActiveSIConstraints,size(t,2));
-    E = zeros(numActiveSIConstraints,numStates,size(t,2));
-    rh = zeros(numActiveSIConstraints,size(t,2));
+    Dh = zeros(numActiveSIConstraints,numActiveSIConstraints,timeSteps);
+    E = zeros(numActiveSIConstraints,numStates,timeSteps);
+    rh = zeros(numActiveSIConstraints,timeSteps);
     
-    Ah = zeros(numStates,numStates,size(t,2));
-    Rh = zeros(numStates,numStates,size(t,2));
-    Qh = zeros(numStates,numStates,size(t,2));
-    x0h = zeros(numStates,size(t,2));
-    u0h = zeros(numStates,size(t,2));
+    Ah = zeros(numStates,numStates,timeSteps);
+    Rh = zeros(numStates,numStates,timeSteps);
+    Qh = zeros(numStates,numStates,timeSteps);
+    x0h = zeros(numStates,timeSteps);
+    u0h = zeros(numStates,timeSteps);
     
     for i = tl
         Dh(pl(p{i}),pl(p{i}),i) = inv(Dl(pl(p{i}),:,i)/R(:,:,i)*Dl(pl(p{i}),:,i).');
     end
     
-    for i = 1:size(t,2)
+    for i = 1:timeSteps
 
         E(:,:,i) = Cl(:,:,i) - Dl(:,:,i)/R(:,:,i)*K(:,:,i).';
         rh(:,i) = rl(:,i) - Dl(:,:,i)/R(:,:,i)*us0(:,i);
@@ -500,14 +510,14 @@ while 1
     end
         
     % LQ problem solution
-    M = zeros(numStates,numStates,size(t,2));
-    P = zeros(numStates,numStates,size(t,2));
-    z = zeros(numStates,size(t,2));
+    M = zeros(numStates,numStates,timeSteps);
+    P = zeros(numStates,numStates,timeSteps);
+    z = zeros(numStates,timeSteps);
     P(:,:,end) = Q(:,:,end);
     z(:,end) = xs0(:,end);
     
     % Solve backward
-    for i = size(t,2)-1:-1:1
+    for i = timeSteps-1:-1:1
         M(:,:,i) = inv(eye(numStates) + Rh(:,:,i)*P(:,:,i+1));
         P(:,:,i) = Qh(:,:,i) + Ah(:,:,i).'*P(:,:,i+1)*M(:,:,i)*Ah(:,:,i);
         z(:,i) = Ah(:,:,i).'*M(:,:,i).'*z(:,i+1) + ...
@@ -515,7 +525,7 @@ while 1
     end
     
     Gamma = zeros(numActivePSConstraints*size(tk,2),numStates);
-    Gammak = zeros(numActivePSConstraints,numStates,size(t,2), size(tk,2));
+    Gammak = zeros(numActivePSConstraints,numStates,timeSteps, size(tk,2));
     y = zeros(numActivePSConstraints*size(tk,2),1);
     F = zeros(numActivePSConstraints*size(tk,2),numActivePSConstraints*size(tk,2));
     H = zeros(numActivePSConstraints*size(tk,2),1);
@@ -549,16 +559,47 @@ while 1
     end
     
     nuV = zeros(numActivePSConstraints*size(tk,2),1);
-    nuV(:) = F\(-Gamma*xs(:,1) - y - H);
     
-    nu = zeros(numActivePSConstraints,size(t,2));
+    % Ensuring correct inverse matrix computation
+    if(~det(F))
+        warning('Cannot compute inverse, determinant is 0');
+        correctIndex = [];        
+        for k = 1:size(tk,2)
+            correctIndex = [correctIndex (k-1)*numActivePSConstraints+ql(q{tk(k)}).'];
+        end
+        Faux = F(correctIndex,correctIndex);
+        if (rank(Faux) < size(Faux,2))
+            warning('Cannot compute inverse, linearly dependant terms in matrix');
+            [Ffraux, indRemoved, indKeeped, indSimilar] = getFullRankMatrix(Faux);
+            nuV(correctIndex(indKeeped)) = Ffraux\...
+                (-Gamma(correctIndex(indKeeped),:)*xs(:,1) - ...
+                y(correctIndex(indKeeped)) - H(correctIndex(indKeeped)));
+            
+            nuV(correctIndex(indRemoved)) = nuV(correctIndex(indSimilar));
+
+        else
+            invF = zeros(size(F));
+            invFaux = inv(Faux);
+            invF(correctIndex,correctIndex) = invFaux; 
+            nuV(:) = invF*(-Gamma*xs(:,1) - y - H);
+        end
+    elseif (rank(F) < numActivePSConstraints*size(tk,2))
+        warning('Cannot compute inverse, linearly dependant terms in matrix');
+        [Ffr, indRemoved, indKeeped, indSimilar] = getFullRankMatrix(F);
+        nuV(indKeeped) = Ffr\(-Gamma(indKeeped,:)*xs(:,1) - y(indKeeped) - H(indKeeped));
+        nuV(indRemoved) = nuV(indSimilar);
+    else
+        nuV(:) = F\(-Gamma*xs(:,1) - y - H);
+    end
+    
+    nu = zeros(numActivePSConstraints,timeSteps);
     for i = 1:size(tk,2)
         nu(:,tk(i)) = nuV((i-1)*numActivePSConstraints+1:i*numActivePSConstraints);
     end   
     
-    s = zeros(numStates,size(t,2));
+    s = zeros(numStates,timeSteps);
     if numActivePSConstraints
-        for i = 1:size(t,2)
+        for i = 1:timeSteps
             sumG = 0;
             for k = 1:size(tk,2)
                 if (tk(k) >= i)
@@ -571,12 +612,12 @@ while 1
         s(:,:) = z(:,:);
     end
         
-    v = zeros(numStates,size(t,2));
-    lambda = zeros(numStates,size(t,2));
-    mu = zeros(numActiveSIConstraints,size(t,2));
+    v = zeros(numStates,timeSteps);
+    lambda = zeros(numStates,timeSteps);
+    mu = zeros(numActiveSIConstraints,timeSteps);
 
     % Solve forward
-    for i = 1:size(t,2)-1
+    for i = 1:timeSteps-1
         v(:,i) = M(:,:,i)*(u0h(:,i) - Rh(:,:,i)*s(:,i+1));
         xs(:,i+1) = M(:,:,i)*Ah(:,:,i)*xs(:,i) + v(:,i);
         lambda(:,i+1) = P(:,:,i+1)*xs(:,i+1) + s(:,i+1);
@@ -589,14 +630,14 @@ while 1
     step3 = true;
     if norm(us)>=0.0001*norm(u)
         % Step 2
-        rhoi = ones(numStateInputConstraints,size(t,2));
-        deltai = ones(numStateInputConstraints,size(t,2));
+        rhoi = ones(numStateInputConstraints,timeSteps);
+        deltai = ones(numStateInputConstraints,timeSteps);
         
-        rhoj = ones(numPureStateConstraints,size(t,2));
-        deltaj = ones(numPureStateConstraints,size(t,2));
+        rhoj = ones(numPureStateConstraints,timeSteps);
+        deltaj = ones(numPureStateConstraints,timeSteps);
 
         if numStateInputConstraints||numPureStateConstraints
-            for n = 1:size(t,2)
+            for n = 1:timeSteps
                 for i = 1:numStateInputConstraints
                     if(~I(i,n))
                         rhoi(i,n) = C(i,:,n)*x(:,n) + D(i,:,n)*u(:,n) + r(i,n);
@@ -616,7 +657,6 @@ while 1
         betak = min(-rhoj(~J & deltaj>0)./deltaj(~J & deltaj>0));
 
         alfak = min([1 thetak betak]);      
-%         alfak = 1;
         
         if alfak == 1
             step3 = true;
@@ -634,7 +674,7 @@ while 1
                 x = forwardIntegrateSystem(x, u, dt);
 
                 Jcost(n) = 1/2*(x(:,end)-x0(:,end)).'*Q(:,:,end)*(x(:,end)-x0(:,end));
-                for i = 1:size(t,2)-1
+                for i = 1:timeSteps-1
                     Jcost(n) = Jcost(n) + 1/2*((x(:,i)-x0(:,i)).'*Q(:,:,i)*(x(:,i)-x0(:,i))...
                         + (u(:,i)-u0(:,i)).'*R(:,:,i)*(u(:,i)-u0(:,i)));
                 end            
@@ -658,18 +698,29 @@ while 1
             
             x = forwardIntegrateSystem(x, u, dt);
             
-            for n = 1:size(t,2)
-                for i = 1:numStateInputConstraints
-                    if(-rhoi(i,n)/deltai(i,n) == alfak && ~I(i,n) && n < size(t,2))
+            for i = 1:numStateInputConstraints
+                for n = 1:timeSteps
+                    if(-rhoi(i,n)/deltai(i,n) == alfak && ~I(i,n) && n < timeSteps)
                         I(i,n) = 1;
                     end
                 end
-                for j = 1:numPureStateConstraints
+                if sum(I(i,:)) > timeSteps*resamplingThreshold/100
+                    I(i,:) = 0;
+                    disp('Resampling...');
+                end
+            end
+            for j = 1:numPureStateConstraints
+                for n = 1:timeSteps
                     if(-rhoj(j,n)/deltaj(j,n) == alfak && ~J(j,n)&& n > 1)                        
                         J(j,n) = 1;
                     end
                 end
+                if sum(J(j,:)) > timeSteps*resamplingThreshold/100
+                    J(j,:) = 0;
+                    disp('Resampling...');
+                end
             end
+            
         end
     end
     
@@ -679,8 +730,8 @@ while 1
     if step3        
         % Step 3
         if size(tl,2) > 0
-            minMu = zeros(1,size(t,2));
-            iS = zeros(1,size(t,2));
+            minMu = zeros(1,timeSteps);
+            iS = zeros(1,timeSteps);
 
             for m = tl
                 minMu(m) = 99999999;
@@ -704,8 +755,8 @@ while 1
         end
 
         if size(tk,2) > 0
-            minNu = zeros(1,size(t,2));
-            jS = zeros(1,size(t,2));
+            minNu = zeros(1,timeSteps);
+            jS = zeros(1,timeSteps);
 
             for l = tk
                 minNu(1,l) = 99999999;
@@ -838,5 +889,5 @@ legend('$\dot\theta_1$','$\dot\theta_2$',...
 
 
 %% Simulation
-% sim('manipulator3DoF',t(end));
+sim('manipulator3DoF',t(end));
 
