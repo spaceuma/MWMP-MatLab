@@ -60,7 +60,7 @@ pitchef = pi;
 yawef = 0;
 
 %% Time horizon
-expectedTimeArrival = 5;
+expectedTimeArrival = 100;
 tf = expectedTimeArrival; % Time vector
 dt = tf/200;
 t = 0:dt:tf;
@@ -71,14 +71,14 @@ fc = 1000000000; % Final state cost, 1000000000
 foc = 0; % Final orientation cost, 0
 fsc = 1000000000; % Final zero speed cost, 1000000000
 
-tau1c = 0.005; % Joint 1 inverse torque constant, 2
-tau2c = 0.005; % Joint 2 inverse torque constant, 2
-tau3c = 0.005; % Joint 3 inverse torque constant, 2
+% tau1c = 0.005; % Joint 1 inverse torque constant, 2
+% tau2c = 0.005; % Joint 2 inverse torque constant, 2
+% tau3c = 0.005; % Joint 3 inverse torque constant, 2
 
 % Input costs
-ac1 = 100; % Arm actuation cost
-ac2 = 100; % Arm actuation cost
-ac3 = 100; % Arm actuation cost
+ac1 = 10000000000; % Arm actuation cost
+ac2 = 10000000000; % Arm actuation cost
+ac3 = 10000000000; % Arm actuation cost
 
 %% Other variables
 % Minimum step actuation percentage
@@ -92,7 +92,7 @@ maxIter = 100;
 
 %% State space model
 % State vectors
-numStates = 18;
+numStates = 15;
 x = zeros(numStates,size(t,2));
 % WTEE
 x(1,1) = xei;
@@ -113,10 +113,6 @@ x(12,1) = 0;
 x(13,1) = 0;
 x(14,1) = 0;
 x(15,1) = 0;
-% Arm joints torques
-x(16,1) = 0;
-x(17,1) = 0;
-x(18,1) = 0;
 
 % Initial control law
 numInputs = 3;
@@ -144,10 +140,6 @@ x0(12,end) = 0;
 x0(13,end) = 0;
 x0(14,end) = 0;
 x0(15,end) = 0;
-% Arm joints torques
-x0(16,end) = 0;
-x0(17,end) = 0;
-x0(18,end) = 0;
 
 u0 = zeros(numInputs,size(t,2));
 
@@ -189,13 +181,8 @@ while 1
     quiver3(0, 0, 0, 1/4, 0, 0, 'Color', 'r', 'LineWidth', 2, 'MaxHeadSize', 0.7)
     quiver3(0, 0, 0, 0, 1/4, 0, 'Color', 'g', 'LineWidth', 2, 'MaxHeadSize', 0.7)
     quiver3(0, 0, 0, 0, 0, 1/4, 'Color', 'c', 'LineWidth', 2, 'MaxHeadSize', 0.7) 
-    
-    quiver3(TW3(1,4), TW3(2,4), TW3(3,4), TW3(1,1), TW3(2,1), TW3(3,1), 'Color', 'r', 'LineWidth', 2, 'MaxHeadSize', 0.7)
-    quiver3(TW3(1,4), TW3(2,4), TW3(3,4), TW3(1,2), TW3(2,2), TW3(3,2), 'Color', 'g', 'LineWidth', 2, 'MaxHeadSize', 0.7)
-    quiver3(TW3(1,4), TW3(2,4), TW3(3,4), TW3(1,3), TW3(2,3), TW3(3,3), 'Color', 'c', 'LineWidth', 2, 'MaxHeadSize', 0.7)
 
-    hold off;
-    
+    hold off;   
     
     
     % Update reference trajectories    
@@ -205,24 +192,17 @@ while 1
     % Quadratize cost function along the trajectory
     Q = zeros(numStates,numStates,size(t,2));
     
-    Q(16,16,:) = tau1c;
-    Q(17,17,:) = tau2c;
-    Q(18,18,:) = tau3c;
-        
-    Qend = zeros(numStates,numStates);
+    Q(:,:,end) = zeros(numStates,numStates);
     
-    Qend(1,1) = fc;
-    Qend(2,2) = fc;
-    Qend(3,3) = fc;
-    Qend(4,4) = foc;
-    Qend(5,5) = foc;
-    Qend(6,6) = foc;
-    Qend(10,10) = fsc;
-    Qend(11,11) = fsc;
-    Qend(12,12) = fsc;
-    Qend(16,16) = tau1c;
-    Qend(17,17) = tau2c;
-    Qend(18,18) = tau3c;
+    Q(1,1,end) = fc;
+    Q(2,2,end) = fc;
+    Q(3,3,end) = fc;
+    Q(4,4,end) = foc;
+    Q(5,5,end) = foc;
+    Q(6,6,end) = foc;
+    Q(10,10,end) = fsc;
+    Q(11,11,end) = fsc;
+    Q(12,12,end) = fsc;
     
     R = eye(numInputs);
     R(1,1) = ac1;
@@ -239,70 +219,55 @@ while 1
 
     % W2EE
     A(1:6,1:6,1) = eye(6,6);
+    A(1:6,10:12,1) = Jac(:,:,1)*dt;
     
     % Arm joints Position
     A(7:9,7:9,1) = eye(3,3);
+    A(7:9,10:12,1) = dt*eye(3,3);
         
-    % Arm joints acceleration
-    A(13:15,10:12,1) = -1/dt*eye(3,3);
+    % Arm joints velocities
+    A(10:12,10:12,1) = eye(3,3);
+    A(10:12,13:15,1) = dt*eye(3,3);
     
-    % Arm joints torques
-    A(16:18,13:15,1) = getB3(x(7,1), x(8,1), x(9,1));
+    % Arm joints accelerations
+    A(13:15,10:12,1) = - getB3(x(7,1), x(8,1), x(9,1))\...
+                               getC3(x(7,1), x(8,1), x(9,1),...
+                                     x(10,1), x(11,1), x(12,1));
     
-    [~,dG] = getG3(x(7,1), x(8,1), x(9,1));
-    A(16:18,7:9,1) = dG;
+%     [~,dG] = getG3(x(7,1), x(8,1), x(9,1));
+%     A(13:15,7:9,1) = - getB3(x(7,1), x(8,1), x(9,1))\dG;
         
     for i = 2:size(t,2)
         % W2EE
         A(1:6,1:6,i) = eye(6,6);
+        A(1:6,10:12,i) = Jac(:,:,i-1)*dt;
 
         % Arm joints Position
         A(7:9,7:9,i) = eye(3,3);
+        A(7:9,10:12,i) = dt*eye(3,3);
 
-        % Arm joints acceleration
-        A(13:15,10:12,i) = -1/dt*eye(3,3);
+        % Arm joints velocities
+        A(10:12,10:12,i) = eye(3,3);
+        A(10:12,13:15,i) = dt*eye(3,3);
 
-        % Arm joints torques
-        A(16:18,13:15,i) = getB3(x(7,i-1), x(8,i-1), x(9,i-1));
+        % Arm joints accelerations
+        A(13:15,10:12,i) = - getB3(x(7,i-1), x(8,i-1), x(9,i-1))\...
+                                   getC3(x(7,i-1), x(8,i-1), x(9,i-1),...
+                                         x(10,i-1), x(11,i-1), x(12,i-1));
 
-        [~,dG] = getG3(x(7,i-1), x(8,i-1), x(9,i-1));
-        A(16:18,7:9,i) = dG;
+%         [~,dG] = getG3(x(7,i-1), x(8,i-1), x(9,i-1));
+%         A(13:15,7:9,i) = - getB3(x(7,i-1), x(8,i-1), x(9,i-1))\dG;
     end
     
     % Actuation (u) matrix
     B = zeros(numStates,numInputs,size(t,2));
         
-    % WTEE
-    B(1:6,1:3,1) = dt*Jac(:,:,1);
-    
-    % Arm joints Position
-    B(7:9,1:3,1) = dt*eye(3,3);
-    
-    % Arm joints speed
-    B(10:12,1:3,1) = eye(3,3);
-    
     % Arm joints acceleration
-    B(13:15,1:3,1) = 1/dt*eye(3,3);
-
-    % Arm joints torques
-    B(16:18,1:3,1) = getC3(x(7,1), x(8,1), x(9,1), u(1,1), u(2,1), u(3,1));
+    B(13:15,1:3,1) = inv(getB3(x(7,1), x(8,1), x(9,1)));
     
     for i = 2:size(t,2)
-        % WTEE
-        B(1:6,1:3,i) = dt*Jac(:,:,i-1);
-
-        % Arm joints Position
-        B(7:9,1:3,i) = dt*eye(3,3);
-
-        % Arm joints speed
-        B(10:12,1:3,i) = eye(3,3);
-
         % Arm joints acceleration
-        B(13:15,1:3,i) = 1/dt*eye(3,3);
-
-        % Arm joints torques
-        B(16:18,1:3,i) = getC3(x(7,i-1), x(8,i-1), x(9,i-1),...
-                               u(1,i-1), u(2,i-1), u(3,i-1));
+        B(13:15,1:3,i) = inv(getB3(x(7,i-1), x(8,i-1), x(9,i-1)));
     end
             
     % LQ problem solution
@@ -310,8 +275,8 @@ while 1
     P = zeros(size(Q,1),size(Q,2),size(t,2));
     s = zeros(size(Q,1),1,size(t,2));
     
-    P(:,:,end) = Qend;
-    s(:,:,end) = -Qend*xh0(:,end);
+    P(:,:,end) = Q(:,:,end);
+    s(:,:,end) = -Q(:,:,end)*xh0(:,end);
     
     xh = zeros(size(x,1),size(t,2));
     uh = zeros(size(u,1),size(t,2));
@@ -357,7 +322,7 @@ while 1
             u = uk + alfa(n)*uh;
             x = forwardIntegrateSystem(x, u, dt);
 
-            J(n) = 1/2*(x(:,end)-x0(:,end)).'*Qend*(x(:,end)-x0(:,end));
+            J(n) = 1/2*(x(:,end)-x0(:,end)).'*Q(:,:,end)*(x(:,end)-x0(:,end));
             for i = 1:size(t,2)-1
                 J(n) = J(n) + 1/2*((x(:,i)-x0(:,i)).'*Q(:,:,i)*(x(:,i)-x0(:,i))...
                     + (u(:,i)-u0(:,i)).'*R*(u(:,i)-u0(:,i)));
@@ -373,10 +338,10 @@ while 1
     
     if iter > maxIter
         cprintf('err','MMKP failed to generate a motion plan\n')
-        if endDist > distThreshold
-            error('The goal was not reachable');
-        elseif norm(uh)>0.0001*norm(u)
+        if norm(uh)>0.0001*norm(u)
             error('The SLQR algorithm failed to converge');
+        elseif endDist > distThreshold
+            error('The goal was not reachable');        
         else
             error('Something unexpected prevented SLQR to converge');
         end
@@ -389,11 +354,11 @@ end
 x = forwardIntegrateSystem(x, u, dt);
 
 toc
-iu = cumsum(abs(x(16,:))*dt);
+iu = cumsum(abs(u(1,:))*dt);
 disp(['Total torque applied arm joint 1: ',num2str(iu(end)),' Nm'])
-iu = cumsum(abs(x(17,:))*dt);
+iu = cumsum(abs(u(2,:))*dt);
 disp(['Total torque applied arm joint 2: ',num2str(iu(end)),' Nm'])
-iu = cumsum(abs(x(18,:))*dt);
+iu = cumsum(abs(u(3,:))*dt);
 disp(['Total torque applied arm joint 3: ',num2str(iu(end)),' Nm'])    
 
 figure(1)
@@ -438,8 +403,8 @@ ylabel('$\theta (rad)$', 'interpreter', 'latex','fontsize',18)
 grid
 
 figure(3)
-plot(t,u(1:3,:))
-title('Actuating arm joints speed','interpreter','latex')
+plot(t,x(10:12,:))
+title('Evolution of the arm joints speed','interpreter','latex')
 xlabel('t(s)','interpreter','latex','fontsize',18)
 ylabel('$\dot\theta(rad/s$)','interpreter','latex','fontsize',18)
 legend('$\dot\theta_1$','$\dot\theta_2$',...
@@ -457,7 +422,7 @@ ylabel('$\ddot\theta (rad/s^2)$', 'interpreter', 'latex','fontsize',18)
 grid
 
 figure(5)
-plot(t,x(16:18,:))
+plot(t,u(1:3,:))
 title('Evolution of the applied arm torques', 'interpreter', ...
 'latex','fontsize',18)
 legend('$\tau_1$','$\tau_2$','$\tau_3$', 'interpreter', ...

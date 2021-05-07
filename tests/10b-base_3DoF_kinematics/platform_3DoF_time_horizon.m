@@ -22,11 +22,6 @@ a2 = 0.735;
 global d4;
 d4 = 0.695;
 
-global armHeight;
-armHeight = 0.05;
-global armWidth;
-armWidth = 0.1;
-
 global dfx;
 dfx = 0.7;
 global dfy;
@@ -42,6 +37,7 @@ rho = 2700;
 
 global wheelRadius;
 wheelRadius = 0.2;
+r = wheelRadius;
 global wheelWidth;
 wheelWidth = 0.2;
 global wheelMass;
@@ -84,7 +80,7 @@ pitchei = pi/2;
 yawei = 0;
 
 xef = 2.1;
-yef = 2.4;
+yef = 7.4;
 zef = 0.2;
 rollef = 0;
 pitchef = pi;
@@ -193,12 +189,6 @@ rtor = 0.25/time_ratio; % Percentage of rtc when wayp orientation = pi/2, 0.25
 oc = 300.0/time_ratio; % Obstacles repulsive cost, 300.0
 % wlc = 0.00; % Wheels torque limit cost, 0.5
 
-tau1c = 2.0/time_ratio; % Joint 1 inverse torque constant, 2
-tau2c = 2.0/time_ratio; % Joint 2 inverse torque constant, 2
-tau3c = 2.0/time_ratio; % Joint 3 inverse torque constant, 2
-
-tauWheel = 1e1*0.8/time_ratio; % Wheels joint inverse torque constant, 0.8
-
 % Input costs
 bc = 90*time_ratio; % Base actuation cost, 90
 sc = 0.1*time_ratio; % Steering cost, 0.1
@@ -223,7 +213,7 @@ maxIter = 100; % Maximum number of iterations
 
 %% State space model
 % State vectors
-numStates = 43;
+numStates = 18;
 x = zeros(numStates,size(t,2));
 % WTEE
 x(1,1) = xei;
@@ -248,41 +238,9 @@ x(15,1) = 0;
 x(16,1) = qi(1);
 x(17,1) = qi(2);
 x(18,1) = qi(3);
-% Arm joints speeds
-x(19,1) = 0;
-x(20,1) = 0;
-x(21,1) = 0;
-% Arm joints accelerations
-x(22,1) = 0;
-x(23,1) = 0;
-x(24,1) = 0;
-% Arm joints torques
-x(25,1) = 0;
-x(26,1) = 0;
-x(27,1) = 0;
-% Wheels speed
-x(28,1) = 0;
-x(29,1) = 0;
-x(30,1) = 0;
-x(31,1) = 0;
-% Wheels acceleration
-x(32,1) = 0;
-x(33,1) = 0;
-x(34,1) = 0;
-x(35,1) = 0;
-% Wheels torque
-x(36,1) = 0;
-x(37,1) = 0;
-x(38,1) = 0;
-x(39,1) = 0;
-% Steering joints
-x(40,1) = 0;
-x(41,1) = 0;
-x(42,1) = 0;
-x(43,1) = 0;
 
 % Initial control law
-numInputs = 7;
+numInputs = 5;
 u = zeros(numInputs,size(t,2));
 
 % Target state and control trajectories
@@ -313,38 +271,6 @@ x0(15,end) = 0;
 x0(16,end) = 0;
 x0(17,end) = 0;
 x0(18,end) = 0;
-% Arm joints speeds
-x0(19,end) = 0;
-x0(20,end) = 0;
-x0(21,end) = 0;
-% Arm joints accelerations
-x0(22,end) = 0;
-x0(23,end) = 0;
-x0(24,end) = 0;
-% Arm joints torques
-x0(25,end) = 0;
-x0(26,end) = 0;
-x0(27,end) = 0;
-% Wheels speed
-x0(28,end) = 0;
-x0(29,end) = 0;
-x0(30,end) = 0;
-x0(31,end) = 0;
-% Wheels acceleration
-x0(32,end) = 0;
-x0(33,end) = 0;
-x0(34,end) = 0;
-x0(35,end) = 0;
-% Wheels torque
-x0(36,end) = 0;
-x0(37,end) = 0;
-x0(38,end) = 0;
-x0(39,end) = 0;
-% Steering joints
-x0(40,end) = 0;
-x0(41,end) = 0;
-x0(42,end) = 0;
-x0(43,end) = 0;
 
 u0 = zeros(numInputs,size(t,2));
 
@@ -467,16 +393,7 @@ while 1
         if norm([x(10,i) x(11,i)] - [xef yef]) < reachabilityDistance
             Q(10:12,10:12,i) = Q(10:12,10:12,i)/9999;
         end
-    end  
-    
-    Q(25,25,:) = tau1c;
-    Q(26,26,:) = tau2c;
-    Q(27,27,:) = tau3c;
-    
-    Q(36,36,:) = tauWheel;
-    Q(37,37,:) = tauWheel;
-    Q(38,38,:) = tauWheel;
-    Q(39,39,:) = tauWheel;
+    end    
     
     Qend = zeros(size(x,1),size(x,1));
     
@@ -496,8 +413,6 @@ while 1
     R(3,3) = ac3;
     R(4,4) = bc;
     R(5,5) = bc;  
-    R(6,6) = sc;
-    R(7,7) = sc; 
     
     % Linearize the system dynamics and constraints along the trajectory  
     for i = 2:size(t,2)
@@ -538,41 +453,9 @@ while 1
     % W2B Heading
     A(12,12,1) = 1;
     A(12,15,1) = dt;
-
-    % W2B Speed x
-    A(13,40,1) = -wheelRadius/2*sin(x(40,1))*u(4,1)*kappa2;
-    A(13,42,1) = -wheelRadius/2*sin(x(42,1))*u(5,1)*kappa2;
-    
-    % W2B Speed y
-    A(14,40,1) = -wheelRadius/2*cos(x(40,1))*u(4,1)*kappa2;
-    A(14,42,1) = -wheelRadius/2*cos(x(42,1))*u(5,1)*kappa2;
-    
-    % W2B Speed Heading
-    A(15,40,1) = wheelRadius/(2*dfx) *(-sin(x(40,1))*u(4,1))*kappa2;
-    A(15,42,1) = -wheelRadius/(2*dfx)*(-sin(x(42,1))*u(5,1))*kappa2;
     
     % Arm joints Position
-    A(16:18,16:18,1) = eye(3,3);
-        
-    % Arm joints acceleration
-    A(22:24,19:21,1) = -1/dt*eye(3,3);
-    
-    % Arm joints torques
-    A(25:27,22:24,1) = getB3(x(16,1), x(17,1), x(18,1));
-    
-    [~,dG] = getG3(x(16,1), x(17,1), x(18,1));
-    A(25:27,16:18,1) = dG;
-    
-    % Wheels accelerations
-    A(32:35,28:31,1) = -eye(4,4)/dt;
-    
-    % Wheels torques
-    A(36:39,32:35,1) = eye(4,4)*(getWheelInertia(wheelMass,wheelRadius)+...
-                                 vehicleMass/4*wheelRadius*wheelRadius);
-    
-    % Steering Joints Position
-    A(40:43,40:43,1) = eye(4,4);
-
+    A(16:18,16:18,1) = eye(3,3);        
     
     for i = 2:size(t,2)
         % W2EEx
@@ -605,41 +488,11 @@ while 1
 
         % W2B Heading
         A(12,12,i) = 1;
-        A(12,15,i) = dt;
-
-        % W2B Speed x
-        A(13,40,i) = -wheelRadius/2*sin(x(40,i-1))*u(4,i-1)*kappa2;
-        A(13,42,i) = -wheelRadius/2*sin(x(42,i-1))*u(5,i-1)*kappa2;
-
-        % W2B Speed y
-        A(14,40,i) = -wheelRadius/2*cos(x(40,i-1))*u(4,i-1)*kappa2;
-        A(14,42,i) = -wheelRadius/2*cos(x(42,i-1))*u(5,i-1)*kappa2;
-
-        % W2B Speed Heading
-        A(15,40,i) = wheelRadius/(2*dfx) *(-sin(x(40,i-1))*u(4,i-1))*kappa2;
-        A(15,42,i) = -wheelRadius/(2*dfx)*(-sin(x(42,i-1))*u(5,i-1))*kappa2;
+        A(12,15,i) = dt;       
 
         % Arm Joints Position
         A(16:18,16:18,i) = eye(3,3);
         
-        % Arm joints acceleration
-        A(22:24,19:21,i) = -1/dt*eye(3,3);
-        
-        % Arm joints torques
-        A(25:27,22:24,i) = getB3(x(16,i-1), x(17,i-1), x(18,i-1));
-        
-        [~,dG] = getG3(x(16,i-1), x(17,i-1), x(18,i-1));
-        A(25:27,16:18,i) = dG;
-        
-        % Wheels accelerations
-        A(32:35,28:31,i) = -eye(4,4)/dt;
-
-        % Wheels torques
-        A(36:39,32:35,i) = eye(4,4)*(getWheelInertia(wheelMass,wheelRadius)+vehicleMass/4*wheelRadius*wheelRadius);
-        
-        % Steering Joints Position
-        A(40:43,40:43,i) = eye(4,4);
-
     end
     
     % Actuation (u) matrix
@@ -652,40 +505,19 @@ while 1
     B(4:9,1:3,1) = dt*Jac(:,:,1);
 
     % W2B Speed x
-    B(13,4,1) = wheelRadius/2*(cos(x(40,1)) + x(40,1)*sin(x(40,1))*kappa2);
-    B(13,5,1) = wheelRadius/2*(cos(x(42,1)) + x(42,1)*sin(x(42,1))*kappa2);
+    B(13,4,1) = wheelRadius/2;
+    B(13,5,1) = wheelRadius/2;
     
     % W2B Speed y
-    B(14,4,1) = -wheelRadius/2*(sin(x(40,1)) - x(40,1)*cos(x(40,1))*kappa2);
-    B(14,5,1) = -wheelRadius/2*(sin(x(42,1)) - x(42,1)*cos(x(42,1))*kappa2);
+    B(14,4,1) = 0;
+    B(14,5,1) = 0;
     
     % W2B Speed heading
-    B(15,4,1) = wheelRadius/(2*dfx)*(cos(x(40,1)) + x(40,1)*sin(x(40,1))*kappa2);
-    B(15,5,1) = -wheelRadius/(2*dfx)*(cos(x(42,1)) + x(42,1)*sin(x(42,1))*kappa2);
+    B(15,4,1) = wheelRadius/(2*dfx);
+    B(15,5,1) = -wheelRadius/(2*dfx);
     
     % Arm joints Position
     B(16:18,1:3,1) = dt*eye(3,3);
-    
-    % Arm joints speed
-    B(19:21,1:3,1) = eye(3,3);
-    
-    % Arm joints acceleration
-    B(22:24,1:3,1) = 1/dt*eye(3,3);
-
-    % Arm joints torques
-    B(25:27,1:3,1) = getC3(x(16,1), x(17,1), x(18,1), u(1,1), u(2,1), u(3,1));
-    
-    % Wheels speeds
-    B(28:29,4,1) = 1;
-    B(30:31,5,1) = 1;
-    
-    % Wheels acceleration
-    B(32:33,4,1) = 1/dt;
-    B(34:35,5,1) = 1/dt;
-    
-    % Steering Joints Position
-    B(40:41,6,1) = dt;
-    B(42:43,7,1) = dt;
 
     for i = 2:size(t,2)
         % WTEEz
@@ -695,41 +527,20 @@ while 1
         B(4:9,1:3,i) = dt*Jac(:,:,i-1);
 
         % W2B Speed x
-        B(13,4,i) = wheelRadius/2*(cos(x(40,i-1)) + x(40,i-1)*sin(x(40,i-1))*kappa2);
-        B(13,5,i) = wheelRadius/2*(cos(x(42,i-1)) + x(42,i-1)*sin(x(42,i-1))*kappa2);
+        B(13,4,i) = wheelRadius/2;
+        B(13,5,i) = wheelRadius/2;
 
         % W2B Speed y
-        B(14,4,i) = -wheelRadius/2*(sin(x(40,i-1)) - x(40,i-1)*cos(x(40,i-1))*kappa2);
-        B(14,5,i) = -wheelRadius/2*(sin(x(42,i-1)) - x(42,i-1)*cos(x(42,i-1))*kappa2);
+        B(14,4,i) = 0;
+        B(14,5,i) = 0;
 
         % W2B Speed heading
-        B(15,4,i) = wheelRadius/(2*dfx)*(cos(x(40,i-1)) + x(40,i-1)*sin(x(40,i-1))*kappa2);
-        B(15,5,i) = -wheelRadius/(2*dfx)*(cos(x(42,i-1)) + x(42,i-1)*sin(x(42,i-1))*kappa2);
+        B(15,4,i) = wheelRadius/(2*dfx);
+        B(15,5,i) = -wheelRadius/(2*dfx);
 
         % Arm Joints Position
         B(16:18,1:3,i) = dt*eye(3,3);
         
-        % Arm joints speed
-        B(19:21,1:3,i) = eye(3,3);
-        
-        % Arm joints acceleration
-        B(22:24,1:3,i) = 1/dt*eye(3,3);
-
-        % Arm joints torques
-        B(25:27,1:3,i) = getC3(x(16,i-1), x(17,i-1), x(18,i-1), u(1,i-1), u(2,i-1), u(3,i-1));
-        
-        % Wheels speeds
-        B(28:29,4,i) = 1;
-        B(30:31,5,i) = 1;
-
-        % Wheels acceleration
-        B(32:33,4,i) = 1/dt;
-        B(34:35,5,i) = 1/dt;
-        
-        % Steering Joints Position
-        B(40:41,6,i) = dt;
-        B(42:43,7,i) = dt;
-
     end       
     
     % Obstacles limits cost
@@ -904,24 +715,6 @@ xVect = linspace(0,9.95,200);
 x = forwardIntegrateSystem(x, u, dt);
 
 toc
-iu = cumsum(abs(x(25,:))*dt);
-disp(['Total torque applied arm joint 1: ',num2str(iu(end)),' Nm'])
-iu = cumsum(abs(x(26,:))*dt);
-disp(['Total torque applied arm joint 2: ',num2str(iu(end)),' Nm'])
-iu = cumsum(abs(x(27,:))*dt);
-disp(['Total torque applied arm joint 3: ',num2str(iu(end)),' Nm'])    
-iu = cumsum(abs(x(36,:))*dt);
-disp(['Total torque applied wheel 1: ',num2str(iu(end)),' Nm'])
-iu = cumsum(abs(x(37,:))*dt);
-disp(['Total torque applied wheel 2: ',num2str(iu(end)),' Nm'])
-iu = cumsum(abs(x(38,:))*dt);
-disp(['Total torque applied wheel 3: ',num2str(iu(end)),' Nm'])
-iu = cumsum(abs(x(39,:))*dt);
-disp(['Total torque applied wheel 4: ',num2str(iu(end)),' Nm'])
-% iu = cumsum(abs(u(6,:)));
-% disp(['Total speed applied front steering joints: ',num2str(iu(end)),' rad/s'])
-% iu = cumsum(abs(u(7,:)));
-% disp(['Total speed applied back steering joints: ',num2str(iu(end)),' rad/s'])
 
 figure(1)
 hold off;
@@ -1016,60 +809,6 @@ legend('$\dot\theta_1$','$\dot\theta_2$',...
        '$\dot\theta_3$','interpreter', ...
        'latex','fontsize',18)
 
-% figure(4)
-% plot(t,x(22:24,:))
-% title('Evolution of the arm joints accelerations', 'interpreter', ...
-% 'latex','fontsize',18)
-% legend('$\ddot\theta_1$','$\ddot\theta_2$','$\ddot\theta_3$', 'interpreter', ...
-%        'latex','fontsize',18)
-% xlabel('$t (s)$', 'interpreter', 'latex','fontsize',18)
-% ylabel('$\ddot\theta (rad/s^2)$', 'interpreter', 'latex','fontsize',18)
-% grid
-
-figure(5)
-plot(t,x(25:27,:))
-title('Evolution of the applied arm torques', 'interpreter', ...
-'latex','fontsize',18)
-legend('$\tau_1$','$\tau_2$','$\tau_3$', 'interpreter', ...
-       'latex','fontsize',18)
-xlabel('$t (s)$', 'interpreter', 'latex','fontsize',18)
-ylabel('$\tau (Nm)$', 'interpreter', 'latex','fontsize',18)
-grid
-
-% figure(6)
-% plot(t,x(28:31,:))
-% title('Evolution of the applied wheel speeds', 'interpreter', ...
-% 'latex','fontsize',18)
-% legend('$\omega 1$','$\omega 2$','$\omega 3$',...
-%         '$\omega 4$', 'interpreter','latex','fontsize',18)
-% xlabel('$t (s)$', 'interpreter', 'latex','fontsize',18)
-% ylabel('$\omega (rad/s)$', 'interpreter', 'latex','fontsize',18)
-% grid
-% 
-% figure(7)
-% plot(t,x(32:35,:))
-% title('Evolution of the applied wheel accelerations', 'interpreter', ...
-% 'latex','fontsize',18)
-% legend('$\dot\omega 1$','$\dot\omega 2$','$\dot\omega 3$',...
-%         '$\dot\omega 4$', 'interpreter','latex','fontsize',18)
-% xlabel('$t (s)$', 'interpreter', 'latex','fontsize',18)
-% ylabel('$\dot\omega (rad/s^2)$', 'interpreter', 'latex','fontsize',18)
-% grid
-
-figure(8)
-plot(t,x(36:39,:))
-hold on
-yline(wheelTorqueLimit,'--r','Max torque');
-yline(-wheelTorqueLimit,'--r','Min torque');
-title('Evolution of the applied wheel torques', 'interpreter', ...
-'latex','fontsize',18)
-legend('$\tau_{\omega 1}$','$\tau_{\omega 2}$','$\tau_{\omega 3}$',...
-        '$\tau_{\omega 4}$', 'interpreter','latex','fontsize',18)
-xlabel('$t (s)$', 'interpreter', 'latex','fontsize',18)
-ylabel('$\tau (Nm)$', 'interpreter', 'latex','fontsize',18)
-grid
-hold off
-
 % figure(9)
 % plot(t,x(12,:))
 % title('Evolution of the vehicle heading', 'interpreter', ...
@@ -1077,38 +816,8 @@ hold off
 % xlabel('$t (s)$', 'interpreter', 'latex','fontsize',18)
 % ylabel('$\psi (rad)$', 'interpreter', 'latex','fontsize',18)
 % grid
-% 
-% figure(10)
-% plot(t,x(40:43,:))
-% title('Evolution of the steering joints position', 'interpreter', ...
-% 'latex','fontsize',18)
-% legend('$\theta_1$','$\theta_2$','$\theta_3$',...
-%         '$\theta_4$', 'interpreter','latex','fontsize',18)
-% xlabel('$t (s)$', 'interpreter', 'latex','fontsize',18)
-% ylabel('$\theta (rad)$', 'interpreter', 'latex','fontsize',18)
-% grid
-
-speed = zeros(size(t));
-for i = 1:size(t,2)
-    speedSign = sign(sum(x(28:31,i)));
-    speed(i) = speedSign*sqrt(x(13,i)^2+x(14,i)^2);
-end
-averageSpeed = sum(speed)/size(speed,2);
-
-figure(11)
-plot(t,speed)
-hold on;
-yline(averageSpeed,'--r','Average speed');
-yline(vehicleSpeed,'--b','Commanded speed');
-title('Evolution of the vehicle speed', 'interpreter', ...
-'latex','fontsize',18)
-xlabel('$t (s)$', 'interpreter', 'latex','fontsize',18)
-ylabel('$v (m/s)$', 'interpreter', 'latex','fontsize',18)
-grid
-hold off;
-
 
 %% Simulation
 
-% sim('base_3DoF_dynamics_sim',t(end));
+sim('base_3DoF_dynamics_sim',t(end));
 

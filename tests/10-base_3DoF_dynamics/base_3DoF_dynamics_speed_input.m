@@ -7,6 +7,7 @@ addpath('../../models/3DoF')
 
 addpath('../../costs')
 addpath('../../utils')
+addpath('../../simscape')
 
 if isempty(matlab.project.rootProject)
     matlab.project.loadProject('../../../Simscape/Contact_Forces_Library.prj')
