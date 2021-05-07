@@ -76,9 +76,9 @@ tau2c = 0.005; % Joint 2 inverse torque constant, 2
 tau3c = 0.005; % Joint 3 inverse torque constant, 2
 
 % Input costs
-ac1 = 10; % Arm actuation cost
-ac2 = 10; % Arm actuation cost
-ac3 = 10; % Arm actuation cost
+ac1 = 100; % Arm actuation cost
+ac2 = 100; % Arm actuation cost
+ac3 = 100; % Arm actuation cost
 
 %% Other variables
 % Minimum step actuation percentage
@@ -159,20 +159,22 @@ Jac = zeros(6,3,size(t,2));
 % Forward integrate system equations
 x = forwardIntegrateSystem(x, u, dt);
 
-% Constraints matrices definition
+%% Constraints matrices definition
 % State input constraints
-numStateInputConstraints = 0;
+numStateInputConstraints = 2;
 I0 = zeros(numStateInputConstraints,size(t,2));
 I = I0;
 C = zeros(numStateInputConstraints,numStates,size(t,2));
 D = zeros(numStateInputConstraints,numInputs,size(t,2));
 r = zeros(numStateInputConstraints,size(t,2));
 
-% D(1,1,:) = 1;
-% r(1,:) = -FMax;
-% 
-% D(2,1,:) = -1;
-% r(2,:) = FMin;
+% The state input constraints are defined as:
+% C*x + D*u + r <= 0
+D(1,3,:) = 1;
+r(1,:) = -0.8;
+
+D(2,3,:) = -1;
+r(2,:) = -0.8;
 
 % Pure state constraints
 numPureStateConstraints = 0;
@@ -181,6 +183,9 @@ J = J0;
 G = zeros(numPureStateConstraints,numStates,size(t,2));
 h = zeros(numPureStateConstraints,size(t,2));
 
+% The pure state constraints are defined as:
+% G*x + h <= 0
+
 % G(1,36,:) = 1;
 % h(1,:) = -wheelTorqueLimit;
 % 
@@ -188,7 +193,7 @@ h = zeros(numPureStateConstraints,size(t,2));
 % h(5,:) = -wheelTorqueLimit;
 
 
-% Visualization stuff
+%% Visualization stuff
 figure(1)
 
 % Plotting first arm config
@@ -242,7 +247,7 @@ while 1
     
     % Updating the plot
     if dynamicPlotting
-        figure(1); %#ok<UNRCH>
+        figure(1);
         hold on;
 
         delete(h3);
@@ -268,18 +273,18 @@ while 1
     Q(17,17,:) = tau2c;
     Q(18,18,:) = tau3c;
             
-    Q(1,1,:) = fc;
-    Q(2,2,:) = fc;
-    Q(3,3,:) = fc;
-    Q(4,4,:) = foc;
-    Q(5,5,:) = foc;
-    Q(6,6,:) = foc;
-    Q(10,10,:) = fsc;
-    Q(11,11,:) = fsc;
-    Q(12,12,:) = fsc;
-    Q(16,16,:) = tau1c;
-    Q(17,17,:) = tau2c;
-    Q(18,18,:) = tau3c;
+    Q(1,1,end) = fc;
+    Q(2,2,end) = fc;
+    Q(3,3,end) = fc;
+    Q(4,4,end) = foc;
+    Q(5,5,end) = foc;
+    Q(6,6,end) = foc;
+    Q(10,10,end) = fsc;
+    Q(11,11,end) = fsc;
+    Q(12,12,end) = fsc;
+    Q(16,16,end) = tau1c;
+    Q(17,17,end) = tau2c;
+    Q(18,18,end) = tau3c;
     
     R = zeros(numInputs,numInputs,size(t,2));
     R(1,1,:) = ac1;
@@ -590,17 +595,19 @@ while 1
         rhoj = ones(numPureStateConstraints,size(t,2));
         deltaj = ones(numPureStateConstraints,size(t,2));
 
-        for n = 1:size(t,2)
-            for i = 1:numStateInputConstraints
-                if(~I(i,n))
-                    rhoi(i,n) = C(i,:,n)*x(:,n) + D(i,:,n)*u(:,n) + r(i,n);
-                    deltai(i,n) = C(i,:,n)*xs(:,n) + D(i,:,n)*us(:,n);
+        if numStateInputConstraints||numPureStateConstraints
+            for n = 1:size(t,2)
+                for i = 1:numStateInputConstraints
+                    if(~I(i,n))
+                        rhoi(i,n) = C(i,:,n)*x(:,n) + D(i,:,n)*u(:,n) + r(i,n);
+                        deltai(i,n) = C(i,:,n)*xs(:,n) + D(i,:,n)*us(:,n);
+                    end
                 end
-            end
-            for j = 1:numPureStateConstraints
-                if(~J(j,n))
-                    rhoj(j,n) = G(j,:,n)*x(:,n) + h(j,n);
-                    deltaj(j,n) = G(j,:,n)*xs(:,n);
+                for j = 1:numPureStateConstraints
+                    if(~J(j,n))
+                        rhoj(j,n) = G(j,:,n)*x(:,n) + h(j,n);
+                        deltaj(j,n) = G(j,:,n)*xs(:,n);
+                    end
                 end
             end
         end
@@ -723,7 +730,8 @@ while 1
         
         % Exit condition
         if minimumMu >= -1e-5 && minimumNu >=-1e-5 && ...
-          (norm(us)<0.0001*norm(u) || ((norm(us)<0.025*norm(u))&&(endDist<distThreshold)))
+          (norm(us)<0.001*norm(u) ||...
+          ((norm(us)<0.025*norm(u))&&(endDist<distThreshold)))
 
             disp(['SLQ found the optimal control input within ',num2str(iter-1),' iterations'])            
             
@@ -733,9 +741,9 @@ while 1
 
             break;
         else
-            if minimumMu >= minimumNu && size(p{mS},1) > 0
+            if minimumMu <= minimumNu && size(p{mS},1) > 0
                 I(p{mS}(iS(mS)),mS) = 0;
-            elseif minimumMu < minimumNu && size(q{lS},1) > 0
+            elseif minimumMu > minimumNu && size(q{lS},1) > 0
                 J(q{lS}(jS(lS)),lS) = 0;
             end
         end
@@ -745,11 +753,13 @@ while 1
           ', distance to goal = ',num2str(endDist)]);
     
     if iter > maxIter
-        cprintf('err','MMKP failed to generate a motion plan\n')
+        cprintf('err','MP-FB SLQ failed to generate a motion plan\n')
         if endDist > distThreshold
             error('The goal was not reachable');
-        elseif norm(uh)>0.0001*norm(u)
+        elseif norm(us)>0.001*norm(u)
             error('The SLQR algorithm failed to converge');
+        elseif minimumMu <= -1e-5 || minimumNu <=-1e-5
+            error('SLQR could not keep to the imposed constraints');
         else
             error('Something unexpected prevented SLQR to converge');
         end
@@ -797,15 +807,15 @@ xlabel('$t (s)$', 'interpreter', 'latex','fontsize',18)
 ylabel('$\theta (rad)$', 'interpreter', 'latex','fontsize',18)
 grid
 
-% figure(3)
-% plot(t,u(1:3,:))
-% title('Actuating arm joints speed','interpreter','latex')
-% xlabel('t(s)','interpreter','latex','fontsize',18)
-% ylabel('$\dot\theta(rad/s$)','interpreter','latex','fontsize',18)
-% legend('$\dot\theta_1$','$\dot\theta_2$',...
-%        '$\dot\theta_3$','interpreter', ...
-%        'latex','fontsize',18)
-% 
+figure(3)
+plot(t,u(1:3,:))
+title('Actuating arm joints speed','interpreter','latex')
+xlabel('t(s)','interpreter','latex','fontsize',18)
+ylabel('$\dot\theta(rad/s$)','interpreter','latex','fontsize',18)
+legend('$\dot\theta_1$','$\dot\theta_2$',...
+       '$\dot\theta_3$','interpreter', ...
+       'latex','fontsize',18)
+
 % figure(4)
 % plot(t,x(13:15,:))
 % title('Evolution of the arm joints accelerations', 'interpreter', ...
