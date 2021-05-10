@@ -138,11 +138,11 @@ iGoal = [round(xef/mapResolution)+1 round(yef/mapResolution)+1];
 totalCostMap(totalCostMap == Inf) = NaN;
 [gTCMx, gTCMy] = calculateGradient(mapResolution*totalCostMap);
 
-[referencePath,~] = getPathGDM2(totalCostMap,iInit,iGoal,tau, gTCMx, gTCMy);
+[referencePath,~] = getPathGDM(totalCostMap,iInit,iGoal,tau, gTCMx, gTCMy);
 referencePath = (referencePath-1)*mapResolution;
 
 while(size(referencePath,1) > 1000)
-    [referencePath,~] = getPathGDM2(totalCostMap,iInit+round(2*rand(1,2)-1),iGoal,tau, gTCMx, gTCMy);
+    [referencePath,~] = getPathGDM(totalCostMap,iInit+round(2*rand(1,2)-1),iGoal,tau, gTCMx, gTCMy);
     referencePath = (referencePath-1)*mapResolution;
 end
 
@@ -307,11 +307,11 @@ while 1
         end
         
         
-        [pathi,~] = getPathGDM2(totalCostMap,iInit,iGoal,tau, gTCMx, gTCMy);
+        [pathi,~] = getPathGDM(totalCostMap,iInit,iGoal,tau, gTCMx, gTCMy);
         pathi = (pathi-1)*mapResolution;
 
         while(size(pathi,1) > 1000)
-            [pathi,~] = getPathGDM2(totalCostMap,iInit+round(2*rand(1,2)-1),iGoal,tau, gTCMx, gTCMy);
+            [pathi,~] = getPathGDM(totalCostMap,iInit+round(2*rand(1,2)-1),iGoal,tau, gTCMx, gTCMy);
             pathi = (pathi-1)*mapResolution;
         end
         
