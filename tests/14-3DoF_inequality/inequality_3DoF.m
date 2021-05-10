@@ -1,11 +1,6 @@
 %% Initialization
 
-addpath('../../maps')
-addpath('../../models')
-addpath('../../models/3DoF')
-
-addpath('../../costs')
-addpath('../../utils')
+addpath(genpath('../../src'))
 addpath('../../simscape')
 
 clear
@@ -184,7 +179,7 @@ r = zeros(numStateInputConstraints,timeSteps);
 % r(2,:) = -0.8;
 
 % Pure state constraints
-numPureStateConstraints = 2;
+numPureStateConstraints = 0;
 J0 = zeros(numPureStateConstraints,timeSteps);
 J = J0;
 G = zeros(numPureStateConstraints,numStates,timeSteps);
@@ -192,12 +187,11 @@ h = zeros(numPureStateConstraints,timeSteps);
 
 % % The pure state constraints are defined as:
 % % G*x + h <= 0
+% G(1,9,:) = 1;
+% h(1,:) = -1.8;
 % 
-G(1,9,:) = 1;
-h(1,:) = -1.8;
-
-G(2,9,:) = -1;
-h(2,:) = -1.8;
+% G(2,9,:) = -1;
+% h(2,:) = -1.8;
 
 
 %% Visualization stuff
