@@ -1,13 +1,9 @@
 %% Initialization
 
-addpath('../../../ARES-DyMu_matlab/Global Path Planning/functions')
-addpath('../../maps')
-addpath('../../models')
-addpath('../../models/3DoF')
-
-addpath('../../costs')
-addpath('../../utils')
+addpath(genpath('../../deps/ARES-DyMu_matlab'))
+addpath(genpath('../../src'))
 addpath('../../simscape')
+addpath('../../maps')
 
 if isempty(matlab.project.rootProject)
     matlab.project.loadProject('../../../Simscape/Contact_Forces_Library.prj')

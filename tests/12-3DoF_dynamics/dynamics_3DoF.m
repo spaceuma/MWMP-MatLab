@@ -1,11 +1,6 @@
 %% Initialization
 
-addpath('../../maps')
-addpath('../../models')
-addpath('../../models/3DoF')
-
-addpath('../../costs')
-addpath('../../utils')
+addpath(genpath('../../src'))
 addpath('../../simscape')
 
 clear
