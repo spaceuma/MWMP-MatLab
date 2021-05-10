@@ -1,0 +1,3 @@
+[submodule "deps/ARES-DyMu_matlab"]
+	path = deps/ARES-DyMu_matlab
+	url = https://github.com/spaceuma/ARES-DyMu_matlab.git

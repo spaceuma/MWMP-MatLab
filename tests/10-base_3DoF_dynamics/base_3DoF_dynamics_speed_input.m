@@ -1,13 +1,9 @@
 %% Initialization
 
-addpath('../../../ARES-DyMu_matlab/Global Path Planning/functions')
-addpath('../../maps')
-addpath('../../models')
-addpath('../../models/3DoF')
-
-addpath('../../costs')
-addpath('../../utils')
+addpath(genpath('../../deps/ARES-DyMu_matlab'))
+addpath(genpath('../../src'))
 addpath('../../simscape')
+addpath('../../maps')
 
 if isempty(matlab.project.rootProject)
     matlab.project.loadProject('../../../Simscape/Contact_Forces_Library.prj')
@@ -149,11 +145,11 @@ iGoal = [round(xef/mapResolution)+1 round(yef/mapResolution)+1];
 totalCostMap(totalCostMap == Inf) = NaN;
 [gTCMx, gTCMy] = calculateGradient(mapResolution*totalCostMap);
 
-[referencePath,~] = getPathGDM2(totalCostMap,iInit,iGoal,tau, gTCMx, gTCMy);
+[referencePath,~] = getPathGDM(totalCostMap,iInit,iGoal,tau, gTCMx, gTCMy);
 referencePath = (referencePath-1)*mapResolution;
 
 while(size(referencePath,1) > 1000)
-    [referencePath,~] = getPathGDM2(totalCostMap,iInit+round(2*rand(1,2)-1),iGoal,tau, gTCMx, gTCMy);
+    [referencePath,~] = getPathGDM(totalCostMap,iInit+round(2*rand(1,2)-1),iGoal,tau, gTCMx, gTCMy);
     referencePath = (referencePath-1)*mapResolution;
 end
 
@@ -328,11 +324,11 @@ while 1
         end
         
         
-        [pathi,~] = getPathGDM2(totalCostMap,iInit,iGoal,tau, gTCMx, gTCMy);
+        [pathi,~] = getPathGDM(totalCostMap,iInit,iGoal,tau, gTCMx, gTCMy);
         pathi = (pathi-1)*mapResolution;
 
         while(size(pathi,1) > 1000)
-            [pathi,~] = getPathGDM2(totalCostMap,iInit+round(2*rand(1,2)-1),iGoal,tau, gTCMx, gTCMy);
+            [pathi,~] = getPathGDM(totalCostMap,iInit+round(2*rand(1,2)-1),iGoal,tau, gTCMx, gTCMy);
             pathi = (pathi-1)*mapResolution;
         end
         
@@ -1007,7 +1003,7 @@ if error == 0
     k = 1e6;
     b = 1e4;
     
-    sim('base_3DoF_dynamics_sim_forces',t(end));
+%     sim('base_3DoF_dynamics_sim_forces',t(end));
 
 end
 
