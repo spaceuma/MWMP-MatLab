@@ -63,7 +63,7 @@ timeSteps = 200;
 maxIter = 500;
 
 % Activate/deactivate dynamic plotting during the simulation
-dynamicPlotting = 1;
+dynamicPlotting = 0;
 
 % Minimum step actuation percentage
 config.lineSearchStep = 0.30; 
@@ -284,7 +284,7 @@ while 1
                    'Color', [0.8 0.8 0.8], 'LineWidth', 2.5);
                        
         delete(h4);
-        h4 = plotFrame(TW3, 1, 0.1);  
+%         h4 = plotFrame(TW3, 1, 0.1);  
         
         delete(h8);
         h8 = plot3(x(1,:),x(2,:),x(3,:), 'LineWidth', 5, 'Color', 'y');  
@@ -300,6 +300,15 @@ while 1
         xlabel('$t (s)$', 'interpreter', 'latex','fontsize',18)
         ylabel('$\theta (rad)$', 'interpreter', 'latex','fontsize',18)
         grid
+        
+        figure(3)
+        plot(t,u(1:3,:))
+        title('Actuating arm joints speed','interpreter','latex')
+        xlabel('t(s)','interpreter','latex','fontsize',18)
+        ylabel('$\dot\theta(rad/s$)','interpreter','latex','fontsize',18)
+        legend('$\dot\theta_1$','$\dot\theta_2$',...
+               '$\dot\theta_3$','interpreter', ...
+               'latex','fontsize',18)
     end
         
     % Quadratize cost function along the trajectory
