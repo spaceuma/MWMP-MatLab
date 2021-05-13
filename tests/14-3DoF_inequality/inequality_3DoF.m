@@ -424,11 +424,9 @@ while 1
               
 end
 
-%% Plots
-    
-x = forwardIntegrateSystem(x, u, dt);
-
 toc
+
+%% Plots   
 iu = cumsum(abs(x(16,:))*dt);
 disp(['Total torque applied arm joint 1: ',num2str(iu(end)),' Nm'])
 iu = cumsum(abs(x(17,:))*dt);

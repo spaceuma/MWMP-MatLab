@@ -484,7 +484,7 @@ function [x, u, I, J, converged] = constrainedSLQ(x, x0, u, u0, dt,...
           ((norm(us) < 20*controlThreshold*norm(u))&&...
           (endDist < distThreshold)))         
 %             u = u + us;            
-%             x = forwardIntegrateSystem(x, u, dt);
+            x = forwardIntegrateSystem(x, u, dt);
             converged = 1;
         else
             if minimumMu <= minimumNu && size(p{mS},1) > 0
