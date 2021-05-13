@@ -76,20 +76,20 @@ function [x, u, converged] = SLQ(x, x0, u, u0, dt,...
         
     % Solve backward
     for i = timeSteps-1:-1:1
-        M(:,:,i) = inv(eye(numStates) + B(:,:,i)/R*B(:,:,i).'*P(:,:,i+1));
+        M(:,:,i) = inv(eye(numStates) + B(:,:,i)/R(:,:,i)*B(:,:,i).'*P(:,:,i+1));
         P(:,:,i) = Q(:,:,i) + A(:,:,i).'*P(:,:,i+1)*M(:,:,i)*A(:,:,i);
         s(:,:,i) = A(:,:,i).'*(eye(size(Q,1)) - ...
-                   P(:,:,i+1)*M(:,:,i)*B(:,:,i)/R*B(:,:,i).')*s(:,:,i+1)+...
+                   P(:,:,i+1)*M(:,:,i)*B(:,:,i)/R(:,:,i)*B(:,:,i).')*s(:,:,i+1)+...
                    A(:,:,i).'*P(:,:,i+1)*M(:,:,i)*B(:,:,i)*uh0(:,i) -...
                    Q(:,:,i)*xh0(:,i);
     end
     
     % Solve forward
     for i = 1:timeSteps-1
-        v(:,i) = M(:,:,i)*B(:,:,i)*(uh0(:,i)-R\B(:,:,i).'*s(:,:,i+1));
+        v(:,i) = M(:,:,i)*B(:,:,i)*(uh0(:,i)-R(:,:,i)\B(:,:,i).'*s(:,:,i+1));
         xh(:,i+1) = M(:,:,i)*A(:,:,i)*xh(:,i)+v(:,i);
         lambdah(:,:,i+1) = P(:,:,i+1)*xh(:,i+1)+s(:,:,i+1);
-        uh(:,i) = uh0(:,i)-R\B(:,:,i).'*lambdah(:,:,i+1);
+        uh(:,i) = uh0(:,i)-R(:,:,i)\B(:,:,i).'*lambdah(:,:,i+1);
     end
         
     % Exit condition
@@ -119,7 +119,7 @@ function [x, u, converged] = SLQ(x, x0, u, u0, dt,...
             J(n) = 1/2*(x(:,end)-x0(:,end)).'*Q(:,:,end)*(x(:,end)-x0(:,end));
             for i = 1:timeSteps-1
                 J(n) = J(n) + 1/2*((x(:,i)-x0(:,i)).'*Q(:,:,i)*(x(:,i)-x0(:,i))...
-                    + (u(:,i)-u0(:,i)).'*R*(u(:,i)-u0(:,i)));
+                    + (u(:,i)-u0(:,i)).'*R(:,:,i)*(u(:,i)-u0(:,i)));
             end            
         end
         [~, ind] = min(J);
