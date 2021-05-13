@@ -1,6 +1,4 @@
-function [x, u, I, J, converged] = constrainedSLQ(x, x0, u, u0, dt,...
-                                        stateSpaceModel, costFunction,...
-                                        config)
+function [x, u, I, J, converged] = constrainedSLQ(varargin)
 %CONSTRAINEDSLQ Solves the constrained SLQR problem of the given system
 %   Given the system modelled by "stateSpaceModel", the quadratic cost
 %   function given in "costFunction" and the configurations given in
@@ -8,6 +6,14 @@ function [x, u, I, J, converged] = constrainedSLQ(x, x0, u, u0, dt,...
 %   trying to reach the objective given by "x0" and "u0". 
 %   The results are returned in the given matrices "x" and "u", 
 %   and the active constraints matrices "I" and "J" are also updated. 
+% 
+%   USAGE: 
+%   [x, u, I, J, converged] = constrainedSLQ(x, x0, u, u0, dt,...
+%                                         stateSpaceModel, costFunction,...
+%                                         config)
+%   [x, u, I, J, converged] = constrainedSLQ(x, x0, xs, u, u0, us, dt,...
+%                                         stateSpaceModel, costFunction,...
+%                                         config)
 %
 %   "x", "x0" are the states and goal states respectively. Size
 %   numberStates x numberTimeSteps.
@@ -46,6 +52,36 @@ function [x, u, I, J, converged] = constrainedSLQ(x, x0, u, u0, dt,...
 %       "-3" --> the imposed constraints are not complied.
 %       "-4" --> something unexpected happened.
     
+    switch nargin
+        case 8
+            x = varargin{1};
+            x0 = varargin{2};
+            xs = zeros(size(x));
+            u = varargin{3};
+            u0 = varargin{4};
+            us = zeros(size(u));
+            dt = varargin{5};
+            stateSpaceModel = varargin{6};
+            costFunction = varargin{7};
+            config = varargin{8};
+        case 10
+            x = varargin{1};
+            x0 = varargin{2};
+            xs = varargin{3};
+            u = varargin{4};
+            u0 = varargin{5};
+            us = varargin{6};
+            dt = varargin{7};
+            stateSpaceModel = varargin{8};
+            costFunction = varargin{9};
+            config = varargin{10};
+        otherwise
+            cprintf('err','Wrong number of inputs. Usage:\n')
+            cprintf('err','    constrainedSLQ(x, x0, u, u0, dt, stateSpaceModel, costFunction, config)\n')
+            cprintf('err','    constrainedSLQ(x, x0, xs, u, u0, us, dt, stateSpaceModel, costFunction, config)\n')
+            error('Too many input arguments.');
+    end
+
     % Extracting the state space model
     A = stateSpaceModel.A;
     B = stateSpaceModel.B;
@@ -79,11 +115,7 @@ function [x, u, I, J, converged] = constrainedSLQ(x, x0, u, u0, dt,...
     
     % Variable to check if the algorithm has already converged
     converged = 0;    
-    
-    % Update reference trajectories    
-    xs = zeros(numStates,timeSteps);
-    us = zeros(numInputs,timeSteps);
-    
+        
     % Define the sequential state and input vectors
     xs0 = zeros(numStates,timeSteps);
     us0 = zeros(numInputs,timeSteps);
