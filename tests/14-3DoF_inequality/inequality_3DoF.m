@@ -206,7 +206,6 @@ stateSpaceModel.J = J;
 stateSpaceModel.I0 = I0;
 stateSpaceModel.J0 = J0;
 
-
 %% Visualization stuff
 figure(1)
 
@@ -403,9 +402,8 @@ while 1
         break;
     end
 
-    endDist = norm(x(1:3,end)-x0(1:3,end));
     disp(['Iteration number ',num2str(iter),...
-          ', distance to goal = ',num2str(endDist)]);
+          ', distance to goal = ',num2str(norm(x(1:3,end)-x0(1:3,end)))]);
       
     iter = iter+1;
     if iter > maxIter
