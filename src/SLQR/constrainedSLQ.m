@@ -435,10 +435,10 @@ function [x, u, I, J, converged] = constrainedSLQ(varargin)
                         I(i,n) = 1;
                     end
                 end
-                if sum(I(i,:)) > timeSteps*resamplingThreshold/100
-                    I(i,:) = 0;
-                    disp('Resampling...');
-                end
+%                 if sum(I(i,:)) > timeSteps*resamplingThreshold/100
+%                     I(i,:) = 0;
+%                     disp('Resampling...');
+%                 end
             end
             for j = 1:numPureStateConstraints
                 for n = 1:timeSteps
@@ -511,8 +511,8 @@ function [x, u, I, J, converged] = constrainedSLQ(varargin)
         end        
         
         % Exit condition
-        if minimumMu >= -1e-5 && minimumNu >=-1e-5 && ...
-          (norm(us) < controlThreshold*norm(u) ||...
+        %if minimumMu >= -1e-5 && minimumNu >=-1e-5 && ...
+         if (norm(us) < controlThreshold*norm(u) ||...
           ((norm(us) < 20*controlThreshold*norm(u))&&...
           (endDist < distThreshold)))         
 %             u = u + us;            

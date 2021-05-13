@@ -60,10 +60,10 @@ yawef = 0;
 timeSteps = 200;
 
 % Maximum number of iterations
-maxIter = 100;
+maxIter = 500;
 
 % Activate/deactivate dynamic plotting during the simulation
-dynamicPlotting = 0;
+dynamicPlotting = 1;
 
 % Minimum step actuation percentage
 config.lineSearchStep = 0.30; 
@@ -75,7 +75,7 @@ config.distThreshold = 0.005;
 config.resamplingThreshold = 30;
 
 % Percentage of step actuation to consider convergence
-config.controlThreshold = 2e-3;
+config.controlThreshold = 5e-3;
 
 %% Time horizon estimation
 expectedTimeArrival = 5;
@@ -169,7 +169,7 @@ uini = u;
 
 %% Constraints matrices definition
 % State input constraints
-numStateInputConstraints = 0;
+numStateInputConstraints = 4;
 I0 = zeros(numStateInputConstraints,timeSteps);
 I = I0;
 C = zeros(numStateInputConstraints,numStates,timeSteps);
@@ -178,11 +178,23 @@ r = zeros(numStateInputConstraints,timeSteps);
 
 % % The state input constraints are defined as:
 % % C*x + D*u + r <= 0
-% D(1,3,:) = 1;
-% r(1,:) = -0.8;
+D(1,1,:) = 1;
+r(1,:) = -0.3;
+
+D(2,1,:) = -1;
+r(2,:) = -0.3;
+
+D(3,2,:) = 1;
+r(3,:) = -0.3;
+
+D(4,2,:) = -1;
+r(4,:) = -0.3;
+
+% D(5,3,:) = 1;
+% r(5,:) = -0.3;
 % 
-% D(2,3,:) = -1;
-% r(2,:) = -0.8;
+% D(6,3,:) = -1;
+% r(6,:) = -0.3;
 
 % Pure state constraints
 numPureStateConstraints = 2;
@@ -194,10 +206,10 @@ h = zeros(numPureStateConstraints,timeSteps);
 % % The pure state constraints are defined as:
 % % G*x + h <= 0
 G(1,9,:) = 1;
-h(1,:) = -1.8;
+h(1,:) = -1.9;
 
 G(2,9,:) = -1;
-h(2,:) = -1.8;
+h(2,:) = -1.9;
 
 stateSpaceModel.C = C;
 stateSpaceModel.D = D;
@@ -405,6 +417,7 @@ while 1
             % Check whether the algorithm has finished
             if converged > 0
                 disp(['SLQ found the unconstrained optimal control input within ',num2str(iter-1),' iterations'])
+                toc;
                 constraintsSatisfied = checkConstraints(x, u, stateSpaceModel);
                 if constraintsSatisfied
                     disp('The imposed constraints are satisfied, the final control input is found')
@@ -430,14 +443,14 @@ while 1
             end
             
             % Check whether the algorithm has finished
-                if converged > 0
-                    constraintsSatisfied = checkConstraints(x, u, stateSpaceModel);
-                    if constraintsSatisfied
-                        disp('The imposed constraints are satisfied, the final control input is found')
-                        disp(['Constrained SLQ refined control input within ',num2str(iter-1),' iterations'])
-                        break;
-                    end
+            if converged > 0
+                constraintsSatisfied = checkConstraints(x, u, stateSpaceModel);
+                if constraintsSatisfied
+                    disp('The imposed constraints are satisfied, the final control input is found')
+                    disp(['Constrained SLQ refined control input within ',num2str(iter-1),' iterations'])
+                    break;
                 end
+            end
         otherwise
     end   
 

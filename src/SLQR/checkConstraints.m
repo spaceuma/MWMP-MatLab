@@ -23,14 +23,14 @@ function constraintsSatisfied = checkConstraints(x, u, stateSpaceModel)
     for n = 1:timeSteps
         for i = 1:numStateInputConstraints
             rhoi = C(i,:,n)*x(:,n) + D(i,:,n)*u(:,n) + r(i,n);
-            if rhoi > 0
+            if rhoi > 1e-4
                 constraintsSatisfied = 0;
                 return;
             end
         end
         for j = 1:numPureStateConstraints
             rhoj = G(j,:,n)*x(:,n) + h(j,n);
-            if rhoj > 0
+            if rhoj > 1e-4
                 constraintsSatisfied = 0;
                 return;
             end
