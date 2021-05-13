@@ -59,20 +59,23 @@ yawef = 0;
 % Number of timesteps
 timeSteps = 200;
 
-% Minimum step actuation percentage
-lineSearchStep = 0.30; 
-
-% Max acceptable dist
-distThreshold = 0.005;
-
 % Maximum number of iterations
-maxIter = 10000;
-
-% Percentage of constrained timesteps for resampling
-resamplingThreshold = 30;
+maxIter = 100;
 
 % Activate/deactivate dynamic plotting during the simulation
 dynamicPlotting = 0;
+
+% Minimum step actuation percentage
+config.lineSearchStep = 0.30; 
+
+% Max acceptable dist
+config.distThreshold = 0.005;
+
+% Percentage of constrained timesteps for resampling
+config.resamplingThreshold = 30;
+
+% Percentage of step actuation to consider convergence
+config.controlThreshold = 1e-3;
 
 %% Time horizon estimation
 expectedTimeArrival = 5;
@@ -193,6 +196,15 @@ h = zeros(numPureStateConstraints,timeSteps);
 % G(2,9,:) = -1;
 % h(2,:) = -1.8;
 
+stateSpaceModel.C = C;
+stateSpaceModel.D = D;
+stateSpaceModel.r = r;
+stateSpaceModel.G = G;
+stateSpaceModel.h = h;
+stateSpaceModel.I = I;
+stateSpaceModel.J = J;
+stateSpaceModel.I0 = I0;
+stateSpaceModel.J0 = J0;
 
 %% Visualization stuff
 figure(1)
@@ -301,24 +313,10 @@ while 1
     
     K = zeros(numStates,numInputs,timeSteps);
         
-    % Update reference trajectories    
-    xs = zeros(numStates,timeSteps);
-    us = zeros(numInputs,timeSteps);
-    
-    % Define the sequential state and input vectors
-    xs0 = zeros(numStates,timeSteps);
-    us0 = zeros(numInputs,timeSteps);
-
-    for i = 1:timeSteps
-        xs0(:,i) = Q(:,:,i)*(x(:,i) - x0(:,i));
-        us0(:,i) = R(:,:,i)*(u(:,i) - u0(:,i));
+    quadratizedCost.Q = Q;
+    quadratizedCost.R = R;
+    quadratizedCost.K = K;
         
-        % This is the official Sideris way, but the reference vector is not
-        % fed back
-%         xs0(:,i) = Q(:,:,i)*x(:,i) + x0(:,i);
-%         us0(:,i) = R(:,:,i)*u(:,i) + u0(:,i);
-    end
-    
     % Linearize the system dynamics and constraints along the trajectory      
     % State (x) matrix
     A = zeros(numStates,numStates,timeSteps);
@@ -390,433 +388,45 @@ while 1
         B(16:18,1:3,i) = getC3(x(7,i-1), x(8,i-1), x(9,i-1),...
                                u(1,i-1), u(2,i-1), u(3,i-1));
     end
+    
+    stateSpaceModel.A = A;
+    stateSpaceModel.B = B;
             
-    % Active Constraints definition
-    % State input constraints
-    tl = [];
-    p = cell(timeSteps,1);
-    paux = zeros(numStateInputConstraints,1);
-    pl = zeros(numStateInputConstraints,1);
-    
-    for i = 1:timeSteps
-        anyActiveConstraint = false;
-        for j = 1:numStateInputConstraints
-            if I(j,i)
-                p{i} = [p{i}; j];
-                paux(j) = 1;
-                anyActiveConstraint = true;
-            end
-        end
-        if anyActiveConstraint
-            tl = [tl i];
-        end
+    % Solving the inequality constrained SLQR problem
+    [x, u, stateSpaceModel.I, stateSpaceModel.J, converged] = ...
+       constrainedSLQ(x,x0,u,u0,dt,stateSpaceModel,quadratizedCost,config);
+   
+    % Check whether the algorithm has finished
+    if converged > 0
+        disp(['SLQ found the optimal control input within ',num2str(iter-1),' iterations'])
+        break;
     end
 
-    numActiveSIConstraints = sum(paux);
-    lp = zeros(numActiveSIConstraints,1);
-
-    index = 1;
-    for i = 1:numStateInputConstraints
-        if paux(i)
-            pl(i) = index;
-            lp(index) = i;
-            index = index+1;
-        end
-    end
-    
-    Cl = zeros(numActiveSIConstraints,numStates,timeSteps);
-    Dl = zeros(numActiveSIConstraints,numInputs,timeSteps);
-    rl = zeros(numActiveSIConstraints,timeSteps);
-    
-    for i = tl
-        Cl(pl(p{i}),:,i) = C(p{i},:,i);
-        Dl(pl(p{i}),:,i) = D(p{i},:,i);
-%         rl(pl(p{i}),i) = r(p{i},i);
-    end
-    
-    
-    % Pure state constraints
-    tk = [];
-    q = cell(timeSteps,1);
-    qaux = zeros(numPureStateConstraints,1);
-    ql = zeros(numPureStateConstraints,1);
-
-    for i = 1:timeSteps
-        anyActiveConstraint = false;
-        for j = 1:numPureStateConstraints
-            if J(j,i)
-                q{i} = [q{i}; j];
-                qaux(j) = 1;
-                anyActiveConstraint = true;
-            end
-        end
-        if anyActiveConstraint
-            tk = [tk i];
-        end
-    end
-
-    numActivePSConstraints = sum(qaux);
-    lq = zeros(numActivePSConstraints,1);
-    
-    index = 1;
-    for i = 1:numPureStateConstraints
-        if qaux(i)
-            ql(i) = index;
-            lq(index) = i;
-            index = index+1;
-        end
-    end
-    
-    
-    Gk = zeros(numActivePSConstraints,numStates,timeSteps);
-    hk = zeros(numActivePSConstraints,timeSteps);
-    
-    for i = tk
-        Gk(ql(q{i}),:,i) = G(q{i},:,i);
-%         hk(ql(q{i}),i) = h(q{i},i);
-    end
-    
-    % Predefinitions
-    Dh = zeros(numActiveSIConstraints,numActiveSIConstraints,timeSteps);
-    E = zeros(numActiveSIConstraints,numStates,timeSteps);
-    rh = zeros(numActiveSIConstraints,timeSteps);
-    
-    Ah = zeros(numStates,numStates,timeSteps);
-    Rh = zeros(numStates,numStates,timeSteps);
-    Qh = zeros(numStates,numStates,timeSteps);
-    x0h = zeros(numStates,timeSteps);
-    u0h = zeros(numStates,timeSteps);
-    
-    for i = tl
-        Dh(pl(p{i}),pl(p{i}),i) = inv(Dl(pl(p{i}),:,i)/R(:,:,i)*Dl(pl(p{i}),:,i).');
-    end
-    
-    for i = 1:timeSteps
-
-        E(:,:,i) = Cl(:,:,i) - Dl(:,:,i)/R(:,:,i)*K(:,:,i).';
-        rh(:,i) = rl(:,i) - Dl(:,:,i)/R(:,:,i)*us0(:,i);
-        
-        Ah(:,:,i) = A(:,:,i) - B(:,:,i)/R(:,:,i)*(K(:,:,i).' + Dl(:,:,i).'*Dh(:,:,i)*E(:,:,i));
-        Rh(:,:,i) = B(:,:,i)/R(:,:,i)*(eye(numInputs,numInputs)-Dl(:,:,i).'*Dh(:,:,i)*Dl(:,:,i)/R(:,:,i))*B(:,:,i).';
-        Qh(:,:,i) = Q(:,:,i) - K(:,:,i)/R(:,:,i)*K(:,:,i).' + E(:,:,i).'*Dh(:,:,i)*E(:,:,i);
-        x0h(:,i) = xs0(:,i) - K(:,:,i)/R(:,:,i)*us0(:,i) + E(:,:,i).'*Dh(:,:,i)*rh(:,i);
-        u0h(:,i) = -B(:,:,i)/R(:,:,i)*(us0(:,i) + Dl(:,:,i).'*Dh(:,:,i)*rh(:,i));
-    end
-        
-    % LQ problem solution
-    M = zeros(numStates,numStates,timeSteps);
-    P = zeros(numStates,numStates,timeSteps);
-    z = zeros(numStates,timeSteps);
-    P(:,:,end) = Q(:,:,end);
-    z(:,end) = xs0(:,end);
-    
-    % Solve backward
-    for i = timeSteps-1:-1:1
-        M(:,:,i) = inv(eye(numStates) + Rh(:,:,i)*P(:,:,i+1));
-        P(:,:,i) = Qh(:,:,i) + Ah(:,:,i).'*P(:,:,i+1)*M(:,:,i)*Ah(:,:,i);
-        z(:,i) = Ah(:,:,i).'*M(:,:,i).'*z(:,i+1) + ...
-            Ah(:,:,i).'*P(:,:,i+1)*M(:,:,i)*u0h(:,i) + x0h(:,i);
-    end
-    
-    Gamma = zeros(numActivePSConstraints*size(tk,2),numStates);
-    Gammak = zeros(numActivePSConstraints,numStates,timeSteps, size(tk,2));
-    y = zeros(numActivePSConstraints*size(tk,2),1);
-    F = zeros(numActivePSConstraints*size(tk,2),numActivePSConstraints*size(tk,2));
-    H = zeros(numActivePSConstraints*size(tk,2),1);
-
-    % Solve over all state constraints   
-    for k = 1:size(tk,2)
-        yk = zeros(numActivePSConstraints,tk(k));
-
-        Gammak(:,:,tk(k),k) = Gk(:,:,tk(k));
-
-        for n = tk(k)-1:-1:1
-            Gammak(:,:,n,k) = Gammak(:,:,n+1,k)*M(:,:,n)*Ah(:,:,n);
-            yk(:,n) = yk(:,n+1) + Gammak(:,:,n+1,k)*M(:,:,n)*(u0h(:,n) - Rh(:,:,n) * z(:,n+1));
-        end
-
-        H((k-1)*numActivePSConstraints+1:k*numActivePSConstraints) = hk(:,tk(k));
-        Gamma((k-1)*numActivePSConstraints+1:k*numActivePSConstraints,:) = Gammak(:,:,1,k);
-        y((k-1)*numActivePSConstraints+1:k*numActivePSConstraints) = yk(:,1);        
-
-    end
-    for k = 1:size(tk,2)
-        for j = 1:size(tk,2)
-            minConstraintIndex = min(tk(k),tk(j));
-            Fkj = zeros(numActivePSConstraints,numActivePSConstraints,minConstraintIndex);
-            for n = minConstraintIndex-1:-1:1
-                Fkj(:,:,n) = Fkj(:,:,n+1) - Gammak(:,:,n+1,k)*M(:,:,n)*Rh(:,:,n)*Gammak(:,:,n+1,j).';
-            end
-            F((k-1)*numActivePSConstraints+1:k*numActivePSConstraints,...
-              (j-1)*numActivePSConstraints+1:j*numActivePSConstraints) = Fkj(:,:,1);
-        end
-    end
-    
-    nuV = zeros(numActivePSConstraints*size(tk,2),1);
-    
-    % Ensuring correct inverse matrix computation
-    if(~det(F))
-        warning('Cannot compute inverse, determinant is 0');
-        correctIndex = [];        
-        for k = 1:size(tk,2)
-            correctIndex = [correctIndex (k-1)*numActivePSConstraints+ql(q{tk(k)}).'];
-        end
-        Faux = F(correctIndex,correctIndex);
-        if (rank(Faux) < size(Faux,2))
-            warning('Cannot compute inverse, linearly dependant terms in matrix');
-            [Ffraux, indRemoved, indKeeped, indSimilar] = getFullRankMatrix(Faux);
-            nuV(correctIndex(indKeeped)) = Ffraux\...
-                (-Gamma(correctIndex(indKeeped),:)*xs(:,1) - ...
-                y(correctIndex(indKeeped)) - H(correctIndex(indKeeped)));
-            
-            nuV(correctIndex(indRemoved)) = nuV(correctIndex(indSimilar));
-
-        else
-            invF = zeros(size(F));
-            invFaux = inv(Faux);
-            invF(correctIndex,correctIndex) = invFaux; 
-            nuV(:) = invF*(-Gamma*xs(:,1) - y - H);
-        end
-    elseif (rank(F) < numActivePSConstraints*size(tk,2))
-        warning('Cannot compute inverse, linearly dependant terms in matrix');
-        [Ffr, indRemoved, indKeeped, indSimilar] = getFullRankMatrix(F);
-        nuV(indKeeped) = Ffr\(-Gamma(indKeeped,:)*xs(:,1) - y(indKeeped) - H(indKeeped));
-        nuV(indRemoved) = nuV(indSimilar);
-    else
-        nuV(:) = F\(-Gamma*xs(:,1) - y - H);
-    end
-    
-    nu = zeros(numActivePSConstraints,timeSteps);
-    for i = 1:size(tk,2)
-        nu(:,tk(i)) = nuV((i-1)*numActivePSConstraints+1:i*numActivePSConstraints);
-    end   
-    
-    s = zeros(numStates,timeSteps);
-    if numActivePSConstraints
-        for i = 1:timeSteps
-            sumG = 0;
-            for k = 1:size(tk,2)
-                if (tk(k) >= i)
-                    sumG = sumG + Gammak(:,:,i,k).'*nu(:,tk(k));
-                end
-            end
-            s(:,i) = z(:,i) + sumG;
-        end
-    else
-        s(:,:) = z(:,:);
-    end
-        
-    v = zeros(numStates,timeSteps);
-    lambda = zeros(numStates,timeSteps);
-    mu = zeros(numActiveSIConstraints,timeSteps);
-
-    % Solve forward
-    for i = 1:timeSteps-1
-        v(:,i) = M(:,:,i)*(u0h(:,i) - Rh(:,:,i)*s(:,i+1));
-        xs(:,i+1) = M(:,:,i)*Ah(:,:,i)*xs(:,i) + v(:,i);
-        lambda(:,i+1) = P(:,:,i+1)*xs(:,i+1) + s(:,i+1);
-        mu(:,i) = Dh(:,:,i)*(E(:,:,i)*xs(:,i) - Dl(:,:,i)/R(:,:,i)*B(:,:,i).'*lambda(:,i+1) + rh(:,i));
-        us(:,i) = -R(:,:,i)\(K(:,:,i).'*xs(:,i) + B(:,:,i).'*lambda(:,i+1) + Dl(:,:,i).'*mu(:,i) + us0(:,i));
-    end
-    
+    disp(['Iteration number ',num2str(iter),...
+          ', distance to goal = ',num2str(norm(x(1:3,end)-x0(1:3,end)))]);
+      
     iter = iter+1;
-    
-    step3 = true;
-    if norm(us)>=0.0001*norm(u)
-        % Step 2
-        rhoi = ones(numStateInputConstraints,timeSteps);
-        deltai = ones(numStateInputConstraints,timeSteps);
-        
-        rhoj = ones(numPureStateConstraints,timeSteps);
-        deltaj = ones(numPureStateConstraints,timeSteps);
-
-        if numStateInputConstraints||numPureStateConstraints
-            for n = 1:timeSteps
-                for i = 1:numStateInputConstraints
-                    if(~I(i,n))
-                        rhoi(i,n) = C(i,:,n)*x(:,n) + D(i,:,n)*u(:,n) + r(i,n);
-                        deltai(i,n) = C(i,:,n)*xs(:,n) + D(i,:,n)*us(:,n);
-                    end
-                end
-                for j = 1:numPureStateConstraints
-                    if(~J(j,n))
-                        rhoj(j,n) = G(j,:,n)*x(:,n) + h(j,n);
-                        deltaj(j,n) = G(j,:,n)*xs(:,n);
-                    end
-                end
-            end
-        end
-              
-        thetak = min(-rhoi(~I & deltai>0)./deltai(~I & deltai>0));
-        betak = min(-rhoj(~J & deltaj>0)./deltaj(~J & deltaj>0));
-
-        alfak = min([1 thetak betak]);      
-        
-        if alfak == 1
-            step3 = true;
-            
-            % Line search to optimize alfa
-            alfa = 1:-lineSearchStep:0.0001;
-            Jcost = zeros(size(alfa));
-
-            xk = x;
-            uk = u;
-            for n = 1:size(alfa,2)
-%                 x = xk + alfa(n)*xs;
-                u = uk + alfa(n)*us;
-                
-                x = forwardIntegrateSystem(x, u, dt);
-
-                Jcost(n) = 1/2*(x(:,end)-x0(:,end)).'*Q(:,:,end)*(x(:,end)-x0(:,end));
-                for i = 1:timeSteps-1
-                    Jcost(n) = Jcost(n) + 1/2*((x(:,i)-x0(:,i)).'*Q(:,:,i)*(x(:,i)-x0(:,i))...
-                        + (u(:,i)-u0(:,i)).'*R(:,:,i)*(u(:,i)-u0(:,i)));
-                end            
-            end
-            [mincost, ind] = min(Jcost);
-            alfamin = alfa(ind);
-
-            % Update controller
-%             x = xk + alfamin*xs;
-            u = uk + alfamin*us;
-            
-            x = forwardIntegrateSystem(x, u, dt);
-
-            
-        else
-            step3 = false;
-            
-            % Update controller
-%             x = x + alfak*xs;
-            u = u + alfak*us;
-            
-            x = forwardIntegrateSystem(x, u, dt);
-            
-            for i = 1:numStateInputConstraints
-                for n = 1:timeSteps
-                    if(-rhoi(i,n)/deltai(i,n) == alfak && ~I(i,n) && n < timeSteps)
-                        I(i,n) = 1;
-                    end
-                end
-                if sum(I(i,:)) > timeSteps*resamplingThreshold/100
-                    I(i,:) = 0;
-                    disp('Resampling...');
-                end
-            end
-            for j = 1:numPureStateConstraints
-                for n = 1:timeSteps
-                    if(-rhoj(j,n)/deltaj(j,n) == alfak && ~J(j,n)&& n > 1)                        
-                        J(j,n) = 1;
-                    end
-                end
-                if sum(J(j,:)) > timeSteps*resamplingThreshold/100
-                    J(j,:) = 0;
-                    disp('Resampling...');
-                end
-            end
-            
-        end
-    end
-    
-    % Exit condition
-    endDist = norm(x(1:3,end)-x0(1:3,end));
-    
-    if step3        
-        % Step 3
-        if size(tl,2) > 0
-            minMu = zeros(1,timeSteps);
-            iS = zeros(1,timeSteps);
-
-            for m = tl
-                minMu(m) = 99999999;
-                for i = 1:size(p{m},1)
-                    if I(p{m}(i),m) && ~I0(p{m}(i),m) && mu(i,m) < minMu(m)
-                        minMu(m) = mu(i,m);
-                        iS(m) = i;
-                    end
-                end
-                if minMu(m) == 99999999
-                    minMu(m) = 0;
-                end
-            end
-            
-            [minimumMu, maux] = min(minMu(1,tl));
-            mS = tl(maux);
-        else
-            minimumMu = 0;
-            mS = 1;
-            iS = 1;
-        end
-
-        if size(tk,2) > 0
-            minNu = zeros(1,timeSteps);
-            jS = zeros(1,timeSteps);
-
-            for l = tk
-                minNu(1,l) = 99999999;
-                for j = 1:size(q{l},1)
-                    if J(q{l}(j),l) && ~J0(q{l}(j),l) && nu(j,l) < minNu(1,l)
-                        minNu(1,l) = nu(j,l);
-                        jS(l) = j;
-                    end
-                end
-                if minNu(1,l) == 99999999
-                    minNu(1,l) = 0;
-                end
-            end
-            [minimumNu, laux] = min(minNu(1,tk));
-            lS = tk(laux);
-
-        else
-            minimumNu = 0;
-            lS = 1;
-            jS = 1;
-        end        
-        
-        % Exit condition
-        if minimumMu >= -1e-5 && minimumNu >=-1e-5 && ...
-          (norm(us)<0.001*norm(u) ||...
-          ((norm(us)<0.025*norm(u))&&(endDist<distThreshold)))
-
-            disp(['SLQ found the optimal control input within ',num2str(iter-1),' iterations'])            
-            
-%             u = u + us;            
-%             x = forwardIntegrateSystem(x, u, dt);
-
-
-            break;
-        else
-            if minimumMu <= minimumNu && size(p{mS},1) > 0
-                I(p{mS}(iS(mS)),mS) = 0;
-            elseif minimumMu > minimumNu && size(q{lS},1) > 0
-                J(q{lS}(jS(lS)),lS) = 0;
-            end
-        end
-    end
-    
-    disp(['Iteration number ',num2str(iter-1),...
-          ', distance to goal = ',num2str(endDist)]);
-    
     if iter > maxIter
         cprintf('err','MP-FB SLQ failed to generate a motion plan\n')
-        if endDist > distThreshold
-            error('The goal was not reachable');
-        elseif norm(us)>0.001*norm(u)
-            error('The SLQR algorithm failed to converge');
-        elseif minimumMu <= -1e-5 || minimumNu <=-1e-5
-            error('SLQR could not keep to the imposed constraints');
-        else
-            error('Something unexpected prevented SLQR to converge');
+        switch converged
+            case 0
+                error('Inequality constraints prevented SLQR convergence');
+            case -1
+                error('The goal was not reachable');
+            case -2
+                error('The SLQR algorithm failed to converge');
+            case -3
+                error('SLQR could not keep to the imposed constraints');
+            otherwise
+                error('Something unexpected prevented SLQR to converge');
         end
     end
               
 end
 
-%% Plots
-    
-x = forwardIntegrateSystem(x, u, dt);
-
 toc
+
+%% Plots   
 iu = cumsum(abs(x(16,:))*dt);
 disp(['Total torque applied arm joint 1: ',num2str(iu(end)),' Nm'])
 iu = cumsum(abs(x(17,:))*dt);
@@ -883,5 +493,5 @@ legend('$\dot\theta_1$','$\dot\theta_2$',...
 
 
 %% Simulation
-sim('manipulator3DoF',t(end));
+% sim('manipulator3DoF',t(end));
 
