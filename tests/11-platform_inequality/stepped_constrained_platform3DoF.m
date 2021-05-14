@@ -194,7 +194,7 @@ end
 
 % Time vector
 tf = expectedTimeArrival; 
-dt = tf/timeSteps;
+dt = tf/(timeSteps-1);
 t = 0:dt:tf;
 
 %% Initial reference path adaptation to the state space model
@@ -328,9 +328,6 @@ x(43,1) = 0;
 numInputs = 7;
 u = zeros(numInputs,timeSteps);
 
-% Forward integrate system equations
-x = forwardIntegrateSystem(x, u, dt);
-
 % Target state and control trajectories
 x0 = zeros(numStates,timeSteps);
 
@@ -394,6 +391,12 @@ x0(43,end) = 0;
 
 u0 = zeros(numInputs,timeSteps);
 
+% Forward integrate system equations
+x = forwardIntegrateSystem(x, u, dt);
+
+xini = x;
+uini = u;
+
 %% Constraints matrices definition
 % State input constraints
 numStateInputConstraints = 0;
@@ -420,6 +423,27 @@ h = zeros(numPureStateConstraints,timeSteps);
 
 % % The pure state constraints are defined as:
 % % G*x + h <= 0
+
+% Arm torque constraints
+% G(1,25,:) = 1;
+% h(1,:) = -0.03;
+% 
+% G(2,26,:) = 1;
+% h(2,:) = -0.03;
+% 
+% G(3,27,:) = 1;
+% h(3,:) = -0.03;
+% 
+% G(4,25,:) = -1;
+% h(4,:) = -0.03;
+% 
+% G(5,26,:) = -1;
+% h(5,:) = -0.03;
+% 
+% G(6,27,:) = -1;
+% h(6,:) = -0.03;
+
+% Wheel torque constraints
 % G(1,36,:) = 1;
 % h(1,:) = -wheelTorqueLimit;
 % 
@@ -1127,8 +1151,7 @@ hold off;
 % 'latex','fontsize',18)
 % xlabel('$t (s)$', 'interpreter', 'latex','fontsize',18)
 % ylabel('$\theta (rad)$', 'interpreter', 'latex','fontsize',18)
-% grid
-% 
+% grid 
 % 
 % figure(3)
 % plot(t,u(1:3,:))
