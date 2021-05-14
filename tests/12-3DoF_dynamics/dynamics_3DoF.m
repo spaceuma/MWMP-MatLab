@@ -215,30 +215,19 @@ while 1
         figure(1);
         hold on;
 
-        delete(h3);
-        [TW0, TW1, TW2, TW3] = direct3(x(7:9,end));    
-        h3 = plot3([0 TW0(1,4) TW1(1,4) TW2(1,4) TW3(1,4)],...
-                   [0 TW0(2,4) TW1(2,4) TW2(2,4) TW3(2,4)],...
-                   [0 TW0(3,4) TW1(3,4) TW2(3,4) TW3(3,4)],...
-                   'Color', [0.8 0.8 0.8], 'LineWidth', 2.5);
-                       
-        delete(h4);
-        h4 = plotFrame(TW3, 1, 0.1);  
+        [TW0, TW1, TW2, TW3] = direct3(x(7:9,end));                           
+        set(h3,'XData',[0 TW0(1,4) TW1(1,4) TW2(1,4) TW3(1,4)],...
+               'YData',[0 TW0(2,4) TW1(2,4) TW2(2,4) TW3(2,4)],...
+               'ZData',[0 TW0(3,4) TW1(3,4) TW2(3,4) TW3(3,4)],...
+               'Color', [0.8 0.8 0.8], 'LineWidth', 2.5);
+           
+%         delete(h4);
+%         h4 = plotFrame(TW3, 1, 0.1);  
         
-        delete(h8);
-        h8 = plot3(x(1,:),x(2,:),x(3,:), 'LineWidth', 5, 'Color', 'y');  
+        set(h8,'XData',x(1,:),'YData',x(2,:),'ZData',x(3,:),...
+            'LineWidth', 5, 'Color', 'y');
 
-        hold off;
-        
-        figure(2)
-        plot(t,x(7:9,:))
-        title('Evolution of the arm joints position', 'interpreter', ...
-        'latex','fontsize',18)
-        legend('$\theta_1$','$\theta_2$','$\theta_3$', 'interpreter', ...
-               'latex','fontsize',18)
-        xlabel('$t (s)$', 'interpreter', 'latex','fontsize',18)
-        ylabel('$\theta (rad)$', 'interpreter', 'latex','fontsize',18)
-        grid
+        hold off;        
     end
         
     % Quadratize cost function along the trajectory
@@ -261,10 +250,10 @@ while 1
     Q(17,17,end) = tau2c;
     Q(18,18,end) = tau3c;
     
-    R = eye(numInputs);
-    R(1,1) = ac1;
-    R(2,2) = ac2;
-    R(3,3) = ac3;
+    R = zeros(numInputs,numInputs,timeSteps);
+    R(1,1,:) = ac1;
+    R(2,2,:) = ac2;
+    R(3,3,:) = ac3;
     
     quadratizedCost.Q = Q;
     quadratizedCost.R = R;
@@ -383,75 +372,61 @@ disp(['Total torque applied arm joint 2: ',num2str(iu(end)),' Nm'])
 iu = cumsum(abs(x(18,:))*dt);
 disp(['Total torque applied arm joint 3: ',num2str(iu(end)),' Nm'])    
 
-figure(1)
-hold off;
-% Plotting first arm config
-[TW0, TW1, TW2, TW3] = direct3(x(7:9,1));
-plot3([0 TW0(1,4) TW1(1,4) TW2(1,4) TW3(1,4)],...
-      [0 TW0(2,4) TW1(2,4) TW2(2,4) TW3(2,4)],...
-      [0 TW0(3,4) TW1(3,4) TW2(3,4) TW3(3,4)], 'Color', 'r', 'LineWidth', 2.5);
+figure(1);
 hold on;
 
-% Plotting last arm config
-[TW0, TW1, TW2, TW3] = direct3(x(7:9,end));
-plot3([0 TW0(1,4) TW1(1,4) TW2(1,4) TW3(1,4)],...
-      [0 TW0(2,4) TW1(2,4) TW2(2,4) TW3(2,4)],...
-      [0 TW0(3,4) TW1(3,4) TW2(3,4) TW3(3,4)], 'Color', 'r', 'LineWidth', 2.5);
-hold on;
+[TW0, TW1, TW2, TW3] = direct3(x(7:9,end));                           
+set(h3,'XData',[0 TW0(1,4) TW1(1,4) TW2(1,4) TW3(1,4)],...
+       'YData',[0 TW0(2,4) TW1(2,4) TW2(2,4) TW3(2,4)],...
+       'ZData',[0 TW0(3,4) TW1(3,4) TW2(3,4) TW3(3,4)],...
+       'Color', [0.8 0.8 0.8], 'LineWidth', 2.5);
 
-% Plotting scenario
-daspect([1 1 1])
-plot3(x(1,:),x(2,:),x(3,:), 'LineWidth', 5, 'Color', 'y')
-title('Manipulator trajectories', 'interpreter', ...
-'latex','fontsize',18)
-plot3(xei,yei,zei, 'MarkerSize', 20, 'Marker', '.', 'Color', 'b')
-plot3(xef,yef,zef, 'MarkerSize', 20, 'Marker', '.', 'Color', 'c')
+delete(h4);
+h4 = plotFrame(TW3, 1, 0.1);  
 
-quiver3(0, 0, 0, 1/4, 0, 0, 'Color', 'r', 'LineWidth', 2, 'MaxHeadSize', 0.7)
-quiver3(0, 0, 0, 0, 1/4, 0, 'Color', 'g', 'LineWidth', 2, 'MaxHeadSize', 0.7)
-quiver3(0, 0, 0, 0, 0, 1/4, 'Color', 'c', 'LineWidth', 2, 'MaxHeadSize', 0.7) 
+set(h8,'XData',x(1,:),'YData',x(2,:),'ZData',x(3,:),...
+    'LineWidth', 5, 'Color', 'y');
 
-hold off;
-
-
-figure(2)
-plot(t,x(7:9,:))
-title('Evolution of the arm joints position', 'interpreter', ...
-'latex','fontsize',18)
-legend('$\theta_1$','$\theta_2$','$\theta_3$', 'interpreter', ...
-       'latex','fontsize',18)
-xlabel('$t (s)$', 'interpreter', 'latex','fontsize',18)
-ylabel('$\theta (rad)$', 'interpreter', 'latex','fontsize',18)
-grid
-
-figure(3)
-plot(t,u(1:3,:))
-title('Actuating arm joints speed','interpreter','latex')
-xlabel('t(s)','interpreter','latex','fontsize',18)
-ylabel('$\dot\theta(rad/s$)','interpreter','latex','fontsize',18)
-legend('$\dot\theta_1$','$\dot\theta_2$',...
-       '$\dot\theta_3$','interpreter', ...
-       'latex','fontsize',18)
-
-figure(4)
-plot(t,x(13:15,:))
-title('Evolution of the arm joints accelerations', 'interpreter', ...
-'latex','fontsize',18)
-legend('$\ddot\theta_1$','$\ddot\theta_2$','$\ddot\theta_3$', 'interpreter', ...
-       'latex','fontsize',18)
-xlabel('$t (s)$', 'interpreter', 'latex','fontsize',18)
-ylabel('$\ddot\theta (rad/s^2)$', 'interpreter', 'latex','fontsize',18)
-grid
-
-figure(5)
-plot(t,x(16:18,:))
-title('Evolution of the applied arm torques', 'interpreter', ...
-'latex','fontsize',18)
-legend('$\tau_1$','$\tau_2$','$\tau_3$', 'interpreter', ...
-       'latex','fontsize',18)
-xlabel('$t (s)$', 'interpreter', 'latex','fontsize',18)
-ylabel('$\tau (Nm)$', 'interpreter', 'latex','fontsize',18)
-grid
+hold off;   
+        
+% figure(2)
+% plot(t,x(7:9,:))
+% title('Evolution of the arm joints position', 'interpreter', ...
+% 'latex','fontsize',18)
+% legend('$\theta_1$','$\theta_2$','$\theta_3$', 'interpreter', ...
+%        'latex','fontsize',18)
+% xlabel('$t (s)$', 'interpreter', 'latex','fontsize',18)
+% ylabel('$\theta (rad)$', 'interpreter', 'latex','fontsize',18)
+% grid
+% 
+% figure(3)
+% plot(t,u(1:3,:))
+% title('Actuating arm joints speed','interpreter','latex')
+% xlabel('t(s)','interpreter','latex','fontsize',18)
+% ylabel('$\dot\theta(rad/s$)','interpreter','latex','fontsize',18)
+% legend('$\dot\theta_1$','$\dot\theta_2$',...
+%        '$\dot\theta_3$','interpreter', ...
+%        'latex','fontsize',18)
+% 
+% figure(4)
+% plot(t,x(13:15,:))
+% title('Evolution of the arm joints accelerations', 'interpreter', ...
+% 'latex','fontsize',18)
+% legend('$\ddot\theta_1$','$\ddot\theta_2$','$\ddot\theta_3$', 'interpreter', ...
+%        'latex','fontsize',18)
+% xlabel('$t (s)$', 'interpreter', 'latex','fontsize',18)
+% ylabel('$\ddot\theta (rad/s^2)$', 'interpreter', 'latex','fontsize',18)
+% grid
+% 
+% figure(5)
+% plot(t,x(16:18,:))
+% title('Evolution of the applied arm torques', 'interpreter', ...
+% 'latex','fontsize',18)
+% legend('$\tau_1$','$\tau_2$','$\tau_3$', 'interpreter', ...
+%        'latex','fontsize',18)
+% xlabel('$t (s)$', 'interpreter', 'latex','fontsize',18)
+% ylabel('$\tau (Nm)$', 'interpreter', 'latex','fontsize',18)
+% grid
 
 
 %% Simulation

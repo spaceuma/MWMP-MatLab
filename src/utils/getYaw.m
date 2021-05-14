@@ -1,4 +1,6 @@
 function yaw = getYaw(path, yaw0)
+%GETYAW Computes the yaw of the given path, optionally setting the first
+%wayp yaw
     switch nargin
         case 2
             yaw = zeros(size(path,1),1);

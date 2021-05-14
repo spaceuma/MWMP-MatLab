@@ -36,8 +36,5 @@ function constraintsSatisfied = checkConstraints(x, u, stateSpaceModel)
             end
         end
     end
-   
-    
-
 end
 
