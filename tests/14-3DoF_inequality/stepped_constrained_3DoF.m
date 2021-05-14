@@ -79,6 +79,9 @@ config.controlThreshold = 5e-3;
 
 % Check distance to goal for convergence
 config.checkDistance = 1;
+if config.checkDistance
+    config.distIndexes = [1 2 3];
+end
 
 % Check constraints compliance for convergence
 config.checkConstraints = 1;

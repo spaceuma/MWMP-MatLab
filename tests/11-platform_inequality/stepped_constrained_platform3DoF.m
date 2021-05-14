@@ -105,7 +105,7 @@ yawef = 0;
 obstMapFile = 'obstMap3';
 
 % Number of timesteps
-timeSteps = 500;
+timeSteps = 300;
 
 % Maximum number of iterations
 maxIter = 500;
@@ -117,7 +117,7 @@ dynamicPlotting = 0;
 config.lineSearchStep = 0.30; 
 
 % Max acceptable dist
-config.distThreshold = 0.05;
+config.distThreshold = 0.03;
 
 % Percentage of constrained timesteps for resampling
 config.resamplingThreshold = 30;
@@ -127,6 +127,9 @@ config.controlThreshold = 5e-3;
 
 % Check distance to goal for convergence
 config.checkDistance = 1;
+if config.checkDistance
+    config.distIndexes = [1 2 3];
+end
 
 % Check constraints compliance for convergence
 config.checkConstraints = 1;

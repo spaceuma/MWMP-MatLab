@@ -74,6 +74,18 @@ config.distThreshold = 0.005;
 % Percentage of step actuation to consider convergence
 config.controlThreshold = 1e-3;
 
+% Check distance to goal for convergence
+config.checkDistance = 1;
+if config.checkDistance
+    config.distIndexes = [1 2 3];
+end
+
+% Check constraints compliance for convergence
+config.checkConstraints = 1;
+
+% Check safety of the state for convergence
+config.checkSafety = 0;
+
 %% Time horizon estimation
 expectedTimeArrival = 5;
 tf = expectedTimeArrival; % Time vector
