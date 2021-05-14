@@ -52,6 +52,8 @@ function [x, u, I, J, converged] = constrainedSLQ(varargin)
 %       - Step of the linear search procedure, "lineSearchStep". 
 %         Default: 0.30.
 %       - Yes/no about check distance to goal, "checkDistance".
+%       - If checking distance to goal, indexes of state vector where
+%         to check for the distance, "distIndexes".
 %       - Yes/no about check constraints, "checkConstraints".
 %       - Yes/no about check obstacles collisions, "checkSafety".
 %
@@ -154,6 +156,10 @@ function [x, u, I, J, converged] = constrainedSLQ(varargin)
     lineSearchStep = config.lineSearchStep;
     controlThreshold = config.controlThreshold;
     checkingDistance = config.checkDistance;
+    if checkingDistance
+        distIndexes = config.distIndexes;
+    end
+
     checkingConstraints = config.checkConstraints;
     checkingSafety = config.checkSafety;
 
@@ -587,8 +593,7 @@ function [x, u, I, J, converged] = constrainedSLQ(varargin)
         % Exit condition
         convergenceCondition = norm(us) <= controlThreshold*norm(u);
         if checkingDistance
-            [indexes,~] = find(Q(:,:,end) > 0);
-            endDist = norm(x(indexes,end)-x0(indexes,end));
+            endDist = norm(x(distIndexes,end)-x0(distIndexes,end));
             convergenceCondition = convergenceCondition | ...
                                 (norm(us) <= controlThreshold*20*norm(u) & ...
                                 endDist < distThreshold);

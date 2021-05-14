@@ -36,9 +36,11 @@ function [x, u, converged] = SLQ(varargin)
 %       - Step of the linear search procedure, "lineSearchStep". 
 %         Default: 0.30.
 %       - Yes/no about check distance to goal, "checkDistance".
+%       - If checking distance to goal, indexes of state vector where
+%         to check for the distance, "distIndexes".
 %       - Yes/no about check obstacles collisions, "checkSafety".
 %
-%   "map" should contain:
+%   "map" only needed if checking safety, should contain:
 %       - Map resolution "mapResolution".
 %       - Obstacles map "obstMap".
 %       - Indexes of the XY pose of the robot  in the state vector
@@ -94,6 +96,9 @@ function [x, u, converged] = SLQ(varargin)
     lineSearchStep = config.lineSearchStep;
     controlThreshold = config.controlThreshold;
     checkingDistance = config.checkDistance;
+    if checkingDistance
+        distIndexes = config.distIndexes;
+    end
     checkingSafety = config.checkSafety;
     
     % Extracting map info
@@ -169,8 +174,7 @@ function [x, u, converged] = SLQ(varargin)
     % Exit condition
     convergenceCondition = norm(uh) <= controlThreshold*norm(u);
     if checkingDistance
-        [indexes,~] = find(Q(:,:,end) > 0);
-        endDist = norm(x(indexes,end)-x0(indexes,end));
+        endDist = norm(x(distIndexes,end)-x0(distIndexes,end));
         convergenceCondition = convergenceCondition | ...
                             (norm(uh) <= controlThreshold*20*norm(u) & ...
                             endDist < distThreshold);
