@@ -60,6 +60,9 @@ function [x, u, I, J, converged] = constrainedSLQ(varargin)
 %       - Obstacles map "obstMap".
 %       - Indexes of the XY pose of the robot  in the state vector
 %       "XYIndexes".
+%       - X gradient of the obstacles map "gradientObstaclesMapX".
+%       - Y gradient of the obstacles map "gradientObstaclesMapY".
+%       - Repulsive cost from obstacles "obstaclesCost".
 %
 %   If convergence is reached "converged" will return "1", if not:
 %       " 0" --> the algorithm should continue iterating.
@@ -162,6 +165,9 @@ function [x, u, I, J, converged] = constrainedSLQ(varargin)
         obstMap = map.obstMap;
         robotXIndex = map.XYIndexes(1);
         robotYIndex = map.XYIndexes(2);
+        gradientOMX = map.gradientObstaclesMapX;
+        gradientOMY = map.gradientObstaclesMapY;
+        obstaclesCost = map.obstaclesCost;
     end
 
     % Model characteristics
@@ -262,8 +268,7 @@ function [x, u, I, J, converged] = constrainedSLQ(varargin)
             lq(index) = i;
             index = index+1;
         end
-    end
-    
+    end    
     
     Gk = zeros(numActivePSConstraints,numStates,timeSteps);
     hk = zeros(numActivePSConstraints,timeSteps);
@@ -289,7 +294,6 @@ function [x, u, I, J, converged] = constrainedSLQ(varargin)
     end
     
     for i = 1:timeSteps
-
         E(:,:,i) = Cl(:,:,i) - Dl(:,:,i)/R(:,:,i)*K(:,:,i).';
         rh(:,i) = rl(:,i) - Dl(:,:,i)/R(:,:,i)*us0(:,i);
         
@@ -300,19 +304,33 @@ function [x, u, I, J, converged] = constrainedSLQ(varargin)
         u0h(:,i) = -B(:,:,i)/R(:,:,i)*(us0(:,i) + Dl(:,:,i).'*Dh(:,:,i)*rh(:,i));
     end
         
+    % Obstacles limits cost
+    Ox = zeros(numStates,timeSteps);
+    if checkingSafety
+        for i = 1:timeSteps-1
+            [Ox(robotXIndex,i), Ox(robotYIndex,i)] = ...
+              getGradientTotalCost(x(robotXIndex,i),...
+                                   x(robotYIndex,i),...
+                                   mapResolution,...
+                                   gradientOMX, gradientOMY);
+            Ox(robotXIndex,i) = obstaclesCost*Ox(robotXIndex,i);
+            Ox(robotYIndex,i) = obstaclesCost*Ox(robotYIndex,i);
+        end
+    end
+    
     % LQ problem solution
     M = zeros(numStates,numStates,timeSteps);
     P = zeros(numStates,numStates,timeSteps);
     z = zeros(numStates,timeSteps);
     P(:,:,end) = Q(:,:,end);
-    z(:,end) = xs0(:,end);
+    z(:,end) = xs0(:,end) + Ox(:,end);
     
     % Solve backward
     for i = timeSteps-1:-1:1
         M(:,:,i) = inv(eye(numStates) + Rh(:,:,i)*P(:,:,i+1));
         P(:,:,i) = Qh(:,:,i) + Ah(:,:,i).'*P(:,:,i+1)*M(:,:,i)*Ah(:,:,i);
         z(:,i) = Ah(:,:,i).'*M(:,:,i).'*z(:,i+1) + ...
-            Ah(:,:,i).'*P(:,:,i+1)*M(:,:,i)*u0h(:,i) + x0h(:,i);
+            Ah(:,:,i).'*P(:,:,i+1)*M(:,:,i)*u0h(:,i) + x0h(:,i) + Ox(:,i);
     end
     
     Gamma = zeros(numActivePSConstraints*size(tk,2),numStates);

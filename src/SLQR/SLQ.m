@@ -43,6 +43,9 @@ function [x, u, converged] = SLQ(varargin)
 %       - Obstacles map "obstMap".
 %       - Indexes of the XY pose of the robot  in the state vector
 %       "XYIndexes".
+%       - X gradient of the obstacles map "gradientObstaclesMapX".
+%       - Y gradient of the obstacles map "gradientObstaclesMapY".
+%       - Repulsive cost from obstacles "obstaclesCost".
 % 
 %   If convergence is reached "converged" will return "1", if not:
 %       " 0" --> something unexpected happened.
@@ -101,6 +104,9 @@ function [x, u, converged] = SLQ(varargin)
         obstMap = map.obstMap;
         robotXIndex = map.XYIndexes(1);
         robotYIndex = map.XYIndexes(2);
+        gradientOMX = map.gradientObstaclesMapX;
+        gradientOMY = map.gradientObstaclesMapY;
+        obstaclesCost = map.obstaclesCost;
     end
 
     % Model characteristics
@@ -115,13 +121,27 @@ function [x, u, converged] = SLQ(varargin)
     xh0 = x0 - x;
     uh0 = u0 - u;    
     
+    % Obstacles limits cost
+    Ox = zeros(numStates,timeSteps);
+    if checkingSafety
+        for i = 1:timeSteps-1
+            [Ox(robotXIndex,i), Ox(robotYIndex,i)] = ...
+              getGradientTotalCost(x(robotXIndex,i),...
+                                   x(robotYIndex,i),...
+                                   mapResolution,...
+                                   gradientOMX, gradientOMY);
+            Ox(robotXIndex,i) = obstaclesCost*Ox(robotXIndex,i);
+            Ox(robotYIndex,i) = obstaclesCost*Ox(robotYIndex,i);
+        end
+    end
+    
     % LQ problem solution
     M = zeros(numStates,numStates,timeSteps);
     P = zeros(numStates,numStates,timeSteps);
     s = zeros(numStates,1,timeSteps);
     
     P(:,:,end) = Q(:,:,end);
-    s(:,:,end) = -Q(:,:,end)*xh0(:,end);
+    s(:,:,end) = -Q(:,:,end)*xh0(:,end) + Ox(:,end);
     
     xh = zeros(numStates,timeSteps);
     uh = zeros(numInputs,timeSteps);
@@ -135,7 +155,7 @@ function [x, u, converged] = SLQ(varargin)
         s(:,:,i) = A(:,:,i).'*(eye(size(Q,1)) - ...
                    P(:,:,i+1)*M(:,:,i)*B(:,:,i)/R(:,:,i)*B(:,:,i).')*s(:,:,i+1)+...
                    A(:,:,i).'*P(:,:,i+1)*M(:,:,i)*B(:,:,i)*uh0(:,i) -...
-                   Q(:,:,i)*xh0(:,i);
+                   Q(:,:,i)*xh0(:,i) + Ox(:,i);
     end
     
     % Solve forward
