@@ -276,18 +276,17 @@ while 1
         figure(1);
         hold on;
 
-        delete(h3);
-        [TW0, TW1, TW2, TW3] = direct3(x(7:9,end));    
-        h3 = plot3([0 TW0(1,4) TW1(1,4) TW2(1,4) TW3(1,4)],...
-                   [0 TW0(2,4) TW1(2,4) TW2(2,4) TW3(2,4)],...
-                   [0 TW0(3,4) TW1(3,4) TW2(3,4) TW3(3,4)],...
-                   'Color', [0.8 0.8 0.8], 'LineWidth', 2.5);
+        [TW0, TW1, TW2, TW3] = direct3(x(7:9,end));                           
+        set(h3,'XData',[0 TW0(1,4) TW1(1,4) TW2(1,4) TW3(1,4)],...
+               'YData',[0 TW0(2,4) TW1(2,4) TW2(2,4) TW3(2,4)],...
+               'ZData',[0 TW0(3,4) TW1(3,4) TW2(3,4) TW3(3,4)],...
+               'Color', [0.8 0.8 0.8], 'LineWidth', 2.5);
                        
         delete(h4);
 %         h4 = plotFrame(TW3, 1, 0.1);  
         
-        delete(h8);
-        h8 = plot3(x(1,:),x(2,:),x(3,:), 'LineWidth', 5, 'Color', 'y');  
+        set(h8,'XData',x(1,:),'YData',x(2,:),'ZData',x(3,:),...
+            'LineWidth', 5, 'Color', 'y');
 
         hold off;
         
@@ -495,21 +494,20 @@ disp(['Total torque applied arm joint 2: ',num2str(iu(end)),' Nm'])
 iu = cumsum(abs(x(18,:))*dt);
 disp(['Total torque applied arm joint 3: ',num2str(iu(end)),' Nm'])    
 
-figure(1)
+figure(1);
 hold on;
 
-delete(h3);
-[TW0, TW1, TW2, TW3] = direct3(x(7:9,end));    
-h3 = plot3([0 TW0(1,4) TW1(1,4) TW2(1,4) TW3(1,4)],...
-           [0 TW0(2,4) TW1(2,4) TW2(2,4) TW3(2,4)],...
-           [0 TW0(3,4) TW1(3,4) TW2(3,4) TW3(3,4)],...
-           'Color', [0.8 0.8 0.8], 'LineWidth', 2.5);
+[TW0, TW1, TW2, TW3] = direct3(x(7:9,end));                           
+set(h3,'XData',[0 TW0(1,4) TW1(1,4) TW2(1,4) TW3(1,4)],...
+       'YData',[0 TW0(2,4) TW1(2,4) TW2(2,4) TW3(2,4)],...
+       'ZData',[0 TW0(3,4) TW1(3,4) TW2(3,4) TW3(3,4)],...
+       'Color', [0.8 0.8 0.8], 'LineWidth', 2.5);
 
 delete(h4);
-h4 = plotFrame(TW3, 1, 0.1);  
+%         h4 = plotFrame(TW3, 1, 0.1);  
 
-delete(h8);
-h8 = plot3(x(1,:),x(2,:),x(3,:), 'LineWidth', 5, 'Color', 'y');  
+set(h8,'XData',x(1,:),'YData',x(2,:),'ZData',x(3,:),...
+    'LineWidth', 5, 'Color', 'y');
 
 hold off;
 
