@@ -77,6 +77,15 @@ config.resamplingThreshold = 30;
 % Percentage of step actuation to consider convergence
 config.controlThreshold = 5e-3;
 
+% Check distance to goal for convergence
+config.checkDistance = 1;
+
+% Check constraints compliance for convergence
+config.checkConstraints = 1;
+
+% Check safety of the state for convergence
+config.checkSafety = 0;
+
 %% Time horizon estimation
 expectedTimeArrival = 5;
 tf = expectedTimeArrival; % Time vector
@@ -432,14 +441,12 @@ while 1
             
             % Check whether the algorithm has finished
             if converged > 0
-                constraintsSatisfied = checkConstraints(x, u, stateSpaceModel);
-                if constraintsSatisfied
-                    disp('The imposed constraints are satisfied, the final control input is found')
-                    disp(['Constrained SLQ refined control input within ',num2str(iter-1),' iterations'])
-                    break;
-                end
+                disp('The imposed constraints are satisfied, the final control input is found')
+                disp(['Constrained SLQ refined control input within ',num2str(iter-1),' iterations'])
+                break;
             end
         otherwise
+        % This case is not reachable
     end   
 
     disp(['Iteration number ',num2str(iter),...
