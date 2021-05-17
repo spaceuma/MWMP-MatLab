@@ -169,8 +169,6 @@ function [x, u, I, J, converged] = constrainedSLQ(varargin)
     if checkingSafety
         mapResolution = map.mapResolution;
         obstMap = map.obstMap;
-        robotXIndex = map.XYIndexes(1);
-        robotYIndex = map.XYIndexes(2);
         gradientOMX = map.gradientObstaclesMapX;
         gradientOMY = map.gradientObstaclesMapY;
         obstaclesCost = map.obstaclesCost;
