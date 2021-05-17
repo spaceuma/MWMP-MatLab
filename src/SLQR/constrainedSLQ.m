@@ -31,16 +31,18 @@ function [x, u, I, J, converged] = constrainedSLQ(varargin)
 %   "dt" is the time step.
 %
 %   "stateSpaceModel" should contain:
-%       - Dynamic matrices A, B.
-%       - State input constraints matrices C, D, r.
-%       - Active state input constraints matrices I, I0.
-%       - Pure state constraints matrices G, h.
-%       - Active pure state constraints matrices J, J0.
+%       - Dynamic matrices "A", "B".
+%       - State input constraints matrices "C", "D", "r".
+%       - Active state input constraints matrices "I", "I0".
+%       - Pure state constraints matrices "G", "h".
+%       - Active pure state constraints matrices "J", "J0".
+%       - Indexes of the XY pose of the robot "XYIndexes" (only needed if
+%       checking safety w.r.t an obstacles map).
 %
 %   "costFunction" should contain:
-%       - Pure state cost matrix Q.
-%       - Pure input cost matrix R.
-%       - State input cost matrix K.
+%       - Pure state cost matrix "Q".
+%       - Pure input cost matrix "R".
+%       - State input cost matrix "K".
 % 
 %   "config" should contain:
 %       - Acceptable distance to goal to consider convergence is reached,
@@ -60,8 +62,6 @@ function [x, u, I, J, converged] = constrainedSLQ(varargin)
 %   "map" should contain:
 %       - Map resolution "mapResolution".
 %       - Obstacles map "obstMap".
-%       - Indexes of the XY pose of the robot  in the state vector
-%       "XYIndexes".
 %       - X gradient of the obstacles map "gradientObstaclesMapX".
 %       - Y gradient of the obstacles map "gradientObstaclesMapY".
 %       - Repulsive cost from obstacles "obstaclesCost".
@@ -174,6 +174,8 @@ function [x, u, I, J, converged] = constrainedSLQ(varargin)
         gradientOMX = map.gradientObstaclesMapX;
         gradientOMY = map.gradientObstaclesMapY;
         obstaclesCost = map.obstaclesCost;
+        robotXIndex = stateSpaceModel.XYIndexes(1);
+        robotYIndex = stateSpaceModel.XYIndexes(2);
     end
 
     % Model characteristics

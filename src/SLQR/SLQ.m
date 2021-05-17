@@ -22,11 +22,13 @@ function [x, u, converged] = SLQ(varargin)
 %   "dt" is the time step.
 %
 %   "stateSpaceModel" should contain:
-%       - Dynamic matrices A, B.
-%
+%       - Dynamic matrices "A", "B".
+%       - Indexes of the XY pose of the robot "XYIndexes" (only needed if
+%       checking safety w.r.t an obstacles map).
+% 
 %   "costFunction" should contain:
-%       - Pure state cost matrix Q.
-%       - Pure input cost matrix R.
+%       - Pure state cost matrix "Q".
+%       - Pure input cost matrix "R".
 % 
 %   "config" should contain:
 %       - Acceptable distance to goal to consider convergence is reached,
@@ -43,8 +45,6 @@ function [x, u, converged] = SLQ(varargin)
 %   "map" only needed if checking safety, should contain:
 %       - Map resolution "mapResolution".
 %       - Obstacles map "obstMap".
-%       - Indexes of the XY pose of the robot  in the state vector
-%       "XYIndexes".
 %       - X gradient of the obstacles map "gradientObstaclesMapX".
 %       - Y gradient of the obstacles map "gradientObstaclesMapY".
 %       - Repulsive cost from obstacles "obstaclesCost".
@@ -107,11 +107,11 @@ function [x, u, converged] = SLQ(varargin)
     if checkingSafety
         mapResolution = map.mapResolution;
         obstMap = map.obstMap;
-        robotXIndex = map.XYIndexes(1);
-        robotYIndex = map.XYIndexes(2);
         gradientOMX = map.gradientObstaclesMapX;
         gradientOMY = map.gradientObstaclesMapY;
         obstaclesCost = map.obstaclesCost;
+        robotXIndex = stateSpaceModel.XYIndexes(1);
+        robotYIndex = stateSpaceModel.XYIndexes(2);
     end
 
     % Model characteristics

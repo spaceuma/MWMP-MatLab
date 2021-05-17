@@ -101,6 +101,7 @@ pitchef = pi;
 yawef = 0;
 
 %% Configuration variables
+% General configuration
 % Name of the obst map to be used
 obstMapFile = 'obstMap3';
 
@@ -113,6 +114,7 @@ maxIter = 500;
 % Activate/deactivate dynamic plotting during the simulation
 dynamicPlotting = 0;
 
+% SLQ algorithm configuration
 % Minimum step actuation percentage
 config.lineSearchStep = 0.30; 
 
@@ -136,6 +138,19 @@ config.checkConstraints = 1;
 
 % Check safety of the state for convergence
 config.checkSafety = 1;
+
+% Reference path updating configuration
+% Percentage of path wayp to be checked when generating new references
+config.percentageMCM = 90;
+
+% Max distance to the reference to update it
+config.maxDistUpdate = 2.25;
+
+% Min distance to the reference to update it
+config.minDistUpdate = 1.125;
+
+% Percentage of cost reduction to update the reference path
+config.costThreshold = 5;
 
 %% Reference trajectory computation
 % FMM to compute totalCostMap
@@ -259,10 +274,21 @@ kappa2 = 0; % Influence of steer turns into final speed, tune till convergence, 
 %% Generate map info
 map.mapResolution = mapResolution;
 map.obstMap = dilatedObstMap;
-map.XYIndexes = [10 11];
 map.gradientObstaclesMapX = gOMx;
 map.gradientObstaclesMapY = gOMy;
 map.obstaclesCost = oc;
+map.totalCostMap = totalCostMap;
+map.gradientTotalCostMapX = gTCMx;
+map.gradientTotalCostMapY = gTCMy;
+map.iGoal = iGoal;
+
+%% Generate state space model
+stateSpaceModel.XYIndexes = [10 11];
+stateSpaceModel.thetaIndex = 12;
+
+%% Generate trajectory info
+trajectoryInfo.tau = tau;
+trajectoryInfo.waypointSeparation = waypSeparation;
 
 %% State space model
 % State vectors
@@ -632,82 +658,8 @@ while 1
         hold off;        
     end   
 
-    % Multitrajectory costing method
-    % Filtering undesired updates
-    for i = 2:ceil(timeSteps/50):timeSteps-2
-        d = norm(x(10:11,i)-x0(10:11,i));
-        if d < 100*waypSeparation && d > 50*waypSeparation && ...
-           isSafePath(x(10,:),x(11,:), mapResolution,dilatedObstMap)
-            % Obtaining the candidate path
-            iInit = [round(x(10,i)/mapResolution)+1 round(x(11,i)/mapResolution)+1];
-            if(iInit(1)>size(totalCostMap,1)-2)
-                iInit(1) = size(totalCostMap,1)-2;
-            end
-            if(iInit(1)<3)
-                iInit(1) = 3;
-            end
-            if(iInit(2)>size(totalCostMap,2)-2)
-                iInit(2) = size(totalCostMap,2)-2;
-            end
-            if(iInit(2)<3)
-                iInit(2) = 3;
-            end
-
-            [pathi,~] = getPathGDM(totalCostMap,iInit,iGoal,tau, gTCMx, gTCMy);
-            pathi = (pathi-1)*mapResolution;
-
-            while(size(pathi,1) > 1000)
-                [pathi,~] = getPathGDM(totalCostMap,iInit+round(2*rand(1,2)-1),iGoal,tau, gTCMx, gTCMy);
-                pathi = (pathi-1)*mapResolution;
-            end
-            
-
-            yaw = getYaw(pathi);
-            pathi = [pathi yaw].';
-            
-            % Compute switch waypoint
-            [switchPose, switchIndex] = getSwitch(x0(10:12,:), pathi, i);
-            % The above option is computionally too expensive
-%             switchIndex = i;
-%             switchPose = x0(1:2,i);
-
-            % Compute intersection waypoint
-            [inter, interIndex1, interIndex2] = getIntesection(pathi, x0(10:12,switchIndex:end), waypSeparation);
-            interIndex2 = interIndex2 + switchIndex - 1;
-                        
-            % If the candidate path is big enough...
-            if(interIndex1 > 1 && interIndex2 ~= switchIndex)
-                pathCandidate = pathi(:,1:interIndex1);
-                originalPath = x0(10:12,switchIndex:interIndex2);
-
-                % Resize path
-                x1 = 1:size(pathCandidate,2);
-                x2 = linspace(1,size(pathCandidate,2),size(originalPath,2));
-                pathCandidate = (interp1(x1,pathCandidate.',x2)).';
-
-                % Get path costs (candidate and original)
-                newCost = getTrajectoryCost(pathCandidate, x(10:12,:), switchIndex);
-                oldCost = getTrajectoryCost(originalPath, x(10:12,:), switchIndex);
-
-                % If the cost is reduced, the candidate is safe and the
-                % change is significant, update the reference path
-                if newCost*1.05 < oldCost && ...
-                   isSafePath([x(10,1:switchIndex-1) pathCandidate(1,:) x(10,interIndex2+1:end)],...
-                              [x(11,1:switchIndex-1) pathCandidate(2,:) x(11,interIndex2+1:end)],...
-                              mapResolution,dilatedObstMap) && ...
-                              DiscreteFrechetDist(pathCandidate, originalPath) > 2*waypSeparation
-                    x0(10:12,switchIndex:interIndex2) = pathCandidate;
-                    for j = switchIndex:interIndex2
-                        if j > 1
-                            x0(12,j) = modulateYaw(x0(12,j), x0(12,j-1));
-                        end
-                    end
-                    disp(['Changing reference path from waypoint ',num2str(switchIndex), ' to ',num2str(interIndex2)])
-                end
-            end
-        end
-
-    end  
+    % Update the reference trajectory
+    x0 = MCM(x, x0, map, stateSpaceModel, trajectoryInfo, config);
         
     % Quadratize cost function along the trajectory
     Q = zeros(numStates,numStates,timeSteps);
