@@ -1020,13 +1020,13 @@ toc
     
 for i = 2:timeSteps
     if(x(16,i) < armJointsLimits(1,1) || x(16,i) > armJointsLimits(1,2))
-        disp(['WARNING: Arm joint 1 is violating its position limits at waypoint ',num2str(i)]);
+        warning(['Arm joint 1 is violating its position limits at waypoint ',num2str(i)]);
     end
     if(x(17,i) < armJointsLimits(2,1) || x(17,i) > armJointsLimits(2,2))
-        disp(['WARNING: Arm joint 2 is violating its position limits at waypoint ',num2str(i)]);
+        warning(['Arm joint 2 is violating its position limits at waypoint ',num2str(i)]);
     end
     if(x(18,i) < armJointsLimits(3,1) || x(18,i) > armJointsLimits(3,2))
-        disp(['WARNING: Arm joint 3 is violating its position limits at waypoint ',num2str(i)]);
+        warning(['Arm joint 3 is violating its position limits at waypoint ',num2str(i)]);
     end        
 end
 
