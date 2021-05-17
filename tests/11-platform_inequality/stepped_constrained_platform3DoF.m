@@ -57,22 +57,11 @@ rollingResistance = 0.0036;
 
 global g;
 g = 9.81;
-
-riskDistance = 1;
-safetyDistance = 1.5;
-mapResolution = 0.05;
-vehicleSpeed = 0.1;
-
-armJointsLimits = [-360 +360;
-                   -120  80;
-                   -140 +140]*pi/180;
                
-wheelTorqueLimit = 2.85;
-
 %% Constraints 
 % Initial base pose
-xB0 = 2.0;
-yB0 = 2.5;
+xB0 = 2.00;
+yB0 = 3.00;
 zB0 = zBC;
 yawB0 = pi/2;
 
@@ -93,8 +82,8 @@ yei = TW3(2,4);
 zei = TW3(3,4);
 
 % Goal end effector pose
-xef = 2.1;
-yef = 8.4;
+xef = 1.15;
+yef = 7.15;
 zef = 0.2;
 rollef = 0;
 pitchef = pi;
@@ -106,7 +95,7 @@ yawef = 0;
 obstMapFile = 'obstMap3';
 
 % Number of timesteps
-timeSteps = 300;
+timeSteps = 500;
 
 % Maximum number of iterations
 maxIter = 500;
@@ -117,9 +106,23 @@ stepped = 1;
 % Activate/deactivate dynamic plotting during the simulation
 dynamicPlotting = 1;
 
+% Vehicle goal average speed (m/s)
+vehicleSpeed = 0.1;
+
+% FMM configuration
+% Distance to obstacles considered risky (should be an obstacle)
+riskDistance = 1;
+
+% Distance to obstacles considered enough for safety (should have bigger
+% cost to traverse areas with less than this distance to obstacles)
+safetyDistance = 2;
+
+% Gradient Descent Method step size, as a percentage of the map resolution
+tau = 0.5;
+
 % SLQ algorithm configuration
 % Minimum step actuation percentage
-config.lineSearchStep = 0.30; 
+config.lineSearchStep = 0.31; 
 
 % Max acceptable dist
 config.distThreshold = 0.03;
@@ -157,10 +160,9 @@ config.costThreshold = 5;
 
 %% Reference trajectory computation
 % FMM to compute totalCostMap
-tau = 0.5; % GDM step size
-
 % Loading obstacles map
 load(obstMapFile,'obstMap')
+mapResolution = 0.05;
 
 % Dilating obstacles map to ensure rover safety
 dilatedObstMap = dilateObstMap(obstMap, riskDistance, mapResolution);
@@ -452,25 +454,28 @@ h = zeros(numPureStateConstraints,timeSteps);
 
 % % The pure state constraints are defined as:
 % % G*x + h <= 0
-
+% 
 % Arm position constraints
-% G(1,16,:) = -1;
-% h(1,:) = armJointsLimits(1,1);
-% 
-% G(2,16,:) = 1;
-% h(2,:) = -armJointsLimits(1,2);
-% 
-% G(3,17,:) = -1;
-% h(3,:) = armJointsLimits(2,1);
-% 
-% G(4,17,:) = 1;
-% h(4,:) = -armJointsLimits(2,2);
-% 
-% G(5,18,:) = -1;
-% h(5,:) = armJointsLimits(3,1);
-% 
-% G(6,18,:) = 1;
-% h(6,:) = -armJointsLimits(3,2);
+armJointsLimits = [-360 +360;
+                   -120  80;
+                   -140 +140]*pi/180;
+G(1,16,:) = -1;
+h(1,:) = armJointsLimits(1,1);
+
+G(2,16,:) = 1;
+h(2,:) = -armJointsLimits(1,2);
+
+G(3,17,:) = -1;
+h(3,:) = armJointsLimits(2,1);
+
+G(4,17,:) = 1;
+h(4,:) = -armJointsLimits(2,2);
+
+G(5,18,:) = -1;
+h(5,:) = armJointsLimits(3,1);
+
+G(6,18,:) = 1;
+h(6,:) = -armJointsLimits(3,2);
 
 % Arm torque constraints
 % G(1,25,:) = 1;
@@ -492,17 +497,19 @@ h = zeros(numPureStateConstraints,timeSteps);
 % h(6,:) = -0.03;
 
 % Wheel torque constraints
-G(1,36,:) = 1;
-h(1,:) = -wheelTorqueLimit;
+wheelTorqueLimit = 2.85;
 
-G(2,38,:) = 1;
-h(2,:) = -wheelTorqueLimit;
+G(7,36,:) = 1;
+h(7,:) = -wheelTorqueLimit;
 
-G(3,36,:) = -1;
-h(3,:) = -wheelTorqueLimit;
+G(8,38,:) = 1;
+h(8,:) = -wheelTorqueLimit;
 
-G(4,38,:) = -1;
-h(4,:) = -wheelTorqueLimit;
+G(9,36,:) = -1;
+h(9,:) = -wheelTorqueLimit;
+
+G(10,38,:) = -1;
+h(10,:) = -wheelTorqueLimit;
 
 stateSpaceModel.C = C;
 stateSpaceModel.D = D;
