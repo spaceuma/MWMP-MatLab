@@ -93,7 +93,7 @@ yei = TW3(2,4);
 zei = TW3(3,4);
 
 % Goal end effector pose
-xef = 5.1;
+xef = 2.1;
 yef = 8.4;
 zef = 0.2;
 rollef = 0;
@@ -111,8 +111,11 @@ timeSteps = 300;
 % Maximum number of iterations
 maxIter = 500;
 
+% Activate/deactivate stepped procedure for checking constraints
+stepped = 1;
+
 % Activate/deactivate dynamic plotting during the simulation
-dynamicPlotting = 0;
+dynamicPlotting = 1;
 
 % SLQ algorithm configuration
 % Minimum step actuation percentage
@@ -441,7 +444,7 @@ r = zeros(numStateInputConstraints,timeSteps);
 % r(2,:) = FMin;
 
 % Pure state constraints
-numPureStateConstraints = 0;
+numPureStateConstraints = 4;
 J0 = zeros(numPureStateConstraints,timeSteps);
 J = J0;
 G = zeros(numPureStateConstraints,numStates,timeSteps);
@@ -449,6 +452,25 @@ h = zeros(numPureStateConstraints,timeSteps);
 
 % % The pure state constraints are defined as:
 % % G*x + h <= 0
+
+% Arm position constraints
+% G(1,16,:) = -1;
+% h(1,:) = armJointsLimits(1,1);
+% 
+% G(2,16,:) = 1;
+% h(2,:) = -armJointsLimits(1,2);
+% 
+% G(3,17,:) = -1;
+% h(3,:) = armJointsLimits(2,1);
+% 
+% G(4,17,:) = 1;
+% h(4,:) = -armJointsLimits(2,2);
+% 
+% G(5,18,:) = -1;
+% h(5,:) = armJointsLimits(3,1);
+% 
+% G(6,18,:) = 1;
+% h(6,:) = -armJointsLimits(3,2);
 
 % Arm torque constraints
 % G(1,25,:) = 1;
@@ -470,29 +492,17 @@ h = zeros(numPureStateConstraints,timeSteps);
 % h(6,:) = -0.03;
 
 % Wheel torque constraints
-% G(1,36,:) = 1;
-% h(1,:) = -wheelTorqueLimit;
-% 
-% G(2,37,:) = 1;
-% h(2,:) = -wheelTorqueLimit;
-% 
-% G(3,38,:) = 1;
-% h(3,:) = -wheelTorqueLimit;
-% 
-% G(4,39,:) = 1;
-% h(4,:) = -wheelTorqueLimit;
-% 
-% G(5,36,:) = -1;
-% h(5,:) = -wheelTorqueLimit;
-% 
-% G(6,37,:) = -1;
-% h(6,:) = -wheelTorqueLimit;
-% 
-% G(7,38,:) = -1;
-% h(7,:) = -wheelTorqueLimit;
-% 
-% G(8,39,:) = -1;
-% h(8,:) = -wheelTorqueLimit;
+G(1,36,:) = 1;
+h(1,:) = -wheelTorqueLimit;
+
+G(2,38,:) = 1;
+h(2,:) = -wheelTorqueLimit;
+
+G(3,36,:) = -1;
+h(3,:) = -wheelTorqueLimit;
+
+G(4,38,:) = -1;
+h(4,:) = -wheelTorqueLimit;
 
 stateSpaceModel.C = C;
 stateSpaceModel.D = D;
@@ -603,8 +613,15 @@ daspect([1 1 1])
      
 hold off;
 
-%% Stepped SLQR algorithm
-state = 0;
+%% SLQR algorithm
+if stepped
+    state = 0;
+    first = 1;
+else
+    state = 1;
+    first = 0;
+end
+
 iter = 1;
 while 1
     
@@ -961,7 +978,6 @@ while 1
                 else
                     disp('Since the constraints are not satisfied yet, a further constrained SLQ will be performed')
                     state = 1;
-                    first = 1;
                 end
             end
         case 1
@@ -1154,19 +1170,19 @@ hold off;
 % ylabel('$\dot\omega (rad/s^2)$', 'interpreter', 'latex','fontsize',18)
 % grid
 % 
-% figure(8)
-% plot(t,x(36:39,:))
-% hold on
-% yline(wheelTorqueLimit,'--');
-% yline(-wheelTorqueLimit,'--');
-% title('Evolution of the applied wheel torques', 'interpreter', ...
-% 'latex','fontsize',18)
-% legend('$\tau_{\omega 1}$','$\tau_{\omega 2}$','$\tau_{\omega 3}$',...
-%         '$\tau_{\omega 4}$', 'interpreter','latex','fontsize',18)
-% xlabel('$t (s)$', 'interpreter', 'latex','fontsize',18)
-% ylabel('$\tau (Nm)$', 'interpreter', 'latex','fontsize',18)
-% grid
-% hold off
+figure(8)
+plot(t,x(36:39,:))
+hold on
+yline(wheelTorqueLimit,'--');
+yline(-wheelTorqueLimit,'--');
+title('Evolution of the applied wheel torques', 'interpreter', ...
+'latex','fontsize',18)
+legend('$\tau_{\omega 1}$','$\tau_{\omega 2}$','$\tau_{\omega 3}$',...
+        '$\tau_{\omega 4}$', 'interpreter','latex','fontsize',18)
+xlabel('$t (s)$', 'interpreter', 'latex','fontsize',18)
+ylabel('$\tau (Nm)$', 'interpreter', 'latex','fontsize',18)
+grid
+hold off
 % 
 % figure(9)
 % plot(t,x(12,:))
