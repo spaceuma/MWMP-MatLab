@@ -109,6 +109,10 @@ dynamicPlotting = true;
 % Vehicle goal average speed (m/s)
 vehicleSpeed = 0.1;
 
+% Percentage of the base path size (%) where to start reducing
+% progressively the vehicles speed until completely stopped
+startBaseSpeedReduction = 90;
+
 %%%%%% FMM configuration %%%%%%
 % Distance to obstacles considered risky (should be an obstacle)
 riskDistance = 1;
@@ -162,7 +166,7 @@ config.costThreshold = 2;
 % State costs
 fci = 1000000000; % Final state cost, 1000000000
 foci = 0; % Final orientation cost, 0
-fsci = 100000000; % Final zero speed cost, 1000000
+fsci = 200000; % Final zero speed cost, 1000000
 rtci = 50; % Reference path max cost, 50
 oci = 300.0; % Obstacles repulsive cost, 300.0
 
@@ -715,6 +719,12 @@ while 1
         if norm([x(10,i) x(11,i)] - [xef yef]) < reachabilityDistance
             Q(10:12,10:12,i) = Q(10:12,10:12,i)/9999;
         end
+        if i > timeSteps*startBaseSpeedReduction/100
+            linearCost = 10/timeSteps*i - startBaseSpeedReduction/10;
+            Q(13,13,i) = linearCost*fsc;
+            Q(14,14,i) = linearCost*fsc;
+            Q(15,15,i) = linearCost*fsc;
+        end
     end  
     
     Q(25,25,:) = tau1c;
@@ -732,9 +742,6 @@ while 1
     Q(7,7,end) = foc;
     Q(8,8,end) = foc;
     Q(9,9,end) = foc;
-    Q(13,13,end) = fsc;
-    Q(14,14,end) = fsc;
-    Q(15,15,end) = fsc;
     
     R = zeros(numInputs,numInputs,timeSteps);
     R(1,1,:) = ac1;
@@ -1198,19 +1205,19 @@ hold off;
 % ylabel('$\dot\omega (rad/s^2)$', 'interpreter', 'latex','fontsize',18)
 % grid
 % 
-figure(8)
-plot(t,x(36:39,:))
-hold on
-yline(wheelTorqueLimit,'--');
-yline(-wheelTorqueLimit,'--');
-title('Evolution of the applied wheel torques', 'interpreter', ...
-'latex','fontsize',18)
-legend('$\tau_{\omega 1}$','$\tau_{\omega 2}$','$\tau_{\omega 3}$',...
-        '$\tau_{\omega 4}$', 'interpreter','latex','fontsize',18)
-xlabel('$t (s)$', 'interpreter', 'latex','fontsize',18)
-ylabel('$\tau (Nm)$', 'interpreter', 'latex','fontsize',18)
-grid
-hold off
+% figure(8)
+% plot(t,x(36:39,:))
+% hold on
+% yline(wheelTorqueLimit,'--');
+% yline(-wheelTorqueLimit,'--');
+% title('Evolution of the applied wheel torques', 'interpreter', ...
+% 'latex','fontsize',18)
+% legend('$\tau_{\omega 1}$','$\tau_{\omega 2}$','$\tau_{\omega 3}$',...
+%         '$\tau_{\omega 4}$', 'interpreter','latex','fontsize',18)
+% xlabel('$t (s)$', 'interpreter', 'latex','fontsize',18)
+% ylabel('$\tau (Nm)$', 'interpreter', 'latex','fontsize',18)
+% grid
+% hold off
 % 
 % figure(9)
 % plot(t,x(12,:))
