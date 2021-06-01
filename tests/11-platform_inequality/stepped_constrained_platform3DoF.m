@@ -61,7 +61,7 @@ g = 9.81;
 %% Constraints 
 % Initial base pose
 xB0 = 2.00;
-yB0 = 3.00;
+yB0 = 2.00;
 zB0 = zBC;
 yawB0 = pi/2;
 
@@ -82,7 +82,7 @@ yei = TW3(2,4);
 zei = TW3(3,4);
 
 % Goal end effector pose
-xef = 1.15;
+xef = 7.55;
 yef = 7.15;
 zef = 0.2;
 rollef = 0;
@@ -90,26 +90,26 @@ pitchef = pi;
 yawef = 0;
 
 %% Configuration variables
-% General configuration
+%%%%%% General configuration %%%%%%%
 % Name of the obst map to be used
 obstMapFile = 'obstMap3';
 
 % Number of timesteps
-timeSteps = 500;
+timeSteps = 250;
 
 % Maximum number of iterations
 maxIter = 500;
 
 % Activate/deactivate stepped procedure for checking constraints
-stepped = 1;
+stepped = true;
 
 % Activate/deactivate dynamic plotting during the simulation
-dynamicPlotting = 1;
+dynamicPlotting = true;
 
 % Vehicle goal average speed (m/s)
 vehicleSpeed = 0.1;
 
-% FMM configuration
+%%%%%% FMM configuration %%%%%%
 % Distance to obstacles considered risky (should be an obstacle)
 riskDistance = 1;
 
@@ -120,7 +120,7 @@ safetyDistance = 2;
 % Gradient Descent Method step size, as a percentage of the map resolution
 tau = 0.5;
 
-% SLQ algorithm configuration
+%%%%%% SLQ algorithm configuration %%%%%%
 % Minimum step actuation percentage
 config.lineSearchStep = 0.31; 
 
@@ -134,29 +134,54 @@ config.resamplingThreshold = 30;
 config.controlThreshold = 5e-3;
 
 % Check distance to goal for convergence
-config.checkDistance = 1;
+config.checkDistance = true;
 if config.checkDistance
     config.distIndexes = [1 2 3];
 end
 
 % Check constraints compliance for convergence
-config.checkConstraints = 1;
+config.checkConstraints = true;
 
 % Check safety of the state for convergence
-config.checkSafety = 1;
+config.checkSafety = true;
 
-% Reference path updating configuration
+%%%%%% Reference path updating configuration %%%%%%
 % Percentage of path wayp to be checked when generating new references
-config.percentageMCM = 90;
+config.percentageMCM = 80;
 
 % Max distance to the reference to update it
-config.maxDistUpdate = 2.25;
+config.maxDistUpdate = 2.0;
 
 % Min distance to the reference to update it
-config.minDistUpdate = 1.125;
+config.minDistUpdate = 1.0;
 
 % Percentage of cost reduction to update the reference path
-config.costThreshold = 5;
+config.costThreshold = 2;
+
+%%%%%% LQR costs %%%%%%
+% State costs
+fci = 1000000000; % Final state cost, 1000000000
+foci = 0; % Final orientation cost, 0
+fsci = 100000000; % Final zero speed cost, 1000000
+rtci = 50; % Reference path max cost, 50
+oci = 300.0; % Obstacles repulsive cost, 300.0
+
+tau1ci = 2.0; % Joint 1 inverse torque constant, 2
+tau2ci = 2.0; % Joint 2 inverse torque constant, 2
+tau3ci = 2.0; % Joint 3 inverse torque constant, 2
+
+tauWheeli = 1e1*0.8; % Wheels joint inverse torque constant, 0.8
+
+% Input costs
+bci = 90; % Base actuation cost, 90
+sci = 0.1; % Steering cost, 0.1
+ac1i = 10000000; % Arm actuation cost, 10000000
+ac2i = 10000000; % Arm actuation cost, 10000000
+ac3i = 10000000; % Arm actuation cost, 10000000
+
+% Extra costs
+kappa1 = 0.02; % Influence of yaw into rover pose, tune till convergence
+kappa2 = 0; % Influence of steering into final speed, tune till convergence
 
 %% Reference trajectory computation
 % FMM to compute totalCostMap
@@ -249,32 +274,28 @@ gOMx = filter2(h2,gOMx);
 gOMy = filter2(h1,gOMyini);  
 gOMy = filter2(h2,gOMy);
 
-%% Costs
+%% Definitive Costs
 time_ratio = tf/60; % Ratio for the costs to ensure convergence
 
 % State costs
-fc = 1000000000/time_ratio; % Final state cost, 1000000000
-foc = 0/time_ratio; % Final orientation cost, 0
-fsc = 1000000/time_ratio; % Final zero speed cost, 1000000
-rtc = 50/time_ratio; % Reference path max cost, 50
-oc = 300.0/time_ratio; % Obstacles repulsive cost, 300.0
+fc = fci/time_ratio; % Final state cost
+foc = foci/time_ratio; % Final orientation cost
+fsc = fsci/time_ratio; % Final zero speed cost
+rtc = rtci/time_ratio; % Reference path max cost
+oc = oci/time_ratio; % Obstacles repulsive cost
 
-tau1c = 2.0/time_ratio; % Joint 1 inverse torque constant, 2
-tau2c = 2.0/time_ratio; % Joint 2 inverse torque constant, 2
-tau3c = 2.0/time_ratio; % Joint 3 inverse torque constant, 2
+tau1c = tau1ci/time_ratio; % Joint 1 inverse torque constant
+tau2c = tau2ci/time_ratio; % Joint 2 inverse torque constant
+tau3c = tau3ci/time_ratio; % Joint 3 inverse torque constant
 
-tauWheel = 1e1*0.8/time_ratio; % Wheels joint inverse torque constant, 0.8
+tauWheel = tauWheeli/time_ratio; % Wheels joint inverse torque constant
 
 % Input costs
-bc = 90*time_ratio; % Base actuation cost, 90
-sc = 0.1*time_ratio; % Steering cost, 0.1
-ac1 = 10000000*time_ratio; % Arm actuation cost, 10000000
-ac2 = 10000000*time_ratio; % Arm actuation cost, 10000000
-ac3 = 10000000*time_ratio; % Arm actuation cost, 10000000
-
-% Extra costs
-kappa1 = 0.02; % Influence of yaw into rover pose, tune till convergence, [0 1]
-kappa2 = 0; % Influence of steer turns into final speed, tune till convergence, [0 1]
+bc = bci*time_ratio; % Base actuation cost
+sc = sci*time_ratio; % Steering cost
+ac1 = ac1i*time_ratio; % Arm actuation cost
+ac2 = ac2i*time_ratio; % Arm actuation cost
+ac3 = ac3i*time_ratio; % Arm actuation cost
 
 %% Generate map info
 map.mapResolution = mapResolution;
@@ -679,7 +700,7 @@ while 1
         set(h13,'XData',x0(10,:),'YData',x0(11,:),'ZData',zBC*ones(timeSteps,1),...
             'LineWidth', 5, 'Color', [0,0,0.6]);
 
-        hold off;        
+        hold off;
     end   
 
     % Update the reference trajectory
