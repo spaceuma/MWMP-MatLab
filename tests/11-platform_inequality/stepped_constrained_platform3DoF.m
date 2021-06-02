@@ -61,7 +61,7 @@ g = 9.81;
 %% Constraints 
 % Initial base pose
 xB0 = 2.00;
-yB0 = 2.50;
+yB0 = 1.50;
 zB0 = zBC;
 yawB0 = pi/2;
 
@@ -82,8 +82,8 @@ yei = TW3(2,4);
 zei = TW3(3,4);
 
 % Goal end effector pose
-xef = 2.55;
-yef = 7.55;
+xef = 7.50;
+yef = 7.50;
 zef = 0.2;
 rollef = 0;
 pitchef = pi;
@@ -99,16 +99,16 @@ yawef = 0;
 obstMapFile = 'obstMap3';
 
 % Number of timesteps
-timeSteps = 250;
+timeSteps = 300;
 
 % Maximum number of iterations
-maxIter = 500;
+maxIter = 100;
 
 % Activate/deactivate stepped procedure for checking constraints
 stepped = true;
 
 % Activate/deactivate dynamic plotting during the simulation
-dynamicPlotting = false;
+dynamicPlotting = true;
 
 % Vehicle goal average speed (m/s)
 vehicleSpeed = 0.1;
@@ -182,15 +182,15 @@ config.costThreshold = 5;
 % State costs
 fci = 1000000000; % Final state cost, 1000000000
 foci = 0; % Final orientation cost, 0
-fsci = 200000; % Final zero speed cost, 1000000
-rtci = 60; % Reference path max cost, 50
-oci = 300.0; % Obstacles repulsive cost, 300.0
+fsci = 5000000; % Final zero speed cost, 400000
+rtci = 50; % Reference path max cost, 50
+oci = 50.0; % Obstacles repulsive cost, 50.0
 
 tau1ci = 2.0; % Joint 1 inverse torque constant, 2
 tau2ci = 2.0; % Joint 2 inverse torque constant, 2
 tau3ci = 2.0; % Joint 3 inverse torque constant, 2
 
-tauWheeli = 1e1*0.8; % Wheels joint inverse torque constant, 0.8
+tauWheeli = 6400; % Wheels joint inverse torque constant, 6400
 
 % Input costs
 bci = 90; % Base actuation cost, 90
@@ -301,8 +301,8 @@ time_ratio = tf/60; % Ratio for the costs to ensure convergence
 fc = fci/time_ratio; % Final state cost
 foc = foci/time_ratio; % Final orientation cost
 fsc = fsci/time_ratio; % Final zero speed cost
-rtc = rtci/time_ratio; % Reference path max cost
-oc = oci/time_ratio; % Obstacles repulsive cost
+rtc = rtci*time_ratio; % Reference path max cost
+oc = oci*time_ratio; % Obstacles repulsive cost
 
 tau1c = tau1ci/time_ratio; % Joint 1 inverse torque constant
 tau2c = tau2ci/time_ratio; % Joint 2 inverse torque constant
@@ -311,7 +311,7 @@ tau3c = tau3ci/time_ratio; % Joint 3 inverse torque constant
 tauWheel = tauWheeli/time_ratio; % Wheels joint inverse torque constant
 
 % Input costs
-bc = bci*time_ratio; % Base actuation cost
+bc = bci/time_ratio; % Base actuation cost
 sc = sci*time_ratio; % Steering cost
 ac1 = ac1i*time_ratio; % Arm actuation cost
 ac2 = ac2i*time_ratio; % Arm actuation cost
@@ -513,7 +513,7 @@ h = zeros(numPureStateConstraints,timeSteps);
 %%%%%%%%%%%%%%%%%%%%%%%%%
 
 % Arm position constraints
-armJointsLimits = [-360 +360;
+armJointsLimits = [-35 +35;
                    -120  80;
                    -140 +140]*pi/180;               
 
