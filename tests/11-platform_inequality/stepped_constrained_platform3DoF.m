@@ -60,8 +60,8 @@ g = 9.81;
                
 %% Constraints 
 % Initial base pose
-xB0 = 2.00;
-yB0 = 1.50;
+xB0 = 8.00;
+yB0 = 7.50;
 zB0 = zBC;
 yawB0 = pi/2;
 
@@ -82,8 +82,8 @@ yei = TW3(2,4);
 zei = TW3(3,4);
 
 % Goal end effector pose
-xef = 7.50;
-yef = 7.50;
+xef = 5.00;
+yef = 1.70;
 zef = 0.2;
 rollef = 0;
 pitchef = pi;
@@ -108,7 +108,7 @@ maxIter = 100;
 stepped = true;
 
 % Activate/deactivate dynamic plotting during the simulation
-dynamicPlotting = true;
+dynamicPlotting = false;
 
 % Vehicle goal average speed (m/s)
 vehicleSpeed = 0.1;
@@ -164,13 +164,13 @@ config.checkSafety = true;
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 % Percentage of path wayp to be checked when generating new references
-config.percentageMCM = 50;
+config.percentageMCM = 80;
 
 % Max distance to the reference to update it
-config.maxDistUpdate = 2.25;
+config.maxDistUpdate = 2.0;
 
 % Min distance to the reference to update it
-config.minDistUpdate = 1.125;
+config.minDistUpdate = 0.5;
 
 % Percentage of cost reduction to update the reference path
 config.costThreshold = 5;
