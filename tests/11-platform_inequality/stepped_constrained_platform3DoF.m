@@ -61,7 +61,7 @@ g = 9.81;
 %% Constraints 
 % Initial base pose
 xB0 = 2.00;
-yB0 = 2.00;
+yB0 = 2.50;
 zB0 = zBC;
 yawB0 = pi/2;
 
@@ -82,15 +82,19 @@ yei = TW3(2,4);
 zei = TW3(3,4);
 
 % Goal end effector pose
-xef = 7.55;
-yef = 7.15;
+xef = 2.55;
+yef = 7.55;
 zef = 0.2;
 rollef = 0;
 pitchef = pi;
 yawef = 0;
 
 %% Configuration variables
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %%%%%% General configuration %%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
 % Name of the obst map to be used
 obstMapFile = 'obstMap3';
 
@@ -104,7 +108,7 @@ maxIter = 500;
 stepped = true;
 
 % Activate/deactivate dynamic plotting during the simulation
-dynamicPlotting = true;
+dynamicPlotting = false;
 
 % Vehicle goal average speed (m/s)
 vehicleSpeed = 0.1;
@@ -113,7 +117,10 @@ vehicleSpeed = 0.1;
 % progressively the vehicles speed until completely stopped
 startBaseSpeedReduction = 90;
 
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %%%%%% FMM configuration %%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
 % Distance to obstacles considered risky (should be an obstacle)
 riskDistance = 1;
 
@@ -124,9 +131,12 @@ safetyDistance = 2;
 % Gradient Descent Method step size, as a percentage of the map resolution
 tau = 0.5;
 
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %%%%%% SLQ algorithm configuration %%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
 % Minimum step actuation percentage
-config.lineSearchStep = 0.31; 
+config.lineSearchStep = 0.32; 
 
 % Max acceptable dist
 config.distThreshold = 0.03;
@@ -149,25 +159,31 @@ config.checkConstraints = true;
 % Check safety of the state for convergence
 config.checkSafety = true;
 
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %%%%%% Reference path updating configuration %%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
 % Percentage of path wayp to be checked when generating new references
-config.percentageMCM = 80;
+config.percentageMCM = 50;
 
 % Max distance to the reference to update it
-config.maxDistUpdate = 2.0;
+config.maxDistUpdate = 2.25;
 
 % Min distance to the reference to update it
-config.minDistUpdate = 1.0;
+config.minDistUpdate = 1.125;
 
 % Percentage of cost reduction to update the reference path
-config.costThreshold = 2;
+config.costThreshold = 5;
 
+%%%%%%%%%%%%%%%%%%%%%%%
 %%%%%% LQR costs %%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%
+
 % State costs
 fci = 1000000000; % Final state cost, 1000000000
 foci = 0; % Final orientation cost, 0
 fsci = 200000; % Final zero speed cost, 1000000
-rtci = 50; % Reference path max cost, 50
+rtci = 60; % Reference path max cost, 50
 oci = 300.0; % Obstacles repulsive cost, 300.0
 
 tau1ci = 2.0; % Joint 1 inverse torque constant, 2
@@ -456,85 +472,98 @@ uini = u;
 %% Constraints matrices definition
 % State input constraints
 numStateInputConstraints = 0;
+definedConstraints = 0;
 I0 = zeros(numStateInputConstraints,timeSteps);
 I = I0;
 C = zeros(numStateInputConstraints,numStates,timeSteps);
 D = zeros(numStateInputConstraints,numInputs,timeSteps);
 r = zeros(numStateInputConstraints,timeSteps);
 
-% % The state input constraints are defined as:
-% % C*x + D*u + r <= 0
-% D(1,1,:) = 1;
-% r(1,:) = -FMax;
+% The state input constraints are defined as:
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%% C*x + D*u + r <= 0 %%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+% D(definedConstraints+1,1,:) = 1;
+% r(definedConstraints+1,:) = -FMax;
+% definedConstraints = definedConstraints+1;
+
 % 
-% D(2,1,:) = -1;
-% r(2,:) = FMin;
+% D(definedConstraints+1,1,:) = -1;
+% r(definedConstraints+1,:) = FMin;
+% definedConstraints = definedConstraints+1;
+
+
+if definedConstraints ~= numStateInputConstraints
+    error(['The specified number of state input constraints does not'...
+           ' match the size of the defined matrices D and r.']);
+end
 
 % Pure state constraints
-numPureStateConstraints = 4;
+numPureStateConstraints = 10;
+definedConstraints = 0;
 J0 = zeros(numPureStateConstraints,timeSteps);
 J = J0;
 G = zeros(numPureStateConstraints,numStates,timeSteps);
 h = zeros(numPureStateConstraints,timeSteps);
 
-% % The pure state constraints are defined as:
-% % G*x + h <= 0
-% 
+% The pure state constraints are defined as:
+%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%% G*x + h <= 0 %%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%
+
 % Arm position constraints
 armJointsLimits = [-360 +360;
                    -120  80;
-                   -140 +140]*pi/180;
-G(1,16,:) = -1;
-h(1,:) = armJointsLimits(1,1);
+                   -140 +140]*pi/180;               
 
-G(2,16,:) = 1;
-h(2,:) = -armJointsLimits(1,2);
+G(definedConstraints+1,16,:) = -1;
+h(definedConstraints+1,:) = armJointsLimits(1,1);
+definedConstraints = definedConstraints+1;
 
-G(3,17,:) = -1;
-h(3,:) = armJointsLimits(2,1);
+G(definedConstraints+1,16,:) = 1;
+h(definedConstraints+1,:) = -armJointsLimits(1,2);
+definedConstraints = definedConstraints+1;
 
-G(4,17,:) = 1;
-h(4,:) = -armJointsLimits(2,2);
+G(definedConstraints+1,17,:) = -1;
+h(definedConstraints+1,:) = armJointsLimits(2,1);
+definedConstraints = definedConstraints+1;
 
-G(5,18,:) = -1;
-h(5,:) = armJointsLimits(3,1);
+G(definedConstraints+1,17,:) = 1;
+h(definedConstraints+1,:) = -armJointsLimits(2,2);
+definedConstraints = definedConstraints+1;
 
-G(6,18,:) = 1;
-h(6,:) = -armJointsLimits(3,2);
+G(definedConstraints+1,18,:) = -1;
+h(definedConstraints+1,:) = armJointsLimits(3,1);
+definedConstraints = definedConstraints+1;
 
-% Arm torque constraints
-% G(1,25,:) = 1;
-% h(1,:) = -0.03;
-% 
-% G(2,26,:) = 1;
-% h(2,:) = -0.03;
-% 
-% G(3,27,:) = 1;
-% h(3,:) = -0.03;
-% 
-% G(4,25,:) = -1;
-% h(4,:) = -0.03;
-% 
-% G(5,26,:) = -1;
-% h(5,:) = -0.03;
-% 
-% G(6,27,:) = -1;
-% h(6,:) = -0.03;
+G(definedConstraints+1,18,:) = 1;
+h(definedConstraints+1,:) = -armJointsLimits(3,2);
+definedConstraints = definedConstraints+1;
 
 % Wheel torque constraints
 wheelTorqueLimit = 2.85;
 
-G(7,36,:) = 1;
-h(7,:) = -wheelTorqueLimit;
+G(definedConstraints+1,36,:) = 1;
+h(definedConstraints+1,:) = -wheelTorqueLimit;
+definedConstraints = definedConstraints+1;
 
-G(8,38,:) = 1;
-h(8,:) = -wheelTorqueLimit;
+G(definedConstraints+1,38,:) = 1;
+h(definedConstraints+1,:) = -wheelTorqueLimit;
+definedConstraints = definedConstraints+1;
 
-G(9,36,:) = -1;
-h(9,:) = -wheelTorqueLimit;
+G(definedConstraints+1,36,:) = -1;
+h(definedConstraints+1,:) = -wheelTorqueLimit;
+definedConstraints = definedConstraints+1;
 
-G(10,38,:) = -1;
-h(10,:) = -wheelTorqueLimit;
+G(definedConstraints+1,38,:) = -1;
+h(definedConstraints+1,:) = -wheelTorqueLimit;
+definedConstraints = definedConstraints+1;
+
+if definedConstraints ~= numPureStateConstraints
+    error(['The specified number of pure state constraints does not'...
+           ' match the size of the defined matrices G and h.']);
+end
 
 stateSpaceModel.C = C;
 stateSpaceModel.D = D;
