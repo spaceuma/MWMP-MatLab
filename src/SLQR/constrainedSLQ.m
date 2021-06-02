@@ -6,15 +6,22 @@ function [x, u, I, J, converged] = constrainedSLQ(varargin)
 %   trying to reach the objective given by "x0" and "u0". 
 %   The results are returned in the given matrices "x" and "u", 
 %   and the active constraints matrices "I" and "J" are also updated. 
+%   Info about the map can be provided through "map" parameter.
 % 
 %   USAGE: 
 %   [x, u, I, J, converged] = constrainedSLQ(x, x0, u, u0, dt,...
 %                                         stateSpaceModel, costFunction,...
 %                                         config)
+%   [x, u, I, J, converged] = constrainedSLQ(x, x0, u, u0, dt,...
+%                                         stateSpaceModel, costFunction,...
+%                                         config, map)
 %   [x, u, I, J, converged] = constrainedSLQ(x, x0, xs, u, u0, us, dt,...
 %                                         stateSpaceModel, costFunction,...
 %                                         config)
-%
+%   [x, u, I, J, converged] = constrainedSLQ(x, x0, xs, u, u0, us, dt,...
+%                                         stateSpaceModel, costFunction,...
+%                                         config, map)
+% 
 %   "x", "x0" are the states and goal states respectively. Size
 %   numberStates x numberTimeSteps.
 %
@@ -24,16 +31,18 @@ function [x, u, I, J, converged] = constrainedSLQ(varargin)
 %   "dt" is the time step.
 %
 %   "stateSpaceModel" should contain:
-%       - Dynamic matrices A, B.
-%       - State input constraints matrices C, D, r.
-%       - Active state input constraints matrices I, I0.
-%       - Pure state constraints matrices G, h.
-%       - Active pure state constraints matrices J, J0.
+%       - Dynamic matrices "A", "B".
+%       - State input constraints matrices "C", "D", "r".
+%       - Active state input constraints matrices "I", "I0".
+%       - Pure state constraints matrices "G", "h".
+%       - Active pure state constraints matrices "J", "J0".
+%       - Indexes of the XY pose of the robot "XYIndexes" (only needed if
+%       checking safety w.r.t an obstacles map).
 %
 %   "costFunction" should contain:
-%       - Pure state cost matrix Q.
-%       - Pure input cost matrix R.
-%       - State input cost matrix K.
+%       - Pure state cost matrix "Q".
+%       - Pure input cost matrix "R".
+%       - State input cost matrix "K".
 % 
 %   "config" should contain:
 %       - Acceptable distance to goal to consider convergence is reached,
@@ -44,13 +53,27 @@ function [x, u, I, J, converged] = constrainedSLQ(varargin)
 %         "resamplingThreshold". Default: 30.
 %       - Step of the linear search procedure, "lineSearchStep". 
 %         Default: 0.30.
+%       - Yes/no about check distance to goal, "checkDistance".
+%       - If checking distance to goal, indexes of state vector where
+%         to check for the distance, "distIndexes".
+%       - Yes/no about check constraints, "checkConstraints".
+%       - Yes/no about check obstacles collisions, "checkSafety".
+%
+%   "map" should contain:
+%       - Map resolution "mapResolution".
+%       - Obstacles map "obstMap".
+%       - X gradient of the obstacles map "gradientObstaclesMapX".
+%       - Y gradient of the obstacles map "gradientObstaclesMapY".
+%       - Repulsive cost from obstacles "obstaclesCost".
 %
 %   If convergence is reached "converged" will return "1", if not:
 %       " 0" --> the algorithm should continue iterating.
 %       "-1" --> the goal is still far away.
 %       "-2" --> the algorithm is still hardly updating the control.
-%       "-3" --> the imposed constraints are not complied.
-%       "-4" --> something unexpected happened.
+%       "-3" --> the generated state is not safe.
+%       "-4" --> the imposed constraints are not complied.
+%       "-5" --> something unexpected happened.
+
     
     switch nargin
         case 8
@@ -64,6 +87,18 @@ function [x, u, I, J, converged] = constrainedSLQ(varargin)
             stateSpaceModel = varargin{6};
             costFunction = varargin{7};
             config = varargin{8};
+        case 9
+            x = varargin{1};
+            x0 = varargin{2};
+            xs = zeros(size(x));
+            u = varargin{3};
+            u0 = varargin{4};
+            us = zeros(size(u));
+            dt = varargin{5};
+            stateSpaceModel = varargin{6};
+            costFunction = varargin{7};
+            config = varargin{8};
+            map = varargin{9};
         case 10
             x = varargin{1};
             x0 = varargin{2};
@@ -75,10 +110,25 @@ function [x, u, I, J, converged] = constrainedSLQ(varargin)
             stateSpaceModel = varargin{8};
             costFunction = varargin{9};
             config = varargin{10};
+        case 11
+            x = varargin{1};
+            x0 = varargin{2};
+            xs = varargin{3};
+            u = varargin{4};
+            u0 = varargin{5};
+            us = varargin{6};
+            dt = varargin{7};
+            stateSpaceModel = varargin{8};
+            costFunction = varargin{9};
+            config = varargin{10};
+            map = varargin{11};
         otherwise
             cprintf('err','Wrong number of inputs. Usage:\n')
             cprintf('err','    constrainedSLQ(x, x0, u, u0, dt, stateSpaceModel, costFunction, config)\n')
+            cprintf('err','    constrainedSLQ(x, x0, u, u0, dt, stateSpaceModel, costFunction, config, map)\n')
             cprintf('err','    constrainedSLQ(x, x0, xs, u, u0, us, dt, stateSpaceModel, costFunction, config)\n')
+            cprintf('err','    constrainedSLQ(x, x0, xs, u, u0, us, dt, stateSpaceModel, costFunction, config, map)\n')
+
             error('Too many input arguments.');
     end
 
@@ -105,6 +155,26 @@ function [x, u, I, J, converged] = constrainedSLQ(varargin)
     resamplingThreshold = config.resamplingThreshold;
     lineSearchStep = config.lineSearchStep;
     controlThreshold = config.controlThreshold;
+    checkingDistance = config.checkDistance;
+    if checkingDistance
+        distIndexes = config.distIndexes;
+    end
+
+    checkingConstraints = config.checkConstraints;
+    checkingSafety = config.checkSafety;
+
+    % Extracting map info
+    mapResolution = [];
+    obstMap = [];
+    if checkingSafety
+        mapResolution = map.mapResolution;
+        obstMap = map.obstMap;
+        gradientOMX = map.gradientObstaclesMapX;
+        gradientOMY = map.gradientObstaclesMapY;
+        obstaclesCost = map.obstaclesCost;
+        robotXIndex = stateSpaceModel.XYIndexes(1);
+        robotYIndex = stateSpaceModel.XYIndexes(2);
+    end
 
     % Model characteristics
     numStates = size(x,1);
@@ -204,8 +274,7 @@ function [x, u, I, J, converged] = constrainedSLQ(varargin)
             lq(index) = i;
             index = index+1;
         end
-    end
-    
+    end    
     
     Gk = zeros(numActivePSConstraints,numStates,timeSteps);
     hk = zeros(numActivePSConstraints,timeSteps);
@@ -231,7 +300,6 @@ function [x, u, I, J, converged] = constrainedSLQ(varargin)
     end
     
     for i = 1:timeSteps
-
         E(:,:,i) = Cl(:,:,i) - Dl(:,:,i)/R(:,:,i)*K(:,:,i).';
         rh(:,i) = rl(:,i) - Dl(:,:,i)/R(:,:,i)*us0(:,i);
         
@@ -242,19 +310,33 @@ function [x, u, I, J, converged] = constrainedSLQ(varargin)
         u0h(:,i) = -B(:,:,i)/R(:,:,i)*(us0(:,i) + Dl(:,:,i).'*Dh(:,:,i)*rh(:,i));
     end
         
+    % Obstacles limits cost
+    Ox = zeros(numStates,timeSteps);
+    if checkingSafety
+        for i = 1:timeSteps-1
+            [Ox(robotXIndex,i), Ox(robotYIndex,i)] = ...
+              getGradientTotalCost(x(robotXIndex,i),...
+                                   x(robotYIndex,i),...
+                                   mapResolution,...
+                                   gradientOMX, gradientOMY);
+            Ox(robotXIndex,i) = obstaclesCost*Ox(robotXIndex,i);
+            Ox(robotYIndex,i) = obstaclesCost*Ox(robotYIndex,i);
+        end
+    end
+    
     % LQ problem solution
     M = zeros(numStates,numStates,timeSteps);
     P = zeros(numStates,numStates,timeSteps);
     z = zeros(numStates,timeSteps);
     P(:,:,end) = Q(:,:,end);
-    z(:,end) = xs0(:,end);
+    z(:,end) = xs0(:,end) + Ox(:,end);
     
     % Solve backward
     for i = timeSteps-1:-1:1
         M(:,:,i) = inv(eye(numStates) + Rh(:,:,i)*P(:,:,i+1));
         P(:,:,i) = Qh(:,:,i) + Ah(:,:,i).'*P(:,:,i+1)*M(:,:,i)*Ah(:,:,i);
         z(:,i) = Ah(:,:,i).'*M(:,:,i).'*z(:,i+1) + ...
-            Ah(:,:,i).'*P(:,:,i+1)*M(:,:,i)*u0h(:,i) + x0h(:,i);
+            Ah(:,:,i).'*P(:,:,i+1)*M(:,:,i)*u0h(:,i) + x0h(:,i) + Ox(:,i);
     end
     
     Gamma = zeros(numActivePSConstraints*size(tk,2),numStates);
@@ -455,9 +537,7 @@ function [x, u, I, J, converged] = constrainedSLQ(varargin)
         end
     end
     
-    % Exit condition
-    endDist = norm(x(1:3,end)-x0(1:3,end)); %TODO: this should be configurable
-    
+    % Exit condition    
     if step3        
         % Step 3
         if size(tl,2) > 0
@@ -511,10 +591,24 @@ function [x, u, I, J, converged] = constrainedSLQ(varargin)
         end        
         
         % Exit condition
+        convergenceCondition = norm(us) <= controlThreshold*norm(u);
+        if checkingDistance
+            endDist = norm(x(distIndexes,end)-x0(distIndexes,end));
+            convergenceCondition = convergenceCondition | ...
+                                (norm(us) <= controlThreshold*20*norm(u) & ...
+                                endDist < distThreshold);
+        end
+        if checkingSafety
+            convergenceCondition = convergenceCondition & ...
+                isSafePath(x(robotXIndex,:),x(robotYIndex,:), mapResolution,obstMap);
+        end
+        if checkingConstraints
+            convergenceCondition = convergenceCondition & ...
+                   checkConstraints(x, u, stateSpaceModel);
+        end
+
         %if minimumMu >= -1e-5 && minimumNu >=-1e-5 && ...
-         if (norm(us) < controlThreshold*norm(u) ||...
-          ((norm(us) < 20*controlThreshold*norm(u))&&...
-          (endDist < distThreshold)))         
+        if convergenceCondition         
 %             u = u + us;            
             x = forwardIntegrateSystem(x, u, dt);
             converged = 1;
@@ -525,14 +619,22 @@ function [x, u, I, J, converged] = constrainedSLQ(varargin)
                 J(q{lS}(jS(lS)),lS) = 0;
             end
             
-            if endDist > distThreshold
-                converged = -1;
+            if checkingDistance
+                if endDist > distThreshold
+                    converged = -1;
+                end
             elseif norm(us) > controlThreshold*norm(u)
                 converged = -2;
-            elseif minimumMu <= -1e-5 || minimumNu <=-1e-5
-                converged = -3;
+            elseif checkingSafety
+                if ~isSafePath(x(robotXIndex,:),x(robotYIndex,:), mapResolution,obstMap)
+                    converged = -3;
+                end
+            elseif checkingConstraints
+                if ~checkConstraints(x, u, stateSpaceModel)
+                    converged = -4;
+                end
             else
-                converged = -4;
+                converged = -5;
             end
         end
     end

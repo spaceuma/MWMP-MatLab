@@ -77,6 +77,18 @@ config.resamplingThreshold = 30;
 % Percentage of step actuation to consider convergence
 config.controlThreshold = 5e-3;
 
+% Check distance to goal for convergence
+config.checkDistance = 1;
+if config.checkDistance
+    config.distIndexes = [1 2 3];
+end
+
+% Check constraints compliance for convergence
+config.checkConstraints = 1;
+
+% Check safety of the state for convergence
+config.checkSafety = 0;
+
 %% Time horizon estimation
 expectedTimeArrival = 5;
 tf = expectedTimeArrival; % Time vector
@@ -223,7 +235,7 @@ stateSpaceModel.J0 = J0;
 
 %% Visualization stuff
 figure(1)
-
+clf(1)
 % Plotting first arm config
 [TW0, TW1, TW2, TW3] = direct3(x(7:9,1));
 h1 = plot3([0 TW0(1,4) TW1(1,4) TW2(1,4) TW3(1,4)],...
@@ -233,7 +245,7 @@ h1 = plot3([0 TW0(1,4) TW1(1,4) TW2(1,4) TW3(1,4)],...
 hold on;
 
 % Plotting the ee frame
-h2 = plotFrame(TW3, 1, 0.1);    
+h2 = plotFrame(TW3, 0.1);    
 
 
 % Plotting last arm config
@@ -244,7 +256,7 @@ h3 = plot3([0 TW0(1,4) TW1(1,4) TW2(1,4) TW3(1,4)],...
            'Color', [0.8 0.8 0.8], 'LineWidth', 2.5);
        
 % Plotting the ee frame
-h4 = plotFrame(TW3, 1, 0.1);
+h4 = plotFrame(TW3, 0.1);
 
        
 % Plotting starting and goal ee poses
@@ -255,7 +267,7 @@ h6 = plot3(xef,yef,zef, 'MarkerSize', 20, 'Marker', '.', 'Color', 'b');
 h7 = plotFrame([1 0 0 0;
                 0 1 0 0;
                 0 0 1 0;
-                0 0 0 1], 1, 0.2, 'W');
+                0 0 0 1], 0.2, 'W');
        
 % Plotting the ee path
 h8 = plot3(x(1,:),x(2,:),x(3,:), 'LineWidth', 5, 'Color', 'y');
@@ -281,33 +293,13 @@ while 1
                'YData',[0 TW0(2,4) TW1(2,4) TW2(2,4) TW3(2,4)],...
                'ZData',[0 TW0(3,4) TW1(3,4) TW2(3,4) TW3(3,4)],...
                'Color', [0.8 0.8 0.8], 'LineWidth', 2.5);
-                       
-        delete(h4);
-%         h4 = plotFrame(TW3, 1, 0.1);  
+           
+        h4 = plotFrame(TW3, 0.1, 0, h4);  
         
         set(h8,'XData',x(1,:),'YData',x(2,:),'ZData',x(3,:),...
             'LineWidth', 5, 'Color', 'y');
 
-        hold off;
-        
-        figure(2)
-        plot(t,x(7:9,:))
-        title('Evolution of the arm joints position', 'interpreter', ...
-        'latex','fontsize',18)
-        legend('$\theta_1$','$\theta_2$','$\theta_3$', 'interpreter', ...
-               'latex','fontsize',18)
-        xlabel('$t (s)$', 'interpreter', 'latex','fontsize',18)
-        ylabel('$\theta (rad)$', 'interpreter', 'latex','fontsize',18)
-        grid
-        
-        figure(3)
-        plot(t,u(1:3,:))
-        title('Actuating arm joints speed','interpreter','latex')
-        xlabel('t(s)','interpreter','latex','fontsize',18)
-        ylabel('$\dot\theta(rad/s$)','interpreter','latex','fontsize',18)
-        legend('$\dot\theta_1$','$\dot\theta_2$',...
-               '$\dot\theta_3$','interpreter', ...
-               'latex','fontsize',18)
+        hold off;        
     end
         
     % Quadratize cost function along the trajectory
@@ -452,14 +444,12 @@ while 1
             
             % Check whether the algorithm has finished
             if converged > 0
-                constraintsSatisfied = checkConstraints(x, u, stateSpaceModel);
-                if constraintsSatisfied
-                    disp('The imposed constraints are satisfied, the final control input is found')
-                    disp(['Constrained SLQ refined control input within ',num2str(iter-1),' iterations'])
-                    break;
-                end
+                disp('The imposed constraints are satisfied, the final control input is found')
+                disp(['Constrained SLQ refined control input within ',num2str(iter-1),' iterations'])
+                break;
             end
         otherwise
+        % This case is not reachable
     end   
 
     disp(['Iteration number ',num2str(iter),...
@@ -503,8 +493,7 @@ set(h3,'XData',[0 TW0(1,4) TW1(1,4) TW2(1,4) TW3(1,4)],...
        'ZData',[0 TW0(3,4) TW1(3,4) TW2(3,4) TW3(3,4)],...
        'Color', [0.8 0.8 0.8], 'LineWidth', 2.5);
 
-delete(h4);
-%         h4 = plotFrame(TW3, 1, 0.1);  
+h4 = plotFrame(TW3, 0.1, 0, h4);  
 
 set(h8,'XData',x(1,:),'YData',x(2,:),'ZData',x(3,:),...
     'LineWidth', 5, 'Color', 'y');

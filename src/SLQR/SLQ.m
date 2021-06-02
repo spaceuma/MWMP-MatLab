@@ -1,12 +1,18 @@
-function [x, u, converged] = SLQ(x, x0, u, u0, dt,...
-                                 stateSpaceModel, costFunction, config)
+function [x, u, converged] = SLQ(varargin)
 %SLQ Solves the SLQR problem of the given system
 %   Given the system modelled by "stateSpaceModel", the quadratic cost
 %   function given in "costFunction" and the configurations given in
 %   "config", one iteration of the SLQR problem is solved,
 %   trying to reach the objective given by "x0" and "u0". 
 %   The results are returned in the given matrices "x" and "u".
+%   Info about the map can be provided through "map" parameter.
 %
+%   USAGE: 
+%   [x, u, converged] = SLQ(x, x0, u, u0, dt,...
+%                           stateSpaceModel, costFunction, config)
+%   [x, u, converged] = SLQ(x, x0, u, u0, dt,...
+%                           stateSpaceModel, costFunction, config, map)
+% 
 %   "x", "x0" are the states and goal states respectively. Size
 %   numberStates x numberTimeSteps.
 %
@@ -16,11 +22,13 @@ function [x, u, converged] = SLQ(x, x0, u, u0, dt,...
 %   "dt" is the time step.
 %
 %   "stateSpaceModel" should contain:
-%       - Dynamic matrices A, B.
-%
+%       - Dynamic matrices "A", "B".
+%       - Indexes of the XY pose of the robot "XYIndexes" (only needed if
+%       checking safety w.r.t an obstacles map).
+% 
 %   "costFunction" should contain:
-%       - Pure state cost matrix Q.
-%       - Pure input cost matrix R.
+%       - Pure state cost matrix "Q".
+%       - Pure input cost matrix "R".
 % 
 %   "config" should contain:
 %       - Acceptable distance to goal to consider convergence is reached,
@@ -29,13 +37,52 @@ function [x, u, converged] = SLQ(x, x0, u, u0, dt,...
 %         convergence is reached, "controlThreshold". Default: 1e-3.
 %       - Step of the linear search procedure, "lineSearchStep". 
 %         Default: 0.30.
+%       - Yes/no about check distance to goal, "checkDistance".
+%       - If checking distance to goal, indexes of state vector where
+%         to check for the distance, "distIndexes".
+%       - Yes/no about check obstacles collisions, "checkSafety".
 %
+%   "map" only needed if checking safety, should contain:
+%       - Map resolution "mapResolution".
+%       - Obstacles map "obstMap".
+%       - X gradient of the obstacles map "gradientObstaclesMapX".
+%       - Y gradient of the obstacles map "gradientObstaclesMapY".
+%       - Repulsive cost from obstacles "obstaclesCost".
+% 
 %   If convergence is reached "converged" will return "1", if not:
 %       " 0" --> something unexpected happened.
 %       "-1" --> the goal is still far away.
 %       "-2" --> the algorithm is still hardly updating the control.
-%       "-3" --> something unexpected happened.
-    
+%       "-3" --> the generated state is not safe.
+%       "-4" --> something unexpected happened.
+
+    switch nargin
+        case 8
+            x = varargin{1};
+            x0 = varargin{2};
+            u = varargin{3};
+            u0 = varargin{4};
+            dt = varargin{5};
+            stateSpaceModel = varargin{6};
+            costFunction = varargin{7};
+            config = varargin{8};
+        case 9
+            x = varargin{1};
+            x0 = varargin{2};
+            u = varargin{3};
+            u0 = varargin{4};
+            dt = varargin{5};
+            stateSpaceModel = varargin{6};
+            costFunction = varargin{7};
+            config = varargin{8};
+            map = varargin{9};
+        otherwise
+            cprintf('err','Wrong number of inputs. Usage:\n')
+            cprintf('err','    SLQ(x, x0, u, u0, dt, stateSpaceModel, costFunction, config)\n')
+            cprintf('err','    SLQ(x, x0, u, u0, dt, stateSpaceModel, costFunction, config, map)\n')
+            error('Too many input arguments.');
+    end    
+
     % Extracting the state space model
     A = stateSpaceModel.A;
     B = stateSpaceModel.B;
@@ -48,6 +95,24 @@ function [x, u, converged] = SLQ(x, x0, u, u0, dt,...
     distThreshold = config.distThreshold;
     lineSearchStep = config.lineSearchStep;
     controlThreshold = config.controlThreshold;
+    checkingDistance = config.checkDistance;
+    if checkingDistance
+        distIndexes = config.distIndexes;
+    end
+    checkingSafety = config.checkSafety;
+    
+    % Extracting map info
+    mapResolution = [];
+    obstMap = [];
+    if checkingSafety
+        mapResolution = map.mapResolution;
+        obstMap = map.obstMap;
+        gradientOMX = map.gradientObstaclesMapX;
+        gradientOMY = map.gradientObstaclesMapY;
+        obstaclesCost = map.obstaclesCost;
+        robotXIndex = stateSpaceModel.XYIndexes(1);
+        robotYIndex = stateSpaceModel.XYIndexes(2);
+    end
 
     % Model characteristics
     numStates = size(x,1);
@@ -61,13 +126,27 @@ function [x, u, converged] = SLQ(x, x0, u, u0, dt,...
     xh0 = x0 - x;
     uh0 = u0 - u;    
     
+    % Obstacles limits cost
+    Ox = zeros(numStates,timeSteps);
+    if checkingSafety
+        for i = 1:timeSteps-1
+            [Ox(robotXIndex,i), Ox(robotYIndex,i)] = ...
+              getGradientTotalCost(x(robotXIndex,i),...
+                                   x(robotYIndex,i),...
+                                   mapResolution,...
+                                   gradientOMX, gradientOMY);
+            Ox(robotXIndex,i) = obstaclesCost*Ox(robotXIndex,i);
+            Ox(robotYIndex,i) = obstaclesCost*Ox(robotYIndex,i);
+        end
+    end
+    
     % LQ problem solution
     M = zeros(numStates,numStates,timeSteps);
     P = zeros(numStates,numStates,timeSteps);
     s = zeros(numStates,1,timeSteps);
     
     P(:,:,end) = Q(:,:,end);
-    s(:,:,end) = -Q(:,:,end)*xh0(:,end);
+    s(:,:,end) = -Q(:,:,end)*xh0(:,end) + Ox(:,end);
     
     xh = zeros(numStates,timeSteps);
     uh = zeros(numInputs,timeSteps);
@@ -81,7 +160,7 @@ function [x, u, converged] = SLQ(x, x0, u, u0, dt,...
         s(:,:,i) = A(:,:,i).'*(eye(size(Q,1)) - ...
                    P(:,:,i+1)*M(:,:,i)*B(:,:,i)/R(:,:,i)*B(:,:,i).')*s(:,:,i+1)+...
                    A(:,:,i).'*P(:,:,i+1)*M(:,:,i)*B(:,:,i)*uh0(:,i) -...
-                   Q(:,:,i)*xh0(:,i);
+                   Q(:,:,i)*xh0(:,i) + Ox(:,i);
     end
     
     % Solve forward
@@ -93,19 +172,33 @@ function [x, u, converged] = SLQ(x, x0, u, u0, dt,...
     end
         
     % Exit condition
-    endDist = norm(x(1:3,end)-x0(1:3,end));
+    convergenceCondition = norm(uh) <= controlThreshold*norm(u);
+    if checkingDistance
+        endDist = norm(x(distIndexes,end)-x0(distIndexes,end));
+        convergenceCondition = convergenceCondition | ...
+                            (norm(uh) <= controlThreshold*20*norm(u) & ...
+                            endDist < distThreshold);
+    end
+    if checkingSafety
+        convergenceCondition = convergenceCondition & ...
+               isSafePath(x(robotXIndex,:),x(robotYIndex,:), mapResolution,obstMap);
+    end
     
-    if norm(uh) <= controlThreshold*norm(u) ||...
-       norm(uh) <= controlThreshold*20*norm(u) &&...
-       endDist < distThreshold
+    if convergenceCondition
         converged = 1;
     else
-        if endDist > distThreshold
-            converged = -1;
+        if checkingDistance
+            if endDist > distThreshold
+                converged = -1;
+            end
         elseif norm(us) > controlThreshold*norm(u)
             converged = -2;
+        elseif checkingSafety
+            if ~isSafePath(x(robotXIndex,:),x(robotYIndex,:), mapResolution,obstMap)
+                converged = -3;
+            end
         else
-            converged = -3;
+            converged = -4;
         end
             
         % Line search to optimize alfa

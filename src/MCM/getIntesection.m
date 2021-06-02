@@ -1,4 +1,9 @@
-function [intersectionPose, intersectionIndex1, intersectionIndex2] = getIntesection(path1,path2, waypointSeparation)
+function [intersectionPose, intersectionIndex1, intersectionIndex2] = ...
+                            getIntesection(path1,path2, waypointSeparation)
+% GETINTERSECTION Get the crossing waypoint between two trajectories
+% Given two different paths "path1" and "path2", and the distance
+% separation between consecutive waypoints "waypointSeparation", the
+% waypoint where the two paths intersect is computed
     found = false;
     for i = 1:size(path1,2)
         for j = 1:size(path2,2)
@@ -25,6 +30,8 @@ function [intersectionPose, intersectionIndex1, intersectionIndex2] = getIntesec
             break;
         end
     end
-
+    if ~found
+        warning('No intesection found between the trajectories.');
+    end
 end
 
