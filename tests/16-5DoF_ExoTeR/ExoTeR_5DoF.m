@@ -22,47 +22,60 @@ clear
 tic
 
 % System properties
-global d0;
-d0 = 0.50;
-global a1;
-a1 = 0.225;
+global d1;
+d1 = 0.0895;
 global a2;
-a2 = 0.735;
-global d4;
-d4 = 0.695;
+a2 = 0.206;
+global a3;
+a3 = 0.176;
+global d5;
+d5 = 0.0555;
+global d6;
+d6 = 0.14;
+
+global width1;
+width1 = 0.055;
+global width2;
+width2 = 0.02;
+global width3;
+width3 = 0.02;
+global width4;
+width4 = 0.05;
+global width5;
+width5 = 0.02;
+
+
+global dfx;
+dfx = 0.3;
+global dfy;
+dfy = 0.27;
+global zBC;
+zBC = 0.202;
+
+global reachabilityDistance;
+reachabilityDistance = d1+a2+a3+d5-zBC;
 
 global armHeight;
 armHeight = 0.05;
 global armWidth;
 armWidth = 0.1;
 
-global dfx;
-dfx = 0.7;
-global dfy;
-dfy = 0.7;
-global zBC;
-zBC = 0.645;
-
-global reachabilityDistance;
-reachabilityDistance = (a1+a2+d4-zBC-d0);
-
-global rho;
-rho = 2700;
-
 global wheelRadius;
-wheelRadius = 0.2;
+wheelRadius = 0.07;
 global wheelWidth;
-wheelWidth = 0.2;
+wheelWidth = 0.09;
 global wheelMass;
-wheelMass = 5;
+wheelMass = 1;
 
 global vehicleMass;
-vehicleMass = 100;
+vehicleMass = 30;
 
-global m1 m2 m3;
-m1 = 3;
-m2 = 9;
-m3 = 9;
+global m1 m2 m3 m4 m5;
+m1 = 0.5;
+m2 = 0.8;
+m3 = 0.8;
+m4 = 0.3;
+m5 = 0.2;
 
 global rollingResistance;
 rollingResistance = 0.0036;
@@ -78,20 +91,20 @@ zB0 = zBC;
 yawB0 = 0;
 
 % Initial configuration
-qi = [0, -pi/2, pi/2];
+qi = [0, 0, 0, 0, 0];
 rollei = 0;
-pitchei = pi/2;
+pitchei = 0;
 yawei = 0;
 
 % Initial ee pose
 TWB = getTraslation([xB0,yB0,zB0])*getZRot(yawB0);
-[~, ~, ~, TB3] = direct3(qi);
+[~, ~, ~, ~, ~,TB5] = direct5(qi);
 
-TW3 = TWB*TB3;
+TW5 = TWB*TB5;
 
-xei = TW3(1,4);
-yei = TW3(2,4);
-zei = TW3(3,4);
+xei = TW5(1,4);
+yei = TW5(2,4);
+zei = TW5(3,4);
 
 % Goal end effector pose
 xef = 8.5;
@@ -204,6 +217,8 @@ oci = 50.0; % Obstacles repulsive cost, 50.0
 tau1ci = 2.0; % Joint 1 inverse torque constant, 2
 tau2ci = 2.0; % Joint 2 inverse torque constant, 2
 tau3ci = 2.0; % Joint 3 inverse torque constant, 2
+tau4ci = 2.0; % Joint 4 inverse torque constant, 2
+tau5ci = 2.0; % Joint 5 inverse torque constant, 2
 
 tauWheeli = 6400; % Wheels joint inverse torque constant, 6400
 
@@ -213,6 +228,8 @@ sci = 0.1; % Steering cost, 0.1
 ac1i = 10000000; % Arm actuation cost, 10000000
 ac2i = 10000000; % Arm actuation cost, 10000000
 ac3i = 10000000; % Arm actuation cost, 10000000
+ac4i = 10000000; % Arm actuation cost, 10000000
+ac5i = 10000000; % Arm actuation cost, 10000000
 
 % Extra costs
 kappa1 = 0.02; % Influence of yaw into rover pose, tune till convergence
@@ -322,6 +339,8 @@ oc = oci*time_ratio; % Obstacles repulsive cost
 tau1c = tau1ci/time_ratio; % Joint 1 inverse torque constant
 tau2c = tau2ci/time_ratio; % Joint 2 inverse torque constant
 tau3c = tau3ci/time_ratio; % Joint 3 inverse torque constant
+tau4c = tau4ci/time_ratio; % Joint 3 inverse torque constant
+tau5c = tau5ci/time_ratio; % Joint 3 inverse torque constant
 
 tauWheel = tauWheeli/time_ratio; % Wheels joint inverse torque constant
 
@@ -331,6 +350,8 @@ sc = sci/time_ratio; % Steering cost
 ac1 = ac1i*time_ratio; % Arm actuation cost
 ac2 = ac2i*time_ratio; % Arm actuation cost
 ac3 = ac3i*time_ratio; % Arm actuation cost
+ac4 = ac4i*time_ratio; % Arm actuation cost
+ac5 = ac5i*time_ratio; % Arm actuation cost
 
 %% Generate map info
 map.mapResolution = mapResolution;
@@ -353,16 +374,16 @@ trajectoryInfo.waypointSeparation = waypSeparation;
 
 %% State space model
 % State vectors
-numStates = 33;
+numStates = 41;
 x = zeros(numStates,timeSteps);
 % WTEE
 x(1,1) = xei;
 x(2,1) = yei;
 x(3,1) = zei;
 % BTEE
-x(4,1) = TB3(1,4);
-x(5,1) = TB3(2,4);
-x(6,1) = TB3(3,4);
+x(4,1) = TB5(1,4);
+x(5,1) = TB5(2,4);
+x(6,1) = TB5(3,4);
 x(7,1) = rollei;
 x(8,1) = pitchei;
 x(9,1) = yawei;
@@ -378,30 +399,38 @@ x(15,1) = 0;
 x(16,1) = qi(1);
 x(17,1) = qi(2);
 x(18,1) = qi(3);
+x(19,1) = qi(4);
+x(20,1) = qi(5);
 % Arm joints speeds
-x(19,1) = 0;
-x(20,1) = 0;
 x(21,1) = 0;
-% Arm joints accelerations
 x(22,1) = 0;
 x(23,1) = 0;
 x(24,1) = 0;
-% Arm joints torques
 x(25,1) = 0;
+% Arm joints accelerations
 x(26,1) = 0;
 x(27,1) = 0;
-% Wheels speed
 x(28,1) = 0;
 x(29,1) = 0;
-% Wheels acceleration
 x(30,1) = 0;
+% Arm joints torques
 x(31,1) = 0;
-% Wheels torque
 x(32,1) = 0;
 x(33,1) = 0;
+x(34,1) = 0;
+x(35,1) = 0;
+% Wheels speed
+x(36,1) = 0;
+x(37,1) = 0;
+% Wheels acceleration
+x(38,1) = 0;
+x(39,1) = 0;
+% Wheels torque
+x(40,1) = 0;
+x(41,1) = 0;
 
 % Initial control law
-numInputs = 5;
+numInputs = 7;
 u = zeros(numInputs,timeSteps);
 
 % Target state and control trajectories
@@ -432,27 +461,35 @@ x0(15,end) = 0;
 x0(16,end) = 0;
 x0(17,end) = 0;
 x0(18,end) = 0;
-% Arm joints speeds
 x0(19,end) = 0;
 x0(20,end) = 0;
+% Arm joints speeds
 x0(21,end) = 0;
-% Arm joints accelerations
 x0(22,end) = 0;
 x0(23,end) = 0;
 x0(24,end) = 0;
-% Arm joints torques
 x0(25,end) = 0;
+% Arm joints accelerations
 x0(26,end) = 0;
 x0(27,end) = 0;
-% Wheels speed
 x0(28,end) = 0;
 x0(29,end) = 0;
-% Wheels acceleration
 x0(30,end) = 0;
+% Arm joints torques
 x0(31,end) = 0;
-% Wheels torque
 x0(32,end) = 0;
 x0(33,end) = 0;
+x0(34,end) = 0;
+x0(35,end) = 0;
+% Wheels speed
+x0(36,end) = 0;
+x0(37,end) = 0;
+% Wheels acceleration
+x0(38,end) = 0;
+x0(39,end) = 0;
+% Wheels torque
+x0(40,end) = 0;
+x0(41,end) = 0;
 
 u0 = zeros(numInputs,timeSteps);
 
@@ -537,19 +574,19 @@ definedConstraints = definedConstraints+1;
 % Wheel torque constraints
 wheelTorqueLimit = 2.85;
 
-G(definedConstraints+1,32,:) = 1;
+G(definedConstraints+1,40,:) = 1;
 h(definedConstraints+1,:) = -wheelTorqueLimit;
 definedConstraints = definedConstraints+1;
 
-G(definedConstraints+1,33,:) = 1;
+G(definedConstraints+1,41,:) = 1;
 h(definedConstraints+1,:) = -wheelTorqueLimit;
 definedConstraints = definedConstraints+1;
 
-G(definedConstraints+1,32,:) = -1;
+G(definedConstraints+1,40,:) = -1;
 h(definedConstraints+1,:) = -wheelTorqueLimit;
 definedConstraints = definedConstraints+1;
 
-G(definedConstraints+1,33,:) = -1;
+G(definedConstraints+1,41,:) = -1;
 h(definedConstraints+1,:) = -wheelTorqueLimit;
 definedConstraints = definedConstraints+1;
 
@@ -579,18 +616,22 @@ xVect = linspace(0,9.95,200);
 figure(1)
 clf(1)
 % Plotting first arm config
-[TB0, TB1, TB2, TB3] = direct3(x(16:18,1));
+[TB0, TB1, TB2, TB3, TB4, TB5] = direct5(x(16:20,1));
 TWB = getTraslation([x(10,1),x(11,1),zBC])*getZRot(x(12,1));
 TW0 = TWB*TB0;
 TW1 = TWB*TB1;
 TW2 = TWB*TB2;
 TW3 = TWB*TB3;
-h1 = plot3([TW0(1,4) TW1(1,4) TW2(1,4) TW3(1,4)],...
-      [TW0(2,4) TW1(2,4) TW2(2,4) TW3(2,4)],...
-      [TW0(3,4) TW1(3,4) TW2(3,4) TW3(3,4)], 'Color', [0.8 0.8 0.8], 'LineWidth', 2.5);
+TW4 = TWB*TB4;
+TW5 = TWB*TB5;
+h1 = plot3([TW0(1,4) TW1(1,4) TW2(1,4) TW3(1,4) TW4(1,4) TW5(1,4)],...
+           [TW0(2,4) TW1(2,4) TW2(2,4) TW3(2,4) TW4(2,4) TW5(2,4)],...
+           [TW0(3,4) TW1(3,4) TW2(3,4) TW3(3,4) TW4(3,4) TW5(3,4)],...
+                         'Color', [0.8 0.8 0.8], 'LineWidth', 2.5);
 hold on;
     
-% Plotting first rover position
+% Plotting first rover position [TODO] Update the representation to look
+% like exoter
 TWB = getTraslation([x(10,1),x(11,1),zBC])*getZRot(x(12,1));
 TB1 = getTraslation([dfy,dfx,-zBC]);
 TB2 = getTraslation([-dfy,dfx,-zBC]);
@@ -608,16 +649,19 @@ h2 = plot3([TWB(1,4) TW1(1,4) TWB(1,4) TW2(1,4) TWB(1,4) TW3(1,4) TWB(1,4) TW4(1
 h3 = plotFrame(TWB, 0.3);
 
 % Plotting last arm config
-[TB0, TB1, TB2, TB3] = direct3(x(16:18,end-1));
+[TB0, TB1, TB2, TB3, TB4, TB5] = direct5(x(16:20,end-1));
 TWB = getTraslation([x(10,end-1),x(11,end-1),zBC])*getZRot(x(12,end-1));
 TW0 = TWB*TB0;
 TW1 = TWB*TB1;
 TW2 = TWB*TB2;
 TW3 = TWB*TB3;
-h4 = plot3([TW0(1,4) TW1(1,4) TW2(1,4) TW3(1,4)],...
-      [TW0(2,4) TW1(2,4) TW2(2,4) TW3(2,4)],...
-      [TW0(3,4) TW1(3,4) TW2(3,4) TW3(3,4)], 'Color', [0.8 0.8 0.8], 'LineWidth', 2.5);        
-       
+TW4 = TWB*TB4;
+TW5 = TWB*TB5;
+h4 = plot3([TW0(1,4) TW1(1,4) TW2(1,4) TW3(1,4) TW4(1,4) TW5(1,4)],...
+           [TW0(2,4) TW1(2,4) TW2(2,4) TW3(2,4) TW4(2,4) TW5(2,4)],...
+           [TW0(3,4) TW1(3,4) TW2(3,4) TW3(3,4) TW4(3,4) TW5(3,4)],...
+                         'Color', [0.8 0.8 0.8], 'LineWidth', 2.5);
+                     
 % Plotting last rover position
 TWB = getTraslation([x(10,end-1),x(11,end-1),zBC])*getZRot(x(12,end-1));
 TB1 = getTraslation([dfy,dfx,-zBC]);
@@ -684,15 +728,17 @@ while 1
         figure(1);
         
         % Plotting last arm config
-        [TB0, TB1, TB2, TB3] = direct3(x(16:18,end-1));
+        [TB0, TB1, TB2, TB3, TB4, TB5] = direct5(x(16:20,end-1));
         TWB = getTraslation([x(10,end-1),x(11,end-1),zBC])*getZRot(x(12,end-1));
         TW0 = TWB*TB0;
         TW1 = TWB*TB1;
         TW2 = TWB*TB2;
         TW3 = TWB*TB3;
-        set(h4,'XData',[TW0(1,4) TW1(1,4) TW2(1,4) TW3(1,4)],...
-               'YData',[TW0(2,4) TW1(2,4) TW2(2,4) TW3(2,4)],...
-               'ZData',[TW0(3,4) TW1(3,4) TW2(3,4) TW3(3,4)],...
+        TW4 = TWB*TB4;
+        TW5 = TWB*TB5;
+        set(h4,'XData',[TW0(1,4) TW1(1,4) TW2(1,4) TW3(1,4) TW4(1,4) TW5(1,4)],...
+               'YData',[TW0(2,4) TW1(2,4) TW2(2,4) TW3(2,4) TW4(2,4) TW5(2,4)],...
+               'ZData',[TW0(3,4) TW1(3,4) TW2(3,4) TW3(3,4) TW4(3,4) TW5(3,4)],...
                'Color', [0.8 0.8 0.8], 'LineWidth', 2.5);
 
         % Plotting last rover position
@@ -751,12 +797,14 @@ while 1
         end
     end  
     
-    Q(25,25,:) = tau1c;
-    Q(26,26,:) = tau2c;
-    Q(27,27,:) = tau3c;
+    Q(31,31,:) = tau1c;
+    Q(32,32,:) = tau2c;
+    Q(33,33,:) = tau3c;
+    Q(34,34,:) = tau4c;
+    Q(35,35,:) = tau5c;
     
-    Q(32,32,:) = tauWheel;
-    Q(33,33,:) = tauWheel;
+    Q(40,40,:) = tauWheel;
+    Q(41,41,:) = tauWheel;
        
     Q(1,1,end) = fc;
     Q(2,2,end) = fc;
@@ -769,8 +817,10 @@ while 1
     R(1,1,:) = ac1;
     R(2,2,:) = ac2;
     R(3,3,:) = ac3;
-    R(4,4,:) = bc;
-    R(5,5,:) = bc;  
+    R(4,4,:) = ac4;
+    R(5,5,:) = ac5;
+    R(6,6,:) = bc;
+    R(7,7,:) = bc;  
     
     K = zeros(numStates,numInputs,timeSteps);
     
@@ -779,9 +829,9 @@ while 1
     quadratizedCost.K = K;
 
     % Linearize the system dynamics and constraints along the trajectory  
-    Jac = zeros(6,3,timeSteps);
+    Jac = zeros(6,5,timeSteps);
     for i = 2:timeSteps
-        Jac(:,:,i-1) = jacobian3(x(16:18,i-1));
+        Jac(:,:,i-1) = jacobian5(x(16:20,i-1));
     end
     
      % State (x) matrix
@@ -820,22 +870,22 @@ while 1
     A(12,15,1) = dt;
             
     % Arm joints Position
-    A(16:18,16:18,1) = eye(3,3);
+    A(16:20,16:20,1) = eye(5,5);
         
     % Arm joints acceleration
-    A(22:24,19:21,1) = -1/dt*eye(3,3);
+    A(26:30,21:25,1) = -1/dt*eye(5,5);
     
     % Arm joints torques
-    A(25:27,22:24,1) = getB3(x(16,1), x(17,1), x(18,1));
+    A(31:35,26:30,1) = getB5(x(16:20,1));
     
-%     [~,dG] = getG3(x(16,1), x(17,1), x(18,1));
-%     A(25:27,16:18,1) = dG;
+%     [~,dG] = getG5(x(16:20,1));
+%     A(31:35,16:20,1) = dG;
     
     % Wheels accelerations
-    A(30:31,28:29,1) = -eye(2,2)/dt;
+    A(38:39,36:37,1) = -eye(2,2)/dt;
     
     % Wheels torques
-    A(32:33,30:31,1) = eye(2,2)*(getWheelInertia(wheelMass,wheelRadius)+...
+    A(40:41,38:39,1) = eye(2,2)*(getWheelInertia(wheelMass,wheelRadius)+...
                                  vehicleMass/4*wheelRadius*wheelRadius);
                              
     for i = 2:timeSteps
@@ -872,22 +922,22 @@ while 1
         A(12,15,i) = dt;
                   
         % Arm Joints Position
-        A(16:18,16:18,i) = eye(3,3);
+        A(16:20,16:20,i) = eye(5,5);
         
         % Arm joints acceleration
-        A(22:24,19:21,i) = -1/dt*eye(3,3);
+        A(26:30,21:25,i) = -1/dt*eye(5,5);
         
         % Arm joints torques
-        A(25:27,22:24,i) = getB3(x(16,i-1), x(17,i-1), x(18,i-1));
+        A(31:35,26:30,i) = getB5(x(16:20,i-1));
         
-%         [~,dG] = getG3(x(16,i-1), x(17,i-1), x(18,i-1));
-%         A(25:27,16:18,i) = dG;
+%         [~,dG] = getG5(x(16:20,i-1));
+%         A(31:35,16:20,i) = dG;
         
         % Wheels accelerations
-        A(30:31,28:29,i) = -eye(2,2)/dt;
+        A(38:39,36:37,i) = -eye(2,2)/dt;
 
         % Wheels torques
-        A(32:33,30:31,i) = eye(2,2)*(getWheelInertia(wheelMass,wheelRadius)+...
+        A(40:41,38:39,i) = eye(2,2)*(getWheelInertia(wheelMass,wheelRadius)+...
                                      vehicleMass/4*wheelRadius*wheelRadius);
 
     end
@@ -896,10 +946,10 @@ while 1
     B = zeros(numStates,numInputs,timeSteps);
     
     % WTEEz
-    B(3,1:3,1) = dt*Jac(3,:,1);
+    B(3,1:5,1) = dt*Jac(3,:,1);
     
     % BTEE
-    B(4:9,1:3,1) = dt*Jac(:,:,1);
+    B(4:9,1:5,1) = dt*Jac(:,:,1);
 
     % W2B Speed x
     B(13,4,1) = wheelRadius/2;
@@ -910,31 +960,31 @@ while 1
     B(15,5,1) = -wheelRadius/(2*dfx);
     
     % Arm joints Position
-    B(16:18,1:3,1) = dt*eye(3,3);
+    B(16:20,1:5,1) = dt*eye(5,5);
     
     % Arm joints speed
-    B(19:21,1:3,1) = eye(3,3);
+    B(21:25,1:5,1) = eye(5,5);
     
     % Arm joints acceleration
-    B(22:24,1:3,1) = 1/dt*eye(3,3);
+    B(26:30,1:5,1) = 1/dt*eye(5,5);
 
     % Arm joints torques
-    B(25:27,1:3,1) = getC3(x(16,1), x(17,1), x(18,1), u(1,1), u(2,1), u(3,1));
+    B(31:35,1:5,1) = getC5(x(16:20,1), u(1:5,1));
     
     % Wheels speeds
-    B(28,4,1) = 1;
-    B(29,5,1) = 1;
+    B(36,6,1) = 1;
+    B(37,7,1) = 1;
     
     % Wheels acceleration
-    B(30,4,1) = 1/dt;
-    B(31,5,1) = 1/dt;
+    B(38,6,1) = 1/dt;
+    B(39,7,1) = 1/dt;
     
     for i = 2:timeSteps
         % WTEEz
-        B(3,1:3,i) = dt*Jac(3,:,i-1);
+        B(3,1:5,i) = dt*Jac(3,:,i-1);
         
         % BTEE
-        B(4:9,1:3,i) = dt*Jac(:,:,i-1);
+        B(4:9,1:5,i) = dt*Jac(:,:,i-1);
 
         % W2B Speed x
         B(13,4,i) = wheelRadius/2;
@@ -945,25 +995,25 @@ while 1
         B(15,5,i) = -wheelRadius/(2*dfx);
 
         % Arm joints Position
-        B(16:18,1:3,i) = dt*eye(3,3);
+        B(16:20,1:5,i) = dt*eye(5,5);
 
         % Arm joints speed
-        B(19:21,1:3,i) = eye(3,3);
+        B(21:25,1:5,i) = eye(5,5);
 
         % Arm joints acceleration
-        B(22:24,1:3,i) = 1/dt*eye(3,3);
+        B(26:30,1:5,i) = 1/dt*eye(5,5);
 
         % Arm joints torques
-        B(25:27,1:3,i) = getC3(x(16,i-1), x(17,i-1), x(18,i-1),...
-                               u(1,i-1), u(2,i-1), u(3,i-1));
+        B(31:35,1:5,i) = getC5(x(16:20,i-1),...
+                               u(1:5,i-1));
 
         % Wheels speeds
-        B(28,4,i) = 1;
-        B(29,5,i) = 1;
+        B(36,6,i) = 1;
+        B(37,7,i) = 1;
 
         % Wheels acceleration
-        B(30,4,i) = 1/dt;
-        B(31,5,i) = 1/dt;
+        B(38,6,i) = 1/dt;
+        B(39,7,i) = 1/dt;
 
     end
     
@@ -1055,28 +1105,30 @@ for i = 2:timeSteps
     end        
 end
 
-iu = cumsum(abs(x(25,:))*dt);
+iu = cumsum(abs(x(31,:))*dt);
 disp(['Total torque applied arm joint 1: ',num2str(iu(end)),' Nm'])
-iu = cumsum(abs(x(26,:))*dt);
-disp(['Total torque applied arm joint 2: ',num2str(iu(end)),' Nm'])
-iu = cumsum(abs(x(27,:))*dt);
-disp(['Total torque applied arm joint 3: ',num2str(iu(end)),' Nm'])    
 iu = cumsum(abs(x(32,:))*dt);
-disp(['Total torque applied left wheels: ',num2str(iu(end)),' Nm'])
+disp(['Total torque applied arm joint 2: ',num2str(iu(end)),' Nm'])
 iu = cumsum(abs(x(33,:))*dt);
+disp(['Total torque applied arm joint 3: ',num2str(iu(end)),' Nm'])    
+iu = cumsum(abs(x(40,:))*dt);
+disp(['Total torque applied left wheels: ',num2str(iu(end)),' Nm'])
+iu = cumsum(abs(x(41,:))*dt);
 disp(['Total torque applied right wheels: ',num2str(iu(end)),' Nm'])
 
 figure(1);        
 % Plotting last arm config
-[TB0, TB1, TB2, TB3] = direct3(x(16:18,end-1));
+[TB0, TB1, TB2, TB3, TB4, TB5] = direct5(x(16:20,end-1));
 TWB = getTraslation([x(10,end-1),x(11,end-1),zBC])*getZRot(x(12,end-1));
 TW0 = TWB*TB0;
 TW1 = TWB*TB1;
 TW2 = TWB*TB2;
 TW3 = TWB*TB3;
-set(h4,'XData',[TW0(1,4) TW1(1,4) TW2(1,4) TW3(1,4)],...
-       'YData',[TW0(2,4) TW1(2,4) TW2(2,4) TW3(2,4)],...
-       'ZData',[TW0(3,4) TW1(3,4) TW2(3,4) TW3(3,4)],...
+TW4 = TWB*TB4;
+TW5 = TWB*TB5;
+set(h4,'XData',[TW0(1,4) TW1(1,4) TW2(1,4) TW3(1,4) TW4(1,4) TW5(1,4)],...
+       'YData',[TW0(2,4) TW1(2,4) TW2(2,4) TW3(2,4) TW4(2,4) TW5(2,4)],...
+       'ZData',[TW0(3,4) TW1(3,4) TW2(3,4) TW3(3,4) TW4(3,4) TW5(3,4)],...
        'Color', [0.8 0.8 0.8], 'LineWidth', 2.5);
 
 % Plotting last rover position
@@ -1110,10 +1162,10 @@ set(h12,'XData',x(10,1:end-1),'YData',x(11,1:end-1),'ZData',zBC*ones(size(x,2)-1
 set(h13,'XData',x0(10,:),'YData',x0(11,:),'ZData',zBC*ones(timeSteps,1),...
     'LineWidth', 5, 'Color', [0,0,0.6]);
 
-hold off;  
+hold off; 
         
 % figure(2)
-% plot(t,x(16:18,:))
+% plot(t,x(16:20,:))
 % title('Evolution of the arm joints', 'interpreter', ...
 % 'latex','fontsize',18)
 % legend('$\theta_1$','$\theta_2$','$\theta_3$', 'interpreter', ...
@@ -1123,7 +1175,7 @@ hold off;
 % grid 
 % 
 % figure(3)
-% plot(t,u(1:3,:))
+% plot(t,u(1:5,:))
 % title('Actuating joints speed','interpreter','latex')
 % xlabel('t(s)','interpreter','latex','fontsize',18)
 % ylabel('$\dot\theta(rad/s$)','interpreter','latex','fontsize',18)
@@ -1132,7 +1184,7 @@ hold off;
 % 'latex','fontsize',18)
 % 
 % figure(4)
-% plot(t,x(22:24,:))
+% plot(t,x(26:30,:))
 % title('Evolution of the arm joints accelerations', 'interpreter', ...
 % 'latex','fontsize',18)
 % legend('$\ddot\theta_1$','$\ddot\theta_2$','$\ddot\theta_3$', 'interpreter', ...
@@ -1142,7 +1194,7 @@ hold off;
 % grid
 % 
 % figure(5)
-% plot(t,x(25:27,:))
+% plot(t,x(31:35,:))
 % title('Evolution of the applied arm torques', 'interpreter', ...
 % 'latex','fontsize',18)
 % legend('$\tau_1$','$\tau_2$','$\tau_3$', 'interpreter', ...
@@ -1152,7 +1204,7 @@ hold off;
 % grid
 % 
 % figure(6)
-% plot(t,x(28:31,:))
+% plot(t,x(36:37,:))
 % title('Evolution of the applied wheel speeds', 'interpreter', ...
 % 'latex','fontsize',18)
 % legend('$\omega 1$','$\omega 2$','$\omega 3$',...
@@ -1162,7 +1214,7 @@ hold off;
 % grid
 % 
 % figure(7)
-% plot(t,x(32:35,:))
+% plot(t,x(38:39,:))
 % title('Evolution of the applied wheel accelerations', 'interpreter', ...
 % 'latex','fontsize',18)
 % legend('$\dot\omega 1$','$\dot\omega 2$','$\dot\omega 3$',...
@@ -1172,7 +1224,7 @@ hold off;
 % grid
 % 
 % figure(8)
-% plot(t,x(32:33,:))
+% plot(t,x(40:41,:))
 % hold on
 % yline(wheelTorqueLimit,'--');
 % yline(-wheelTorqueLimit,'--');
