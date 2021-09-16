@@ -54,7 +54,6 @@ rollef = 0;
 pitchef = pi;
 yawef = 0;
 
-
 %% Configuration variables
 % Number of timesteps
 timeSteps = 200;
@@ -277,7 +276,6 @@ title('Manipulator trajectories', 'interpreter', ...
 daspect([1 1 1]);
 grid
 hold off;
-
 
 %% Stepped SLQR algorithm
 state = 0;
@@ -538,7 +536,6 @@ legend('$\dot\theta_1$','$\dot\theta_2$',...
 % xlabel('$t (s)$', 'interpreter', 'latex','fontsize',18)
 % ylabel('$\tau (Nm)$', 'interpreter', 'latex','fontsize',18)
 % grid
-
 
 %% Simulation
 % sim('manipulator3DoF',t(end));
