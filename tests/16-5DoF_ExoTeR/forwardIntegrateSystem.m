@@ -11,7 +11,7 @@ function x = forwardIntegrateSystem(x, u, dt)
         x(3,i) = x(3,i-1) + Jac(3,:,i-1)*u(1:5,i-1)*dt;
         % B2EE
         x(4:9,i) = x(4:9,i-1) + Jac(:,:,i-1)*u(1:5,i-1)*dt; 
-        % W2B
+        % W2C
         x(10,i) = x(10,i-1) + cos(x(12,i-1))*x(13,i-1)*dt - sin(x(12,i-1))*x(14,i-1)*dt;
         x(11,i) = x(11,i-1) + sin(x(12,i-1))*x(13,i-1)*dt + cos(x(12,i-1))*x(14,i-1)*dt;
         x(12,i) = x(12,i-1) + x(15,i-1)*dt;
