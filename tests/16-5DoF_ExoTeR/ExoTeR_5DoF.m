@@ -121,7 +121,7 @@ yawef = 0;
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 % Name of the obst map to be used
-obstMapFile = 'obstMap3';
+obstMapFile = 'obstMap4';
 
 % Number of timesteps
 timeSteps = 300;
