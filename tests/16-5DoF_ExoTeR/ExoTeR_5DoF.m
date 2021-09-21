@@ -88,7 +88,7 @@ g = 9.81;
 xB0 = 2.00;
 yB0 = 2.80;
 zB0 = zBC;
-yawB0 = 0;
+yawB0 = -pi/6;
 
 % Initial configuration
 qi = [0, 0, 0, 0, 0];
@@ -151,7 +151,7 @@ riskDistance = 0.70;
 
 % Distance to obstacles considered enough for safety (should have bigger
 % cost to traverse areas with less than this distance to obstacles)
-safetyDistance = 1.40;
+safetyDistance = 0.70;
 
 % Gradient Descent Method step size, as a percentage of the map resolution
 tau = 0.5;
@@ -211,8 +211,8 @@ config.costThreshold = 5;
 fci = 1000000000; % Final state cost, 1000000000
 foci = 1000000000; % Final orientation cost, 0
 fsci = 0; % Final zero speed cost, 400000
-rtci = 20; % Reference path max cost, 20
-oci = 50.0; % Obstacles repulsive cost, 50.0
+rtci = 0; % Reference path max cost, 20
+oci = 0.0; % Obstacles repulsive cost, 50.0
 
 tau1ci = 2.0; % Joint 1 inverse torque constant, 2
 tau2ci = 2.0; % Joint 2 inverse torque constant, 2
@@ -220,7 +220,7 @@ tau3ci = 2.0; % Joint 3 inverse torque constant, 2
 tau4ci = 2.0; % Joint 4 inverse torque constant, 2
 tau5ci = 2.0; % Joint 5 inverse torque constant, 2
 
-tauWheeli = 6400.0; % Wheels joint inverse torque constant, 6400
+tauWheeli = 640.0; % Wheels joint inverse torque constant, 6400
 
 % Input costs
 ac1i = 10000000; % Arm actuation cost, 10000000
@@ -228,7 +228,7 @@ ac2i = 10000000; % Arm actuation cost, 10000000
 ac3i = 10000000; % Arm actuation cost, 10000000
 ac4i = 10000000; % Arm actuation cost, 10000000
 ac5i = 10000000; % Arm actuation cost, 10000000
-bci = 90; % Base actuation cost, 90
+bci = 9; % Base actuation cost, 90
 
 % Extra costs
 kappa1 = 0.02; % Influence of yaw into rover pose, tune till convergence
@@ -527,7 +527,7 @@ if definedConstraints ~= numStateInputConstraints
 end
 
 % Pure state constraints
-numPureStateConstraints = 10;
+numPureStateConstraints = 14;
 definedConstraints = 0;
 J0 = zeros(numPureStateConstraints,timeSteps);
 J = J0;
@@ -540,9 +540,11 @@ h = zeros(numPureStateConstraints,timeSteps);
 %%%%%%%%%%%%%%%%%%%%%%%%%
 
 % Arm position constraints
-armJointsLimits = [-35 +35;
-                   -120  80;
-                   -140 +140]*pi/180;               
+armJointsLimits = [-90 +30;
+                   -160 +160;
+                   -160 +160;
+                   -160 +160;
+                   -160 +160]*pi/180;               
 
 G(definedConstraints+1,16,:) = -1;
 h(definedConstraints+1,:) = armJointsLimits(1,1);
@@ -566,6 +568,22 @@ definedConstraints = definedConstraints+1;
 
 G(definedConstraints+1,18,:) = 1;
 h(definedConstraints+1,:) = -armJointsLimits(3,2);
+definedConstraints = definedConstraints+1;
+
+G(definedConstraints+1,19,:) = -1;
+h(definedConstraints+1,:) = armJointsLimits(4,1);
+definedConstraints = definedConstraints+1;
+
+G(definedConstraints+1,19,:) = 1;
+h(definedConstraints+1,:) = -armJointsLimits(4,2);
+definedConstraints = definedConstraints+1;
+
+G(definedConstraints+1,20,:) = -1;
+h(definedConstraints+1,:) = armJointsLimits(5,1);
+definedConstraints = definedConstraints+1;
+
+G(definedConstraints+1,20,:) = 1;
+h(definedConstraints+1,:) = -armJointsLimits(5,2);
 definedConstraints = definedConstraints+1;
 
 % Wheel torque constraints
@@ -1099,7 +1117,13 @@ for i = 2:timeSteps
     end
     if(x(18,i) < armJointsLimits(3,1) || x(18,i) > armJointsLimits(3,2))
         warning(['Arm joint 3 is violating its position limits at waypoint ',num2str(i)]);
-    end        
+    end
+    if(x(19,i) < armJointsLimits(3,1) || x(18,i) > armJointsLimits(3,2))
+        warning(['Arm joint 3 is violating its position limits at waypoint ',num2str(i)]);
+    end      
+    if(x(20,i) < armJointsLimits(3,1) || x(18,i) > armJointsLimits(3,2))
+        warning(['Arm joint 3 is violating its position limits at waypoint ',num2str(i)]);
+    end      
 end
 
 iu = cumsum(abs(x(31,:))*dt);
@@ -1107,7 +1131,11 @@ disp(['Total torque applied arm joint 1: ',num2str(iu(end)),' Nm'])
 iu = cumsum(abs(x(32,:))*dt);
 disp(['Total torque applied arm joint 2: ',num2str(iu(end)),' Nm'])
 iu = cumsum(abs(x(33,:))*dt);
-disp(['Total torque applied arm joint 3: ',num2str(iu(end)),' Nm'])    
+disp(['Total torque applied arm joint 3: ',num2str(iu(end)),' Nm'])
+iu = cumsum(abs(x(34,:))*dt);
+disp(['Total torque applied arm joint 4: ',num2str(iu(end)),' Nm'])
+iu = cumsum(abs(x(35,:))*dt);
+disp(['Total torque applied arm joint 5: ',num2str(iu(end)),' Nm'])
 iu = cumsum(abs(x(40,:))*dt);
 disp(['Total torque applied left wheels: ',num2str(iu(end)),' Nm'])
 iu = cumsum(abs(x(41,:))*dt);
@@ -1165,7 +1193,7 @@ hold off;
 % plot(t,x(16:20,:))
 % title('Evolution of the arm joints', 'interpreter', ...
 % 'latex','fontsize',18)
-% legend('$\theta_1$','$\theta_2$','$\theta_3$', 'interpreter', ...
+% legend('$\theta_1$','$\theta_2$','$\theta_3$','$\theta_4$','$\theta_5$', 'interpreter', ...
 % 'latex','fontsize',18)
 % xlabel('$t (s)$', 'interpreter', 'latex','fontsize',18)
 % ylabel('$\theta (rad)$', 'interpreter', 'latex','fontsize',18)
