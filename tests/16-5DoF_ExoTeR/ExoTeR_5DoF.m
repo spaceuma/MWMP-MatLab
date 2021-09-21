@@ -74,21 +74,22 @@ rollingResistance = 0.0036;
 global g;
 g = 9.81;
                
-%% Constraints
+%% Initial state and goal
 % Initial base pose
 xC0 = 2.00;
 yC0 = 2.80;
 zC0 = zGC;
-yawC0 = pi/6;
+yawC0 = -pi/6;
 
 % Initial configuration
-qi = [0, 0, 0, 0, 0];
+qi = [0.5708, -pi, +2.21, pi/2, 0];
 
 % Initial ee pose
 TWC = getTraslation([xC0,yC0,zC0])*getZRot(yawC0);
 [~, ~, ~, ~, ~,TB5] = direct5(qi);
 
-TCB = getTraslation([xCB, yCB, zCB])*getYRot(pi/2);
+% TCB = getTraslation([xCB, yCB, zCB])*getYRot(pi/2);
+TCB = getTraslation([0 0 0])*getYRot(pi/2);
 
 TW5 = TWC*TCB*TB5;
 
@@ -96,13 +97,13 @@ xei = TW5(1,4);
 yei = TW5(2,4);
 zei = TW5(3,4);
 rollei = 0;
-pitchei = 0;
-yawei = 0;
+pitchei = 2.21;
+yawei = 0.5708;
 
 % Goal end effector pose
 xef = 2.6;
 yef = 2.80;
-zef = 0.2;
+zef = 0.10;
 rollef = 0;
 pitchef = pi;
 yawef = 0;
@@ -122,8 +123,11 @@ timeSteps = 300;
 % Maximum number of iterations
 maxIter = 100;
 
-% Activate/deactivate stepped procedure for checking constraints
-stepped = true;
+% Activate/deactivate stepped procedure for checking constraints:
+% - 0 to use a not stepped, not constrained procedure using simple SLQ only
+% - 1 to activate the stepped procedure
+% - 2 to use a not stepped procedure using constrained SLQ only
+stepped = 0;
 
 % Activate/deactivate dynamic plotting during the simulation
 dynamicPlotting = true;
@@ -160,7 +164,7 @@ config.lineSearchStep = 0.32;
 config.resamplingThreshold = 30;
 
 % Percentage of step actuation to consider convergence
-config.controlThreshold = 5e-3;
+config.controlThreshold = 5e-2;
 
 % Check distance to goal for convergence
 config.checkDistance = true;
@@ -180,7 +184,7 @@ end
 % Max acceptable final orientation euclidean distance
 config.orientationThreshold = 0.05;
 
-% Check constraints compliance for convergence
+% Check constraints compliance for convergence, only with constrained SLQ
 config.checkConstraints = true;
 
 % Check safety of the state for convergence
@@ -635,32 +639,32 @@ clf(1)
 % Plotting first arm config
 [TB0, TB1, TB2, TB3, TB4, TB5] = realDirect5(x(16:20,1));
 TWC = getTraslation([x(10,1),x(11,1),zGC])*getZRot(x(12,1));
-TW0 = TWC*TB0;
-TW1 = TWC*TB1;
-TW2 = TWC*TB2;
-TW3 = TWC*TB3;
-TW4 = TWC*TB4;
-TW5 = TWC*TB5;
-h1 = plot3([TW0(1,4) TW1(1,4) TW2(1,4) TW3(1,4) TW4(1,4) TW5(1,4)],...
-           [TW0(2,4) TW1(2,4) TW2(2,4) TW3(2,4) TW4(2,4) TW5(2,4)],...
-           [TW0(3,4) TW1(3,4) TW2(3,4) TW3(3,4) TW4(3,4) TW5(3,4)],...
+TW0 = TWC*TCB*TB0;
+TWWh1 = TWC*TCB*TB1;
+TWWh2 = TWC*TCB*TB2;
+TWWh3 = TWC*TCB*TB3;
+TWWh4 = TWC*TCB*TB4;
+TW5 = TWC*TCB*TB5;
+h1 = plot3([TW0(1,4) TWWh1(1,4) TWWh2(1,4) TWWh3(1,4) TWWh4(1,4) TW5(1,4)],...
+           [TW0(2,4) TWWh1(2,4) TWWh2(2,4) TWWh3(2,4) TWWh4(2,4) TW5(2,4)],...
+           [TW0(3,4) TWWh1(3,4) TWWh2(3,4) TWWh3(3,4) TWWh4(3,4) TW5(3,4)],...
                          'Color', [0.8 0.8 0.8], 'LineWidth', 2.5);
 hold on;
     
 % Plotting first rover position [TODO] Update the representation to look
 % like exoter
 TWC = getTraslation([x(10,1),x(11,1),zGC])*getZRot(x(12,1));
-TB1 = getTraslation([dfy,dfx,-zGC]);
-TB2 = getTraslation([-dfy,dfx,-zGC]);
-TB3 = getTraslation([-dfy,-dfx,-zGC]);
-TB4 = getTraslation([dfy,-dfx,-zGC]);
-TW1 = TWC*TB1;
-TW2 = TWC*TB2;
-TW3 = TWC*TB3;
-TW4 = TWC*TB4;
-h2 = plot3([TWC(1,4) TW1(1,4) TWC(1,4) TW2(1,4) TWC(1,4) TW3(1,4) TWC(1,4) TW4(1,4)],...
-      [TWC(2,4) TW1(2,4) TWC(2,4) TW2(2,4) TWC(2,4) TW3(2,4) TWC(2,4) TW4(2,4)],...
-      [TWC(3,4) TW1(3,4) TWC(3,4) TW2(3,4) TWC(3,4) TW3(3,4) TWC(3,4) TW4(3,4)], 'Color', [0.4 0.4 0.4], 'LineWidth', 2.5);
+TCWh1 = getTraslation([dfy,dfx,-zGC]);
+TCWh2 = getTraslation([-dfy,dfx,-zGC]);
+TCWh3 = getTraslation([-dfy,-dfx,-zGC]);
+TCWh4 = getTraslation([dfy,-dfx,-zGC]);
+TWWh1 = TWC*TCWh1;
+TWWh2 = TWC*TCWh2;
+TWWh3 = TWC*TCWh3;
+TWWh4 = TWC*TCWh4;
+h2 = plot3([TWC(1,4) TWWh1(1,4) TWC(1,4) TWWh2(1,4) TWC(1,4) TWWh3(1,4) TWC(1,4) TWWh4(1,4)],...
+      [TWC(2,4) TWWh1(2,4) TWC(2,4) TWWh2(2,4) TWC(2,4) TWWh3(2,4) TWC(2,4) TWWh4(2,4)],...
+      [TWC(3,4) TWWh1(3,4) TWC(3,4) TWWh2(3,4) TWC(3,4) TWWh3(3,4) TWC(3,4) TWWh4(3,4)], 'Color', [0.4 0.4 0.4], 'LineWidth', 2.5);
 
 % Plotting the first base frame
 h3 = plotFrame(TWC, 0.3);
@@ -668,30 +672,30 @@ h3 = plotFrame(TWC, 0.3);
 % Plotting last arm config
 [TB0, TB1, TB2, TB3, TB4, TB5] = realDirect5(x(16:20,end-1));
 TWC = getTraslation([x(10,end-1),x(11,end-1),zGC])*getZRot(x(12,end-1));
-TW0 = TWC*TB0;
-TW1 = TWC*TB1;
-TW2 = TWC*TB2;
-TW3 = TWC*TB3;
-TW4 = TWC*TB4;
-TW5 = TWC*TB5;
-h4 = plot3([TW0(1,4) TW1(1,4) TW2(1,4) TW3(1,4) TW4(1,4) TW5(1,4)],...
-           [TW0(2,4) TW1(2,4) TW2(2,4) TW3(2,4) TW4(2,4) TW5(2,4)],...
-           [TW0(3,4) TW1(3,4) TW2(3,4) TW3(3,4) TW4(3,4) TW5(3,4)],...
+TW0 = TWC*TCB*TB0;
+TWWh1 = TWC*TCB*TB1;
+TWWh2 = TWC*TCB*TB2;
+TWWh3 = TWC*TCB*TB3;
+TWWh4 = TWC*TCB*TB4;
+TW5 = TWC*TCB*TB5;
+h4 = plot3([TW0(1,4) TWWh1(1,4) TWWh2(1,4) TWWh3(1,4) TWWh4(1,4) TW5(1,4)],...
+           [TW0(2,4) TWWh1(2,4) TWWh2(2,4) TWWh3(2,4) TWWh4(2,4) TW5(2,4)],...
+           [TW0(3,4) TWWh1(3,4) TWWh2(3,4) TWWh3(3,4) TWWh4(3,4) TW5(3,4)],...
                          'Color', [0.8 0.8 0.8], 'LineWidth', 2.5);
                      
 % Plotting last rover position
 TWC = getTraslation([x(10,end-1),x(11,end-1),zGC])*getZRot(x(12,end-1));
-TB1 = getTraslation([dfy,dfx,-zGC]);
-TB2 = getTraslation([-dfy,dfx,-zGC]);
-TB3 = getTraslation([-dfy,-dfx,-zGC]);
-TB4 = getTraslation([dfy,-dfx,-zGC]);
-TW1 = TWC*TB1;
-TW2 = TWC*TB2;
-TW3 = TWC*TB3;
-TW4 = TWC*TB4;
-h5 = plot3([TWC(1,4) TW1(1,4) TWC(1,4) TW2(1,4) TWC(1,4) TW3(1,4) TWC(1,4) TW4(1,4)],...
-          [TWC(2,4) TW1(2,4) TWC(2,4) TW2(2,4) TWC(2,4) TW3(2,4) TWC(2,4) TW4(2,4)],...
-          [TWC(3,4) TW1(3,4) TWC(3,4) TW2(3,4) TWC(3,4) TW3(3,4) TWC(3,4) TW4(3,4)], 'Color', [0.4 0.4 0.4], 'LineWidth', 2.5);
+TCWh1 = getTraslation([dfy,dfx,-zGC]);
+TCWh2 = getTraslation([-dfy,dfx,-zGC]);
+TCWh3 = getTraslation([-dfy,-dfx,-zGC]);
+TCWh4 = getTraslation([dfy,-dfx,-zGC]);
+TWWh1 = TWC*TCWh1;
+TWWh2 = TWC*TCWh2;
+TWWh3 = TWC*TCWh3;
+TWWh4 = TWC*TCWh4;
+h5 = plot3([TWC(1,4) TWWh1(1,4) TWC(1,4) TWWh2(1,4) TWC(1,4) TWWh3(1,4) TWC(1,4) TWWh4(1,4)],...
+          [TWC(2,4) TWWh1(2,4) TWC(2,4) TWWh2(2,4) TWC(2,4) TWWh3(2,4) TWC(2,4) TWWh4(2,4)],...
+          [TWC(3,4) TWWh1(3,4) TWC(3,4) TWWh2(3,4) TWC(3,4) TWWh3(3,4) TWC(3,4) TWWh4(3,4)], 'Color', [0.4 0.4 0.4], 'LineWidth', 2.5);
 
 % Plotting the last base frame
 h6 = plotFrame(TWC, 0.3);
@@ -729,7 +733,7 @@ daspect([1 1 1])
 hold off;
 
 %% SLQR algorithm
-if stepped
+if stepped < 2
     state = 0;
     first = 1;
 else
@@ -747,30 +751,30 @@ while 1
         % Plotting last arm config
         [TB0, TB1, TB2, TB3, TB4, TB5] = realDirect5(x(16:20,end-1));
         TWC = getTraslation([x(10,end-1),x(11,end-1),zGC])*getZRot(x(12,end-1));
-        TW0 = TWC*TB0;
-        TW1 = TWC*TB1;
-        TW2 = TWC*TB2;
-        TW3 = TWC*TB3;
-        TW4 = TWC*TB4;
-        TW5 = TWC*TB5;
-        set(h4,'XData',[TW0(1,4) TW1(1,4) TW2(1,4) TW3(1,4) TW4(1,4) TW5(1,4)],...
-               'YData',[TW0(2,4) TW1(2,4) TW2(2,4) TW3(2,4) TW4(2,4) TW5(2,4)],...
-               'ZData',[TW0(3,4) TW1(3,4) TW2(3,4) TW3(3,4) TW4(3,4) TW5(3,4)],...
+        TW0 = TWC*TCB*TB0;
+        TWWh1 = TWC*TCB*TB1;
+        TWWh2 = TWC*TCB*TB2;
+        TWWh3 = TWC*TCB*TB3;
+        TWWh4 = TWC*TCB*TB4;
+        TW5 = TWC*TCB*TB5;
+        set(h4,'XData',[TW0(1,4) TWWh1(1,4) TWWh2(1,4) TWWh3(1,4) TWWh4(1,4) TW5(1,4)],...
+               'YData',[TW0(2,4) TWWh1(2,4) TWWh2(2,4) TWWh3(2,4) TWWh4(2,4) TW5(2,4)],...
+               'ZData',[TW0(3,4) TWWh1(3,4) TWWh2(3,4) TWWh3(3,4) TWWh4(3,4) TW5(3,4)],...
                'Color', [0.8 0.8 0.8], 'LineWidth', 2.5);
 
         % Plotting last rover position
         TWC = getTraslation([x(10,end-1),x(11,end-1),zGC])*getZRot(x(12,end-1));
-        TB1 = getTraslation([dfy,dfx,-zGC]);
-        TB2 = getTraslation([-dfy,dfx,-zGC]);
-        TB3 = getTraslation([-dfy,-dfx,-zGC]);
-        TB4 = getTraslation([dfy,-dfx,-zGC]);
-        TW1 = TWC*TB1;
-        TW2 = TWC*TB2;
-        TW3 = TWC*TB3;
-        TW4 = TWC*TB4;
-        set(h5,'XData',[TWC(1,4) TW1(1,4) TWC(1,4) TW2(1,4) TWC(1,4) TW3(1,4) TWC(1,4) TW4(1,4)],...
-               'YData',[TWC(2,4) TW1(2,4) TWC(2,4) TW2(2,4) TWC(2,4) TW3(2,4) TWC(2,4) TW4(2,4)],...
-               'ZData',[TWC(3,4) TW1(3,4) TWC(3,4) TW2(3,4) TWC(3,4) TW3(3,4) TWC(3,4) TW4(3,4)],...
+        TCWh1 = getTraslation([dfy,dfx,-zGC]);
+        TCWh2 = getTraslation([-dfy,dfx,-zGC]);
+        TCWh3 = getTraslation([-dfy,-dfx,-zGC]);
+        TCWh4 = getTraslation([dfy,-dfx,-zGC]);
+        TWWh1 = TWC*TCWh1;
+        TWWh2 = TWC*TCWh2;
+        TWWh3 = TWC*TCWh3;
+        TWWh4 = TWC*TCWh4;
+        set(h5,'XData',[TWC(1,4) TWWh1(1,4) TWC(1,4) TWWh2(1,4) TWC(1,4) TWWh3(1,4) TWC(1,4) TWWh4(1,4)],...
+               'YData',[TWC(2,4) TWWh1(2,4) TWC(2,4) TWWh2(2,4) TWC(2,4) TWWh3(2,4) TWC(2,4) TWWh4(2,4)],...
+               'ZData',[TWC(3,4) TWWh1(3,4) TWC(3,4) TWWh2(3,4) TWC(3,4) TWWh3(3,4) TWC(3,4) TWWh4(3,4)],...
                'Color', [0.4 0.4 0.4], 'LineWidth', 2.5);
 
         % Plotting the last base frame
@@ -855,12 +859,12 @@ while 1
     A = zeros(numStates,numStates,timeSteps);
 
     % W2EEx
-    A(1,4,1) = cos(x(12,1));
+    A(1,6,1) = cos(x(12,1));
     A(1,5,1) = -sin(x(12,1));
     A(1,10,1) = 1;
 
     % W2EEy
-    A(2,4,1) = sin(x(12,1));
+    A(2,6,1) = sin(x(12,1));
     A(2,5,1) = cos(x(12,1));
     A(2,11,1) = 1;
 
@@ -907,12 +911,12 @@ while 1
                              
     for i = 2:timeSteps
         % W2EEx
-        A(1,4,i) = cos(x(12,i-1));
+        A(1,6,i) = cos(x(12,i-1));
         A(1,5,i) = -sin(x(12,i-1));
         A(1,10,i) = 1;
 
         % W2EEy
-        A(2,4,i) = sin(x(12,i-1));
+        A(2,6,i) = sin(x(12,i-1));
         A(2,5,i) = cos(x(12,i-1));
         A(2,11,i) = 1;
 
@@ -963,7 +967,7 @@ while 1
     B = zeros(numStates,numInputs,timeSteps);
     
     % WTEEz
-    B(3,1:5,1) = dt*Jac(3,:,1);
+    B(3,1:5,1) = -dt*Jac(1,:,1);
     
     % BTEE
     B(4:9,1:5,1) = dt*Jac(:,:,1);
@@ -998,7 +1002,7 @@ while 1
     
     for i = 2:timeSteps
         % WTEEz
-        B(3,1:5,i) = dt*Jac(3,:,i-1);
+        B(3,1:5,i) = -dt*Jac(1,:,i-1);
         
         % BTEE
         B(4:9,1:5,i) = dt*Jac(:,:,i-1);
@@ -1047,13 +1051,18 @@ while 1
             if converged > 0
                 disp(['SLQ found the unconstrained optimal control input within ',num2str(iter-1),' iterations'])
                 toc;
-                constraintsSatisfied = checkConstraints(x, u, stateSpaceModel);
-                if constraintsSatisfied
-                    disp('The imposed constraints are satisfied, the final control input is found')
+                if stepped == 0
+                    warning('The constraints will not be checked, modify the configuration property "stepped" to change this behaviour')
                     break;
                 else
-                    disp('Since the constraints are not satisfied yet, a further constrained SLQ will be performed')
-                    state = 1;
+                    constraintsSatisfied = checkConstraints(x, u, stateSpaceModel);
+                    if constraintsSatisfied 
+                        disp('The imposed constraints are satisfied, the final control input is found')
+                        break;
+                    else
+                        disp('Since the constraints are not satisfied yet, a further constrained SLQ will be performed')
+                        state = 1;
+                    end
                 end
             end
         case 1
@@ -1147,30 +1156,30 @@ figure(1);
 % Plotting last arm config
 [TB0, TB1, TB2, TB3, TB4, TB5] = realDirect5(x(16:20,end-1));
 TWC = getTraslation([x(10,end-1),x(11,end-1),zGC])*getZRot(x(12,end-1));
-TW0 = TWC*TB0;
-TW1 = TWC*TB1;
-TW2 = TWC*TB2;
-TW3 = TWC*TB3;
-TW4 = TWC*TB4;
-TW5 = TWC*TB5;
-set(h4,'XData',[TW0(1,4) TW1(1,4) TW2(1,4) TW3(1,4) TW4(1,4) TW5(1,4)],...
-       'YData',[TW0(2,4) TW1(2,4) TW2(2,4) TW3(2,4) TW4(2,4) TW5(2,4)],...
-       'ZData',[TW0(3,4) TW1(3,4) TW2(3,4) TW3(3,4) TW4(3,4) TW5(3,4)],...
+TW0 = TWC*TCB*TB0;
+TWWh1 = TWC*TCB*TB1;
+TWWh2 = TWC*TCB*TB2;
+TWWh3 = TWC*TCB*TB3;
+TWWh4 = TWC*TCB*TB4;
+TW5 = TWC*TCB*TB5;
+set(h4,'XData',[TW0(1,4) TWWh1(1,4) TWWh2(1,4) TWWh3(1,4) TWWh4(1,4) TW5(1,4)],...
+       'YData',[TW0(2,4) TWWh1(2,4) TWWh2(2,4) TWWh3(2,4) TWWh4(2,4) TW5(2,4)],...
+       'ZData',[TW0(3,4) TWWh1(3,4) TWWh2(3,4) TWWh3(3,4) TWWh4(3,4) TW5(3,4)],...
        'Color', [0.8 0.8 0.8], 'LineWidth', 2.5);
 
 % Plotting last rover position
 TWC = getTraslation([x(10,end-1),x(11,end-1),zGC])*getZRot(x(12,end-1));
-TB1 = getTraslation([dfy,dfx,-zGC]);
-TB2 = getTraslation([-dfy,dfx,-zGC]);
-TB3 = getTraslation([-dfy,-dfx,-zGC]);
-TB4 = getTraslation([dfy,-dfx,-zGC]);
-TW1 = TWC*TB1;
-TW2 = TWC*TB2;
-TW3 = TWC*TB3;
-TW4 = TWC*TB4;
-set(h5,'XData',[TWC(1,4) TW1(1,4) TWC(1,4) TW2(1,4) TWC(1,4) TW3(1,4) TWC(1,4) TW4(1,4)],...
-       'YData',[TWC(2,4) TW1(2,4) TWC(2,4) TW2(2,4) TWC(2,4) TW3(2,4) TWC(2,4) TW4(2,4)],...
-       'ZData',[TWC(3,4) TW1(3,4) TWC(3,4) TW2(3,4) TWC(3,4) TW3(3,4) TWC(3,4) TW4(3,4)],...
+TCWh1 = getTraslation([dfy,dfx,-zGC]);
+TCWh2 = getTraslation([-dfy,dfx,-zGC]);
+TCWh3 = getTraslation([-dfy,-dfx,-zGC]);
+TCWh4 = getTraslation([dfy,-dfx,-zGC]);
+TWWh1 = TWC*TCWh1;
+TWWh2 = TWC*TCWh2;
+TWWh3 = TWC*TCWh3;
+TWWh4 = TWC*TCWh4;
+set(h5,'XData',[TWC(1,4) TWWh1(1,4) TWC(1,4) TWWh2(1,4) TWC(1,4) TWWh3(1,4) TWC(1,4) TWWh4(1,4)],...
+       'YData',[TWC(2,4) TWWh1(2,4) TWC(2,4) TWWh2(2,4) TWC(2,4) TWWh3(2,4) TWC(2,4) TWWh4(2,4)],...
+       'ZData',[TWC(3,4) TWWh1(3,4) TWC(3,4) TWWh2(3,4) TWC(3,4) TWWh3(3,4) TWC(3,4) TWWh4(3,4)],...
        'Color', [0.4 0.4 0.4], 'LineWidth', 2.5);
 
 % Plotting the last base frame
