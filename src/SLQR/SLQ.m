@@ -31,8 +31,6 @@ function [x, u, converged] = SLQ(varargin)
 %       - Pure input cost matrix "R".
 % 
 %   "config" should contain:
-%       - Acceptable distance to goal to consider convergence is reached,
-%         "distThreshold". Default: 0.005.
 %       - Acceptable control actuation step percentage to consider 
 %         convergence is reached, "controlThreshold". Default: 1e-3.
 %       - Step of the linear search procedure, "lineSearchStep". 
@@ -40,6 +38,15 @@ function [x, u, converged] = SLQ(varargin)
 %       - Yes/no about check distance to goal, "checkDistance".
 %       - If checking distance to goal, indexes of state vector where
 %         to check for the distance, "distIndexes".
+%       - If checking distance to goal, acceptable distance to goal 
+%         to consider convergence is reached, "distThreshold". 
+%         Default: 0.005.
+%       - Yes/no about check final orientation, "checkOrientation".
+%       - If checking final orientation, indexes of state vector where
+%         to check for the orientation, "orientationIndexes".
+%       - If checking final orientation, acceptable euclidean distance to 
+%         the final orientation to consider convergence is reached,
+%         "orientationThreshold". Default: 0.005.
 %       - Yes/no about check obstacles collisions, "checkSafety".
 %
 %   "map" only needed if checking safety, should contain:
@@ -92,13 +99,18 @@ function [x, u, converged] = SLQ(varargin)
     R = costFunction.R;
     
     % Extracting SLQ configuration
-    distThreshold = config.distThreshold;
     lineSearchStep = config.lineSearchStep;
     controlThreshold = config.controlThreshold;
     checkingDistance = config.checkDistance;
     if checkingDistance
         distIndexes = config.distIndexes;
+        distThreshold = config.distThreshold;
     end
+    checkingOrientation = config.checkOrientation;
+    if checkingOrientation
+        orientationIndexes = config.orientationIndexes;
+        orientationThreshold = config.orientationThreshold;
+    end    
     checkingSafety = config.checkSafety;
     
     % Extracting map info
@@ -178,6 +190,11 @@ function [x, u, converged] = SLQ(varargin)
         convergenceCondition = convergenceCondition | ...
                             (norm(uh) <= controlThreshold*20*norm(u) & ...
                             endDist < distThreshold);
+    end
+    if checkingOrientation
+        endOrientation = norm(x(orientationIndexes,end)-x0(orientationIndexes,end));
+        convergenceCondition = convergenceCondition & ...
+                               endOrientation < orientationThreshold;
     end
     if checkingSafety
         convergenceCondition = convergenceCondition & ...

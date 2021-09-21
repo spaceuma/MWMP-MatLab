@@ -88,7 +88,7 @@ g = 9.81;
 xB0 = 2.00;
 yB0 = 2.80;
 zB0 = zBC;
-yawB0 = -pi/6;
+yawB0 = pi/6;
 
 % Initial configuration
 qi = [0, 0, 0, 0, 0];
@@ -163,9 +163,6 @@ tau = 0.5;
 % Minimum step actuation percentage
 config.lineSearchStep = 0.32; 
 
-% Max acceptable dist
-config.distThreshold = 0.03;
-
 % Percentage of constrained timesteps for resampling
 config.resamplingThreshold = 30;
 
@@ -177,6 +174,18 @@ config.checkDistance = true;
 if config.checkDistance
     config.distIndexes = [1 2 3];
 end
+
+% Max acceptable dist (m)
+config.distThreshold = 0.03;
+
+% Check final orientation for convergence
+config.checkOrientation = true;
+if config.checkOrientation
+    config.orientationIndexes = [7 8 9];
+end
+
+% Max acceptable final orientation euclidean distance
+config.orientationThreshold = 0.05;
 
 % Check constraints compliance for convergence
 config.checkConstraints = true;

@@ -45,8 +45,6 @@ function [x, u, I, J, converged] = constrainedSLQ(varargin)
 %       - State input cost matrix "K".
 % 
 %   "config" should contain:
-%       - Acceptable distance to goal to consider convergence is reached,
-%         "distThreshold". Default: 0.005.
 %       - Acceptable control actuation step percentage to consider 
 %         convergence is reached, "controlThreshold". Default: 1e-3.
 %       - Percentage of constained timesteps for resampling
@@ -56,6 +54,15 @@ function [x, u, I, J, converged] = constrainedSLQ(varargin)
 %       - Yes/no about check distance to goal, "checkDistance".
 %       - If checking distance to goal, indexes of state vector where
 %         to check for the distance, "distIndexes".
+%       - If checking distance to goal, acceptable distance to goal 
+%         to consider convergence is reached, "distThreshold". 
+%         Default: 0.005.
+%       - Yes/no about check final orientation, "checkOrientation".
+%       - If checking final orientation, indexes of state vector where
+%         to check for the orientation, "orientationIndexes".
+%       - If checking final orientation, acceptable euclidean distance to 
+%         the final orientation to consider convergence is reached,
+%         "orientationThreshold". Default: 0.005.
 %       - Yes/no about check constraints, "checkConstraints".
 %       - Yes/no about check obstacles collisions, "checkSafety".
 %
@@ -151,14 +158,21 @@ function [x, u, I, J, converged] = constrainedSLQ(varargin)
     K = costFunction.K;
     
     % Extracting SLQ configuration
-    distThreshold = config.distThreshold;
     resamplingThreshold = config.resamplingThreshold;
     lineSearchStep = config.lineSearchStep;
     controlThreshold = config.controlThreshold;
+    
     checkingDistance = config.checkDistance;
     if checkingDistance
         distIndexes = config.distIndexes;
+        distThreshold = config.distThreshold;
     end
+
+    checkingOrientation = config.checkOrientation;
+    if checkingOrientation
+        orientationIndexes = config.orientationIndexes;
+        orientationThreshold = config.orientationThreshold;
+    end    
 
     checkingConstraints = config.checkConstraints;
     checkingSafety = config.checkSafety;
@@ -597,6 +611,11 @@ function [x, u, I, J, converged] = constrainedSLQ(varargin)
             convergenceCondition = convergenceCondition | ...
                                 (norm(us) <= controlThreshold*20*norm(u) & ...
                                 endDist < distThreshold);
+        end
+        if checkingOrientation
+            endOrientation = norm(x(orientationIndexes,end)-x0(orientationIndexes,end));
+            convergenceCondition = convergenceCondition & ...
+                                   endOrientation < orientationThreshold;
         end
         if checkingSafety
             convergenceCondition = convergenceCondition & ...
