@@ -1,4 +1,4 @@
-function [TB0, TB1, TB2, TB3, TB4, TB5] = direct5(manipulatorJoints)
+function [TB0, TB1, TB2, TB3, TB4, TB5] = realDirect5(manipulatorJoints)
     % Modelo cinematico directo
     global d1;
     global a2;
@@ -18,8 +18,8 @@ function [TB0, TB1, TB2, TB3, TB4, TB5] = direct5(manipulatorJoints)
     T01 = getTraslation([0,0,d1])*getZRot(theta1)*getXRot(-pi/2);
     T12 = getZRot(theta2)*getTraslation([a2,0,0]);
     T23 = getZRot(theta3)*getTraslation([a3,0,0]);
-    T34 = getZRot(theta4)*getXRot(pi/2);
-    T45 = getTraslation([0,0,d5+d6])*getZRot(theta5);
+    T34 = getZRot(theta4)*getXRot(pi/2)*getTraslation([0,0,d5]);
+    T45 = getTraslation([0,0,d6])*getZRot(theta5);
 
     TB1 = TB0*T01;
     TB2 = TB1*T12;

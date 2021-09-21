@@ -17,7 +17,7 @@ function J = jacobian5(manipulatorJoints)
          TB5(1,4) TB5(2,4) TB5(3,4)]';
 
     Jp = zeros(3,5);
-    for i = 1:3
+    for i = 1:5
         Jp(:,i) = cross(z(:,i),(p(:,6)-p(:,i)));
     end
     

@@ -107,8 +107,8 @@ yei = TW5(2,4);
 zei = TW5(3,4);
 
 % Goal end effector pose
-xef = 8.5;
-yef = 1.10;
+xef = 2.6;
+yef = 2.80;
 zef = 0.2;
 rollef = 0;
 pitchef = pi;
@@ -147,11 +147,11 @@ startBaseSpeedReduction = 90;
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 % Distance to obstacles considered risky (should be an obstacle)
-riskDistance = 1;
+riskDistance = 0.70;
 
 % Distance to obstacles considered enough for safety (should have bigger
 % cost to traverse areas with less than this distance to obstacles)
-safetyDistance = 2;
+safetyDistance = 1.40;
 
 % Gradient Descent Method step size, as a percentage of the map resolution
 tau = 0.5;
@@ -209,9 +209,9 @@ config.costThreshold = 5;
 
 % State costs
 fci = 1000000000; % Final state cost, 1000000000
-foci = 0; % Final orientation cost, 0
-fsci = 500000; % Final zero speed cost, 400000
-rtci = 50; % Reference path max cost, 20
+foci = 1000000000; % Final orientation cost, 0
+fsci = 0; % Final zero speed cost, 400000
+rtci = 20; % Reference path max cost, 20
 oci = 50.0; % Obstacles repulsive cost, 50.0
 
 tau1ci = 2.0; % Joint 1 inverse torque constant, 2
@@ -220,20 +220,18 @@ tau3ci = 2.0; % Joint 3 inverse torque constant, 2
 tau4ci = 2.0; % Joint 4 inverse torque constant, 2
 tau5ci = 2.0; % Joint 5 inverse torque constant, 2
 
-tauWheeli = 6400; % Wheels joint inverse torque constant, 6400
+tauWheeli = 6400.0; % Wheels joint inverse torque constant, 6400
 
 % Input costs
-bci = 90; % Base actuation cost, 90
-sci = 0.1; % Steering cost, 0.1
 ac1i = 10000000; % Arm actuation cost, 10000000
 ac2i = 10000000; % Arm actuation cost, 10000000
 ac3i = 10000000; % Arm actuation cost, 10000000
 ac4i = 10000000; % Arm actuation cost, 10000000
 ac5i = 10000000; % Arm actuation cost, 10000000
+bci = 90; % Base actuation cost, 90
 
 % Extra costs
 kappa1 = 0.02; % Influence of yaw into rover pose, tune till convergence
-kappa2 = 0.0; % Influence of steering into x speed, tune till convergence
 
 %% Reference trajectory computation
 % FMM to compute totalCostMap
@@ -346,7 +344,6 @@ tauWheel = tauWheeli/time_ratio; % Wheels joint inverse torque constant
 
 % Input costs
 bc = bci/time_ratio; % Base actuation cost
-sc = sci/time_ratio; % Steering cost
 ac1 = ac1i*time_ratio; % Arm actuation cost
 ac2 = ac2i*time_ratio; % Arm actuation cost
 ac3 = ac3i*time_ratio; % Arm actuation cost
@@ -610,13 +607,13 @@ cmap = [0 0.6   0
        0.6 0.3 0
        0.6 0   0];
 colormap(cmap);
-xVect = linspace(0,9.95,200);
+xVect = linspace(0,(size(obstMap,1)-1)*mapResolution,size(obstMap,1));
 [X,Y] = meshgrid(xVect,xVect);
 
 figure(1)
 clf(1)
 % Plotting first arm config
-[TB0, TB1, TB2, TB3, TB4, TB5] = direct5(x(16:20,1));
+[TB0, TB1, TB2, TB3, TB4, TB5] = realDirect5(x(16:20,1));
 TWB = getTraslation([x(10,1),x(11,1),zBC])*getZRot(x(12,1));
 TW0 = TWB*TB0;
 TW1 = TWB*TB1;
@@ -649,7 +646,7 @@ h2 = plot3([TWB(1,4) TW1(1,4) TWB(1,4) TW2(1,4) TWB(1,4) TW3(1,4) TWB(1,4) TW4(1
 h3 = plotFrame(TWB, 0.3);
 
 % Plotting last arm config
-[TB0, TB1, TB2, TB3, TB4, TB5] = direct5(x(16:20,end-1));
+[TB0, TB1, TB2, TB3, TB4, TB5] = realDirect5(x(16:20,end-1));
 TWB = getTraslation([x(10,end-1),x(11,end-1),zBC])*getZRot(x(12,end-1));
 TW0 = TWB*TB0;
 TW1 = TWB*TB1;
@@ -728,7 +725,7 @@ while 1
         figure(1);
         
         % Plotting last arm config
-        [TB0, TB1, TB2, TB3, TB4, TB5] = direct5(x(16:20,end-1));
+        [TB0, TB1, TB2, TB3, TB4, TB5] = realDirect5(x(16:20,end-1));
         TWB = getTraslation([x(10,end-1),x(11,end-1),zBC])*getZRot(x(12,end-1));
         TW0 = TWB*TB0;
         TW1 = TWB*TB1;
@@ -952,12 +949,12 @@ while 1
     B(4:9,1:5,1) = dt*Jac(:,:,1);
 
     % W2B Speed x
-    B(13,4,1) = wheelRadius/2;
-    B(13,5,1) = wheelRadius/2;
+    B(13,6,1) = wheelRadius/2;
+    B(13,7,1) = wheelRadius/2;
         
     % W2B Speed heading
-    B(15,4,1) = wheelRadius/(2*dfx);
-    B(15,5,1) = -wheelRadius/(2*dfx);
+    B(15,6,1) = wheelRadius/(2*dfx);
+    B(15,7,1) = -wheelRadius/(2*dfx);
     
     % Arm joints Position
     B(16:20,1:5,1) = dt*eye(5,5);
@@ -987,12 +984,12 @@ while 1
         B(4:9,1:5,i) = dt*Jac(:,:,i-1);
 
         % W2B Speed x
-        B(13,4,i) = wheelRadius/2;
-        B(13,5,i) = wheelRadius/2;
+        B(13,6,i) = wheelRadius/2;
+        B(13,7,i) = wheelRadius/2;
 
         % W2B Speed heading
-        B(15,4,i) = wheelRadius/(2*dfx);
-        B(15,5,i) = -wheelRadius/(2*dfx);
+        B(15,6,i) = wheelRadius/(2*dfx);
+        B(15,7,i) = -wheelRadius/(2*dfx);
 
         % Arm joints Position
         B(16:20,1:5,i) = dt*eye(5,5);
@@ -1118,7 +1115,7 @@ disp(['Total torque applied right wheels: ',num2str(iu(end)),' Nm'])
 
 figure(1);        
 % Plotting last arm config
-[TB0, TB1, TB2, TB3, TB4, TB5] = direct5(x(16:20,end-1));
+[TB0, TB1, TB2, TB3, TB4, TB5] = realDirect5(x(16:20,end-1));
 TWB = getTraslation([x(10,end-1),x(11,end-1),zBC])*getZRot(x(12,end-1));
 TW0 = TWB*TB0;
 TW1 = TWB*TB1;
@@ -1175,12 +1172,11 @@ hold off;
 % grid 
 % 
 % figure(3)
-% plot(t,u(1:5,:))
-% title('Actuating joints speed','interpreter','latex')
+% plot(t,u(6:7,:))
+% title('Actuating wheels speed','interpreter','latex')
 % xlabel('t(s)','interpreter','latex','fontsize',18)
 % ylabel('$\dot\theta(rad/s$)','interpreter','latex','fontsize',18)
-% legend('$\dot\theta_1$','$\dot\theta_2$',...
-% '$\dot\theta_3$','interpreter', ...
+% legend('$\omega_r$','$\dot\omega_l$','interpreter', ...
 % 'latex','fontsize',18)
 % 
 % figure(4)
