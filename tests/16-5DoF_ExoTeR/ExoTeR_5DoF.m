@@ -79,7 +79,7 @@ g = 9.81;
 xC0 = 2.00;
 yC0 = 2.80;
 zC0 = zGC;
-yawC0 = -pi/6;
+yawC0 = +pi/8;
 
 % Initial configuration
 qi = [0.5708, -pi, +2.21, pi/2, 0];
@@ -144,11 +144,11 @@ startBaseSpeedReduction = 90;
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 % Distance to obstacles considered risky (should be an obstacle)
-riskDistance = 0.70;
+riskDistance = 0.30;
 
 % Distance to obstacles considered enough for safety (should have bigger
 % cost to traverse areas with less than this distance to obstacles)
-safetyDistance = 0.70;
+safetyDistance = 1.00;
 
 % Gradient Descent Method step size, as a percentage of the map resolution
 tau = 0.5;
@@ -215,10 +215,10 @@ config.costThreshold = 5;
 
 % State costs
 fci = 1000000000; % Final state cost, 1000000000
-foci = 1000000000; % Final orientation cost, 0
-fsci = 0; % Final zero speed cost, 400000
-rtci = 0; % Reference path max cost, 20
-oci = 0.0; % Obstacles repulsive cost, 50.0
+foci = 1000000000; % Final orientation cost, 1000000000
+fsci = 1000000000; % Final zero speed cost, 1000000000
+rtci = 20; % Reference path max cost, 20
+oci = 200.0; % Obstacles repulsive cost, 70.0
 
 tau1ci = 2.0; % Joint 1 inverse torque constant, 2
 tau2ci = 2.0; % Joint 2 inverse torque constant, 2
@@ -226,15 +226,15 @@ tau3ci = 2.0; % Joint 3 inverse torque constant, 2
 tau4ci = 2.0; % Joint 4 inverse torque constant, 2
 tau5ci = 2.0; % Joint 5 inverse torque constant, 2
 
-tauWheeli = 640.0; % Wheels joint inverse torque constant, 6400
+tauWheeli = 1500.0; % Wheels joint inverse torque constant, 640
 
 % Input costs
-ac1i = 10000000; % Arm actuation cost, 10000000
-ac2i = 10000000; % Arm actuation cost, 10000000
-ac3i = 10000000; % Arm actuation cost, 10000000
-ac4i = 10000000; % Arm actuation cost, 10000000
-ac5i = 10000000; % Arm actuation cost, 10000000
-bci = 9; % Base actuation cost, 90
+ac1i = 1000000; % Arm actuation cost, 10000000
+ac2i = 1000000; % Arm actuation cost, 10000000
+ac3i = 1000000; % Arm actuation cost, 10000000
+ac4i = 1000000; % Arm actuation cost, 10000000
+ac5i = 1000000; % Arm actuation cost, 10000000
+bci = 100; % Base actuation cost, 9
 
 % Extra costs
 kappa1 = 0.02; % Influence of yaw into rover pose, tune till convergence
@@ -244,6 +244,13 @@ kappa1 = 0.02; % Influence of yaw into rover pose, tune till convergence
 % Loading obstacles map
 load(obstMapFile,'obstMap')
 mapResolution = 0.05;
+
+% Initial spot and goal indexes in the map
+iInit = [round(xC0/mapResolution)+1 round(yC0/mapResolution)+1];
+iGoal = [round(xef/mapResolution)+1 round(yef/mapResolution)+1];
+
+% Generating a fake obstacle on the sample to avoid stepping on it
+obstMap(iGoal(2), iGoal(1)) = 1;
 
 % Dilating obstacles map to ensure rover safety
 dilatedObstMap = dilateObstMap(obstMap, riskDistance, mapResolution);
@@ -258,10 +265,6 @@ minCost = max(max(costMap(costMap~=Inf)));
 costMap(safeObstMap==1)= minCost + gradient*auxMap(safeObstMap==1)./min(min(auxMap(safeObstMap==1)));
 costMap(safeObstMap==1)= costMap(safeObstMap==1)./min(min(costMap(safeObstMap==1)));
 costMap(obstMap==1) = max(max(costMap(costMap~=Inf)));
-
-% Initial spot and goal indexes in the map
-iInit = [round(xC0/mapResolution)+1 round(yC0/mapResolution)+1];
-iGoal = [round(xef/mapResolution)+1 round(yef/mapResolution)+1];
 
 % Computing total cost map
 [totalCostMap, ~] = computeTmap(costMap,iGoal);
@@ -712,7 +715,7 @@ h9 = plotFrame([1 0 0 0;
             
 
 % Plotting scenario
-h10 = contourf(X,Y,dilatedObstMap+obstMap);
+h10 = contourf(X,Y,dilatedObstMap+obstMap,0:2);
 
 % Plotting ee path
 h11 = plot3(x(1,:),x(2,:),x(3,:), 'LineWidth', 5, 'Color', 'y');
@@ -807,9 +810,9 @@ while 1
     for i = 1:timeSteps
         Q(10:12,10:12,i) = eye(3,3)*rtc;
         
-        if norm([x(10,i) x(11,i)] - [xef yef]) < reachabilityDistance
-            Q(10:12,10:12,i) = Q(10:12,10:12,i)/9999;
-        end
+%         if norm([x(10,i) x(11,i)] - [xef yef]) < reachabilityDistance
+%             Q(10:12,10:12,i) = Q(10:12,10:12,i)/9999;
+%         end
         if i > timeSteps*startBaseSpeedReduction/100
             linearCost = 10/timeSteps*i - startBaseSpeedReduction/10;
             Q(13,13,i) = linearCost*fsc;
@@ -1210,13 +1213,13 @@ hold off;
 % ylabel('$\theta (rad)$', 'interpreter', 'latex','fontsize',18)
 % grid 
 % 
-% figure(3)
-% plot(t,u(6:7,:))
-% title('Actuating wheels speed','interpreter','latex')
-% xlabel('t(s)','interpreter','latex','fontsize',18)
-% ylabel('$\dot\theta(rad/s$)','interpreter','latex','fontsize',18)
-% legend('$\omega_r$','$\dot\omega_l$','interpreter', ...
-% 'latex','fontsize',18)
+figure(3)
+plot(t,u(6:7,:))
+title('Actuating wheels speed','interpreter','latex')
+xlabel('t(s)','interpreter','latex','fontsize',18)
+ylabel('$\dot\theta(rad/s$)','interpreter','latex','fontsize',18)
+legend('$\omega_r$','$\dot\omega_l$','interpreter', ...
+'latex','fontsize',18)
 % 
 % figure(4)
 % plot(t,x(26:30,:))
