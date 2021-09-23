@@ -88,10 +88,10 @@ qi = [0.5708, -pi, +2.21, pi/2, 0];
 TWC = getTraslation([xC0,yC0,zC0])*getZRot(yawC0);
 [~, ~, ~, ~, ~,TB5] = direct5(qi);
 
-% TCB = getTraslation([xCB, yCB, zCB])*getYRot(pi/2);
-TCB = getTraslation([0 0 0])*getYRot(pi/2);
+TCB = getTraslation([xCB, yCB, zCB])*getYRot(pi/2);
 
 TW5 = TWC*TCB*TB5;
+TC5 = TCB*TB5;
 
 xei = TW5(1,4);
 yei = TW5(2,4);
@@ -384,9 +384,9 @@ x(1,1) = xei;
 x(2,1) = yei;
 x(3,1) = zei;
 % BTEE
-x(4,1) = TB5(1,4);
-x(5,1) = TB5(2,4);
-x(6,1) = TB5(3,4);
+x(4,1) = -TC5(3,4);
+x(5,1) = TC5(2,4);
+x(6,1) = TC5(1,4);
 x(7,1) = rollei;
 x(8,1) = pitchei;
 x(9,1) = yawei;
