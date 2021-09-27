@@ -14,7 +14,7 @@
 
 addpath(genpath('../../deps/ARES-DyMu_matlab'))
 addpath(genpath('../../src'))
-addpath('../../simscape')
+addpath(genpath('../../simscape'))
 addpath('../../maps')
 
 clear
@@ -56,10 +56,10 @@ armWidth = 0.1;
 global wheelRadius wheelWidth wheelMass;
 wheelRadius = 0.07;
 wheelWidth = 0.09;
-wheelMass = 1;
+wheelMass = 0.484;
 
 global vehicleMass;
-vehicleMass = 30;
+vehicleMass = 15;
 
 global m1 m2 m3 m4 m5;
 m1 = 0.5;
@@ -79,7 +79,7 @@ g = 9.81;
 xC0 = 2.00;
 yC0 = 2.80;
 zC0 = zGC;
-yawC0 = +pi/8;
+yawC0 = -pi/6;
 
 % Initial configuration
 qi = [0.5708, -pi, +2.21, pi/2, 0];
@@ -118,19 +118,19 @@ yawef = 0;
 obstMapFile = 'obstMap4';
 
 % Number of timesteps
-timeSteps = 300;
+timeSteps = 150;
 
 % Maximum number of iterations
-maxIter = 100;
+maxIter = 300;
 
 % Activate/deactivate stepped procedure for checking constraints:
 % - 0 to use a not stepped, not constrained procedure using simple SLQ only
 % - 1 to activate the stepped procedure
 % - 2 to use a not stepped procedure using constrained SLQ only
-stepped = 0;
+stepped = 1;
 
 % Activate/deactivate dynamic plotting during the simulation
-dynamicPlotting = true;
+dynamicPlotting = false;
 
 % Vehicle goal average speed (m/s)
 vehicleSpeed = 0.1;
@@ -229,11 +229,11 @@ tau5ci = 2.0; % Joint 5 inverse torque constant, 2
 tauWheeli = 1500.0; % Wheels joint inverse torque constant, 640
 
 % Input costs
-ac1i = 1000000; % Arm actuation cost, 10000000
-ac2i = 1000000; % Arm actuation cost, 10000000
-ac3i = 1000000; % Arm actuation cost, 10000000
-ac4i = 1000000; % Arm actuation cost, 10000000
-ac5i = 1000000; % Arm actuation cost, 10000000
+ac1i = 100000000; % Arm actuation cost, 10000000
+ac2i = 100000000; % Arm actuation cost, 10000000
+ac3i = 100000000; % Arm actuation cost, 10000000
+ac4i = 100000000; % Arm actuation cost, 10000000
+ac5i = 100000000; % Arm actuation cost, 10000000
 bci = 100; % Base actuation cost, 9
 
 % Extra costs
@@ -292,8 +292,8 @@ if pathLength > 10
             'computation, the results may be unaccurate']);
 elseif pathLength < reachabilityDistance
     warning(['The objective is already close to the rover, ',...
-             'the expected time horizon will be set to 15 seconds']);
-    expectedTimeArrival = 15;
+             'the expected time horizon will be set to 60 seconds']);
+    expectedTimeArrival = 90;
 end
 
 % Time vector
@@ -507,7 +507,7 @@ uini = u;
 
 %% Constraints matrices definition
 % State input constraints
-numStateInputConstraints = 0;
+numStateInputConstraints = 10;
 definedConstraints = 0;
 I0 = zeros(numStateInputConstraints,timeSteps);
 I = I0;
@@ -520,14 +520,48 @@ r = zeros(numStateInputConstraints,timeSteps);
 %%%%%% C*x + D*u + r <= 0 %%%%%%
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
-% D(definedConstraints+1,1,:) = 1;
-% r(definedConstraints+1,:) = -FMax;
-% definedConstraints = definedConstraints+1;
+% Arm joints speed limit
+armJointsSpeedLimit = 0.01; % rad/s
 
-% 
-% D(definedConstraints+1,1,:) = -1;
-% r(definedConstraints+1,:) = FMin;
-% definedConstraints = definedConstraints+1;
+D(definedConstraints+1,1,:) = -1;
+r(definedConstraints+1,:) = -armJointsSpeedLimit;
+definedConstraints = definedConstraints+1;
+
+D(definedConstraints+1,1,:) = 1;
+r(definedConstraints+1,:) = -armJointsSpeedLimit;
+definedConstraints = definedConstraints+1;
+
+D(definedConstraints+1,2,:) = -1;
+r(definedConstraints+1,:) = -armJointsSpeedLimit;
+definedConstraints = definedConstraints+1;
+
+D(definedConstraints+1,2,:) = 1;
+r(definedConstraints+1,:) = -armJointsSpeedLimit;
+definedConstraints = definedConstraints+1;
+
+D(definedConstraints+1,3,:) = -1;
+r(definedConstraints+1,:) = -armJointsSpeedLimit;
+definedConstraints = definedConstraints+1;
+
+D(definedConstraints+1,3,:) = 1;
+r(definedConstraints+1,:) = -armJointsSpeedLimit;
+definedConstraints = definedConstraints+1;
+
+D(definedConstraints+1,4,:) = -1;
+r(definedConstraints+1,:) = -armJointsSpeedLimit;
+definedConstraints = definedConstraints+1;
+
+D(definedConstraints+1,4,:) = 1;
+r(definedConstraints+1,:) = -armJointsSpeedLimit;
+definedConstraints = definedConstraints+1;
+
+D(definedConstraints+1,5,:) = -1;
+r(definedConstraints+1,:) = -armJointsSpeedLimit;
+definedConstraints = definedConstraints+1;
+
+D(definedConstraints+1,5,:) = 1;
+r(definedConstraints+1,:) = -armJointsSpeedLimit;
+definedConstraints = definedConstraints+1;
 
 
 if definedConstraints ~= numStateInputConstraints
@@ -549,50 +583,50 @@ h = zeros(numPureStateConstraints,timeSteps);
 %%%%%%%%%%%%%%%%%%%%%%%%%
 
 % Arm position constraints
-armJointsLimits = [-90 +30;
+armJointsPositionLimits = [-30 +90;
+                   -250 +70;
                    -160 +160;
-                   -160 +160;
-                   -160 +160;
-                   -160 +160]*pi/180;               
-
+                   -70 +250;
+                   -160 +160]*pi/180; % rad
+               
 G(definedConstraints+1,16,:) = -1;
-h(definedConstraints+1,:) = armJointsLimits(1,1);
+h(definedConstraints+1,:) = armJointsPositionLimits(1,1);
 definedConstraints = definedConstraints+1;
 
 G(definedConstraints+1,16,:) = 1;
-h(definedConstraints+1,:) = -armJointsLimits(1,2);
+h(definedConstraints+1,:) = -armJointsPositionLimits(1,2);
 definedConstraints = definedConstraints+1;
 
 G(definedConstraints+1,17,:) = -1;
-h(definedConstraints+1,:) = armJointsLimits(2,1);
+h(definedConstraints+1,:) = armJointsPositionLimits(2,1);
 definedConstraints = definedConstraints+1;
 
 G(definedConstraints+1,17,:) = 1;
-h(definedConstraints+1,:) = -armJointsLimits(2,2);
+h(definedConstraints+1,:) = -armJointsPositionLimits(2,2);
 definedConstraints = definedConstraints+1;
 
 G(definedConstraints+1,18,:) = -1;
-h(definedConstraints+1,:) = armJointsLimits(3,1);
+h(definedConstraints+1,:) = armJointsPositionLimits(3,1);
 definedConstraints = definedConstraints+1;
 
 G(definedConstraints+1,18,:) = 1;
-h(definedConstraints+1,:) = -armJointsLimits(3,2);
+h(definedConstraints+1,:) = -armJointsPositionLimits(3,2);
 definedConstraints = definedConstraints+1;
 
 G(definedConstraints+1,19,:) = -1;
-h(definedConstraints+1,:) = armJointsLimits(4,1);
+h(definedConstraints+1,:) = armJointsPositionLimits(4,1);
 definedConstraints = definedConstraints+1;
 
 G(definedConstraints+1,19,:) = 1;
-h(definedConstraints+1,:) = -armJointsLimits(4,2);
+h(definedConstraints+1,:) = -armJointsPositionLimits(4,2);
 definedConstraints = definedConstraints+1;
 
 G(definedConstraints+1,20,:) = -1;
-h(definedConstraints+1,:) = armJointsLimits(5,1);
+h(definedConstraints+1,:) = armJointsPositionLimits(5,1);
 definedConstraints = definedConstraints+1;
 
 G(definedConstraints+1,20,:) = 1;
-h(definedConstraints+1,:) = -armJointsLimits(5,2);
+h(definedConstraints+1,:) = -armJointsPositionLimits(5,2);
 definedConstraints = definedConstraints+1;
 
 % Wheel torque constraints
@@ -718,16 +752,16 @@ h9 = plotFrame([1 0 0 0;
 h10 = contourf(X,Y,dilatedObstMap+obstMap,0:2);
 
 % Plotting ee path
-h11 = plot3(x(1,:),x(2,:),x(3,:), 'LineWidth', 5, 'Color', 'y');
+h11 = plot3(x(1,:),x(2,:),x(3,:), 'LineWidth', 1, 'Color', 'y');
 
 % Plotting base path
-h12 = plot3(x(10,1:end-1),x(11,1:end-1),zGC*ones(size(x,2)-1), 'LineWidth', 5, 'Color', [1,0.5,0]);
+h12 = plot3(x(10,1:end-1),x(11,1:end-1),zGC*ones(size(x,2)-1), 'LineWidth', 1.5, 'Color', [1,0.5,0]);
 
 % Plotting reference path
-h13 = plot3(x0(10,:),x0(11,:), zGC*ones(timeSteps,2), 'LineWidth', 5, 'Color', [0,0,0.6]);
+h13 = plot3(x0(10,:),x0(11,:), zGC*ones(timeSteps,2), 'LineWidth', 1, 'Color', [0,0,0.6]);
 
 % Plotting starting reference path
-h14 = plot3(referencePath(1,:),referencePath(2,:), zGC*ones(timeSteps,2), 'LineWidth', 5, 'Color', [0,0,1]);
+h14 = plot3(referencePath(1,:),referencePath(2,:), zGC*ones(timeSteps,2), 'LineWidth', 1, 'Color', [0,0,1]);
 
 title('Mobile manipulator trajectories', 'interpreter', ...
 'latex','fontsize',18)
@@ -786,17 +820,17 @@ while 1
                        
         % Plotting ee path
         set(h11,'XData',x(1,:),'YData',x(2,:),'ZData',x(3,:),...
-            'LineWidth', 5, 'Color', 'y');
+            'LineWidth', 1, 'Color', 'y');
 
         % Plotting base path
         set(h12,'XData',x(10,1:end-1),'YData',x(11,1:end-1),'ZData',zGC*ones(size(x,2)-1,1),...
-            'LineWidth', 5, 'Color', [1,0.5,0]);
+            'LineWidth', 1.5, 'Color', [1,0.5,0]);
 
         % Plotting reference path
         set(h13,'XData',x0(10,:),'YData',x0(11,:),'ZData',zGC*ones(timeSteps,1),...
-            'LineWidth', 5, 'Color', [0,0,0.6]);
+            'LineWidth', 1, 'Color', [0,0,0.6]);
 
-        hold off;
+        hold off;       
     end   
 
     % Update the reference trajectory
@@ -1123,19 +1157,19 @@ toc
 % Plotting stuff
     
 for i = 2:timeSteps
-    if(x(16,i) < armJointsLimits(1,1) || x(16,i) > armJointsLimits(1,2))
+    if(x(16,i) < armJointsPositionLimits(1,1) || x(16,i) > armJointsPositionLimits(1,2))
         warning(['Arm joint 1 is violating its position limits at waypoint ',num2str(i)]);
     end
-    if(x(17,i) < armJointsLimits(2,1) || x(17,i) > armJointsLimits(2,2))
+    if(x(17,i) < armJointsPositionLimits(2,1) || x(17,i) > armJointsPositionLimits(2,2))
         warning(['Arm joint 2 is violating its position limits at waypoint ',num2str(i)]);
     end
-    if(x(18,i) < armJointsLimits(3,1) || x(18,i) > armJointsLimits(3,2))
+    if(x(18,i) < armJointsPositionLimits(3,1) || x(18,i) > armJointsPositionLimits(3,2))
         warning(['Arm joint 3 is violating its position limits at waypoint ',num2str(i)]);
     end
-    if(x(19,i) < armJointsLimits(3,1) || x(18,i) > armJointsLimits(3,2))
+    if(x(19,i) < armJointsPositionLimits(3,1) || x(18,i) > armJointsPositionLimits(3,2))
         warning(['Arm joint 3 is violating its position limits at waypoint ',num2str(i)]);
     end      
-    if(x(20,i) < armJointsLimits(3,1) || x(18,i) > armJointsLimits(3,2))
+    if(x(20,i) < armJointsPositionLimits(3,1) || x(18,i) > armJointsPositionLimits(3,2))
         warning(['Arm joint 3 is violating its position limits at waypoint ',num2str(i)]);
     end      
 end
@@ -1191,37 +1225,47 @@ h6 = plotFrame(TWC, 0.3, 0, h6);
 
 % Plotting ee path
 set(h11,'XData',x(1,:),'YData',x(2,:),'ZData',x(3,:),...
-    'LineWidth', 5, 'Color', 'y');
+    'LineWidth', 1, 'Color', 'y');
 
 % Plotting base path
 set(h12,'XData',x(10,1:end-1),'YData',x(11,1:end-1),'ZData',zGC*ones(size(x,2)-1,1),...
-    'LineWidth', 5, 'Color', [1,0.5,0]);
+    'LineWidth', 1.5, 'Color', [1,0.5,0]);
 
 % Plotting reference path
 set(h13,'XData',x0(10,:),'YData',x0(11,:),'ZData',zGC*ones(timeSteps,1),...
-    'LineWidth', 5, 'Color', [0,0,0.6]);
+    'LineWidth', 1, 'Color', [0,0,0.6]);
 
 hold off; 
         
-% figure(2)
-% plot(t,x(16:20,:))
-% title('Evolution of the arm joints', 'interpreter', ...
-% 'latex','fontsize',18)
-% legend('$\theta_1$','$\theta_2$','$\theta_3$','$\theta_4$','$\theta_5$', 'interpreter', ...
-% 'latex','fontsize',18)
-% xlabel('$t (s)$', 'interpreter', 'latex','fontsize',18)
-% ylabel('$\theta (rad)$', 'interpreter', 'latex','fontsize',18)
-% grid 
-% 
-figure(3)
-plot(t,u(6:7,:))
-title('Actuating wheels speed','interpreter','latex')
-xlabel('t(s)','interpreter','latex','fontsize',18)
-ylabel('$\dot\theta(rad/s$)','interpreter','latex','fontsize',18)
-legend('$\omega_r$','$\dot\omega_l$','interpreter', ...
+figure(2)
+plot(t,x(16:20,:))
+title('Evolution of the arm joints', 'interpreter', ...
 'latex','fontsize',18)
+legend('$\theta_1$','$\theta_2$','$\theta_3$','$\theta_4$','$\theta_5$', 'interpreter', ...
+'latex','fontsize',18)
+xlabel('$t (s)$', 'interpreter', 'latex','fontsize',18)
+ylabel('$\theta (rad)$', 'interpreter', 'latex','fontsize',18)
+grid 
+
+figure(3)
+plot(t,u(1:5,:))
+title('Evolution of the arm joints speed', 'interpreter', ...
+'latex','fontsize',18)
+legend('$\dot\theta_1$','$\dot\theta_2$','$\dot\theta_3$','$\dot\theta_4$','$\dot\theta_5$', 'interpreter', ...
+'latex','fontsize',18)
+xlabel('$t (s)$', 'interpreter', 'latex','fontsize',18)
+ylabel('$\dot\theta (rad/s)$', 'interpreter', 'latex','fontsize',18)
+grid 
 % 
 % figure(4)
+% plot(t,u(6:7,:))
+% title('Actuating wheels speed','interpreter','latex')
+% xlabel('t(s)','interpreter','latex','fontsize',18)
+% ylabel('$\dot\theta(rad/s$)','interpreter','latex','fontsize',18)
+% legend('$\omega_r$','$\dot\omega_l$','interpreter', ...
+% 'latex','fontsize',18)
+% 
+% figure(5)
 % plot(t,x(26:30,:))
 % title('Evolution of the arm joints accelerations', 'interpreter', ...
 % 'latex','fontsize',18)
@@ -1231,7 +1275,7 @@ legend('$\omega_r$','$\dot\omega_l$','interpreter', ...
 % ylabel('$\ddot\theta (rad/s^2)$', 'interpreter', 'latex','fontsize',18)
 % grid
 % 
-% figure(5)
+% figure(6)
 % plot(t,x(31:35,:))
 % title('Evolution of the applied arm torques', 'interpreter', ...
 % 'latex','fontsize',18)
@@ -1241,7 +1285,7 @@ legend('$\omega_r$','$\dot\omega_l$','interpreter', ...
 % ylabel('$\tau (Nm)$', 'interpreter', 'latex','fontsize',18)
 % grid
 % 
-% figure(6)
+% figure(7)
 % plot(t,x(36:37,:))
 % title('Evolution of the applied wheel speeds', 'interpreter', ...
 % 'latex','fontsize',18)
@@ -1251,7 +1295,7 @@ legend('$\omega_r$','$\dot\omega_l$','interpreter', ...
 % ylabel('$\omega (rad/s)$', 'interpreter', 'latex','fontsize',18)
 % grid
 % 
-% figure(7)
+% figure(8)
 % plot(t,x(38:39,:))
 % title('Evolution of the applied wheel accelerations', 'interpreter', ...
 % 'latex','fontsize',18)
@@ -1261,7 +1305,7 @@ legend('$\omega_r$','$\dot\omega_l$','interpreter', ...
 % ylabel('$\dot\omega (rad/s^2)$', 'interpreter', 'latex','fontsize',18)
 % grid
 % 
-% figure(8)
+% figure(9)
 % plot(t,x(40:41,:))
 % hold on
 % yline(wheelTorqueLimit,'--');
@@ -1274,7 +1318,7 @@ legend('$\omega_r$','$\dot\omega_l$','interpreter', ...
 % grid
 % hold off
 % 
-% figure(9)
+% figure(10)
 % plot(t,x(12,:))
 % title('Evolution of the vehicle heading', 'interpreter', ...
 % 'latex','fontsize',18)
@@ -1285,7 +1329,23 @@ legend('$\omega_r$','$\dot\omega_l$','interpreter', ...
 
 %% Simulation
 
-% sim('base_3DoF_dynamics_sim',t(end));
+% Model parameters
+l = 0.125;              % length of legs
+Bm = 11*10^-5;          % rotational damper
+Jw = 12*10^-4;          % moment of inertia of the wheels
+theta = 0;              % initial angle of the joints
+rho = 2700;             % links density
+
+% PI parameters of the wheel speed controller
+kp = 150;               
+ki = 50;
+
+% Terrain parameters
+mu = 0.02;               % friction
+s = 0.0;                % slip ratio 
+slope = 0;              % slope
+
+sim('ExoTeR',t(end));
 
 
 
