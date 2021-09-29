@@ -130,7 +130,7 @@ maxIter = 300;
 stepped = 1;
 
 % Activate/deactivate dynamic plotting during the simulation
-dynamicPlotting = false;
+dynamicPlotting = true;
 
 % Vehicle goal average speed (m/s)
 vehicleSpeed = 0.1;
