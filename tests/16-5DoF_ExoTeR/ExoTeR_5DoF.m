@@ -104,7 +104,7 @@ yawei = 0.5708;
 xef = 2.6;
 yef = 2.80;
 zef = 0.10;
-rollef = 0;
+rollef = -pi/2;
 pitchef = pi;
 yawef = 0;
 
@@ -118,10 +118,10 @@ yawef = 0;
 obstMapFile = 'obstMap4';
 
 % Number of timesteps
-timeSteps = 150;
+timeSteps = 500;
 
 % Maximum number of iterations
-maxIter = 300;
+maxIter = 500;
 
 % Activate/deactivate stepped procedure for checking constraints:
 % - 0 to use a not stepped, not constrained procedure using simple SLQ only
@@ -130,7 +130,7 @@ maxIter = 300;
 stepped = 1;
 
 % Activate/deactivate dynamic plotting during the simulation
-dynamicPlotting = true;
+dynamicPlotting = false;
 
 % Vehicle goal average speed (m/s)
 vehicleSpeed = 0.1;
@@ -173,12 +173,12 @@ if config.checkDistance
 end
 
 % Max acceptable dist (m)
-config.distThreshold = 0.03;
+config.distThreshold = 0.01;
 
 % Check final orientation for convergence
 config.checkOrientation = true;
 if config.checkOrientation
-    config.orientationIndexes = [7 8 9];
+    config.orientationIndexes = [16 8 20];
 end
 
 % Max acceptable final orientation euclidean distance
@@ -226,15 +226,15 @@ tau3ci = 2.0; % Joint 3 inverse torque constant, 2
 tau4ci = 2.0; % Joint 4 inverse torque constant, 2
 tau5ci = 2.0; % Joint 5 inverse torque constant, 2
 
-tauWheeli = 1500.0; % Wheels joint inverse torque constant, 640
+tauWheeli = 15000.0; % Wheels joint inverse torque constant, 640
 
 % Input costs
-ac1i = 100000000; % Arm actuation cost, 10000000
-ac2i = 100000000; % Arm actuation cost, 10000000
-ac3i = 100000000; % Arm actuation cost, 10000000
-ac4i = 100000000; % Arm actuation cost, 10000000
-ac5i = 100000000; % Arm actuation cost, 10000000
-bci = 100; % Base actuation cost, 9
+ac1i = 1000000; % Arm actuation cost, 100000000
+ac2i = 1000000; % Arm actuation cost, 100000000
+ac3i = 1000000; % Arm actuation cost, 100000000
+ac4i = 1000000; % Arm actuation cost, 100000000
+ac5i = 1000000; % Arm actuation cost, 100000000
+bci = 1000; % Base actuation cost, 9
 
 % Extra costs
 kappa1 = 0.02; % Influence of yaw into rover pose, tune till convergence
@@ -293,7 +293,7 @@ if pathLength > 10
 elseif pathLength < reachabilityDistance
     warning(['The objective is already close to the rover, ',...
              'the expected time horizon will be set to 60 seconds']);
-    expectedTimeArrival = 90;
+    expectedTimeArrival = 160;
 end
 
 % Time vector
@@ -464,11 +464,11 @@ x0(13,end) = 0;
 x0(14,end) = 0;
 x0(15,end) = 0;
 % Arm joints positions
-x0(16,end) = 0;
+x0(16,end) = yawef;
 x0(17,end) = 0;
 x0(18,end) = 0;
 x0(19,end) = 0;
-x0(20,end) = 0;
+x0(20,end) = rollef;
 % Arm joints speeds
 x0(21,end) = 0;
 x0(22,end) = 0;
@@ -867,9 +867,11 @@ while 1
     Q(1,1,end) = fc;
     Q(2,2,end) = fc;
     Q(3,3,end) = fc;
-    Q(7,7,end) = foc;
+%     Q(7,7,end) = foc;
     Q(8,8,end) = foc;
-    Q(9,9,end) = foc;
+%     Q(9,9,end) = foc;
+    Q(16,16,end) = foc;
+    Q(20,20,end) = foc;
     
     R = zeros(numInputs,numInputs,timeSteps);
     R(1,1,:) = ac1;
@@ -1155,7 +1157,6 @@ toc
     
 %% Plots
 % Plotting stuff
-    
 for i = 2:timeSteps
     if(x(16,i) < armJointsPositionLimits(1,1) || x(16,i) > armJointsPositionLimits(1,2))
         warning(['Arm joint 1 is violating its position limits at waypoint ',num2str(i)]);
@@ -1237,33 +1238,33 @@ set(h13,'XData',x0(10,:),'YData',x0(11,:),'ZData',zGC*ones(timeSteps,1),...
 
 hold off; 
         
-figure(2)
-plot(t,x(16:20,:))
-title('Evolution of the arm joints', 'interpreter', ...
-'latex','fontsize',18)
-legend('$\theta_1$','$\theta_2$','$\theta_3$','$\theta_4$','$\theta_5$', 'interpreter', ...
-'latex','fontsize',18)
-xlabel('$t (s)$', 'interpreter', 'latex','fontsize',18)
-ylabel('$\theta (rad)$', 'interpreter', 'latex','fontsize',18)
-grid 
-
-figure(3)
-plot(t,u(1:5,:))
-title('Evolution of the arm joints speed', 'interpreter', ...
-'latex','fontsize',18)
-legend('$\dot\theta_1$','$\dot\theta_2$','$\dot\theta_3$','$\dot\theta_4$','$\dot\theta_5$', 'interpreter', ...
-'latex','fontsize',18)
-xlabel('$t (s)$', 'interpreter', 'latex','fontsize',18)
-ylabel('$\dot\theta (rad/s)$', 'interpreter', 'latex','fontsize',18)
-grid 
-% 
-% figure(4)
-% plot(t,u(6:7,:))
-% title('Actuating wheels speed','interpreter','latex')
-% xlabel('t(s)','interpreter','latex','fontsize',18)
-% ylabel('$\dot\theta(rad/s$)','interpreter','latex','fontsize',18)
-% legend('$\omega_r$','$\dot\omega_l$','interpreter', ...
+% figure(2)
+% plot(t,x(16:20,:))
+% title('Evolution of the arm joints', 'interpreter', ...
 % 'latex','fontsize',18)
+% legend('$\theta_1$','$\theta_2$','$\theta_3$','$\theta_4$','$\theta_5$', 'interpreter', ...
+% 'latex','fontsize',18)
+% xlabel('$t (s)$', 'interpreter', 'latex','fontsize',18)
+% ylabel('$\theta (rad)$', 'interpreter', 'latex','fontsize',18)
+% grid 
+% 
+% figure(3)
+% plot(t,u(1:5,:))
+% title('Evolution of the arm joints speed', 'interpreter', ...
+% 'latex','fontsize',18)
+% legend('$\dot\theta_1$','$\dot\theta_2$','$\dot\theta_3$','$\dot\theta_4$','$\dot\theta_5$', 'interpreter', ...
+% 'latex','fontsize',18)
+% xlabel('$t (s)$', 'interpreter', 'latex','fontsize',18)
+% ylabel('$\dot\theta (rad/s)$', 'interpreter', 'latex','fontsize',18)
+% grid 
+% 
+figure(4)
+plot(t,u(6:7,:))
+title('Actuating wheels speed','interpreter','latex')
+xlabel('t(s)','interpreter','latex','fontsize',18)
+ylabel('$\dot\theta(rad/s$)','interpreter','latex','fontsize',18)
+legend('$\omega_r$','$\dot\omega_l$','interpreter', ...
+'latex','fontsize',18)
 % 
 % figure(5)
 % plot(t,x(26:30,:))
@@ -1289,8 +1290,7 @@ grid
 % plot(t,x(36:37,:))
 % title('Evolution of the applied wheel speeds', 'interpreter', ...
 % 'latex','fontsize',18)
-% legend('$\omega 1$','$\omega 2$','$\omega 3$',...
-% '$\omega 4$', 'interpreter','latex','fontsize',18)
+% legend('$\omega 1$','$\omega 2$','interpreter','latex','fontsize',18)
 % xlabel('$t (s)$', 'interpreter', 'latex','fontsize',18)
 % ylabel('$\omega (rad/s)$', 'interpreter', 'latex','fontsize',18)
 % grid
@@ -1326,6 +1326,23 @@ grid
 % ylabel('$\psi (rad)$', 'interpreter', 'latex','fontsize',18)
 % grid
 % 
+% figure(11)
+% plot(t,x(7:9,:))
+% title('Evolution of the arm orientation', 'interpreter', ...
+% 'latex','fontsize',18)
+% legend('$Roll$','$Pitch$', '$Yaw$', 'interpreter','latex','fontsize',18)
+% xlabel('$t (s)$', 'interpreter', 'latex','fontsize',18)
+% ylabel('$\psi (rad)$', 'interpreter', 'latex','fontsize',18)
+% grid
+
+figure(12)
+plot(t,x(13:15,:))
+title('Evolution of the rover base speed', 'interpreter', ...
+'latex','fontsize',18)
+legend('$\dot x_B$','$\dot y_B$', '$\dot \theta_B$', 'interpreter','latex','fontsize',18)
+xlabel('$t (s)$', 'interpreter', 'latex','fontsize',18)
+ylabel('$Speed (m/s)$', 'interpreter', 'latex','fontsize',18)
+grid
 
 %% Simulation
 
@@ -1345,7 +1362,7 @@ mu = 0.02;               % friction
 s = 0.0;                % slip ratio 
 slope = 0;              % slope
 
-sim('ExoTeR',t(end));
+% sim('ExoTeR',t(end));
 
 
 
