@@ -21,7 +21,13 @@ function J = jacobian5(manipulatorJoints)
         Jp(:,i) = cross(z(:,i),(p(:,6)-p(:,i)));
     end
     
-    Jo = z(:,1:5);
+%     Jo = z(:,1:5);
+
+    % Manually generating the orientation jacobian to avoid weird
+    % behaviours
+    Jo = [0 0 0 0 1;
+          0 1 1 1 0;
+          1 0 0 0 0];
     
     J = [Jp;
          Jo];
