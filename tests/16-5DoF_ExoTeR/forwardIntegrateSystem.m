@@ -27,8 +27,8 @@ function x = forwardIntegrateSystem(x, u, dt)
         x(26:30,i) = (u(1:5,i-1)-x(21:25,i-1))/dt;
         % Arm torques        
         x(31:35,i) = getB5(x(16:20,i-1))*x(26:30,i-1) +...
-                     getC5(x(16:20,i-1), u(1:5,i-1))*u(1:5,i-1);
-%                      getG5(x(16:20,i-1));
+                     getC5(x(16:20,i-1), u(1:5,i-1))*u(1:5,i-1) +...
+                     getG5(x(16:20,i-1));
         % Wheels speeds
         x(36,i) = u(6,i-1);
         x(37,i) = u(7,i-1);
