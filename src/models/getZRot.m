@@ -1,4 +1,6 @@
 function Rz = getZRot(angle)
+%getZRot Generates a Z rotation matrix Rz(4x4) given a certain turn angle
+
     Rz = [cos(angle) -sin(angle) 0 0;
           sin(angle)  cos(angle) 0 0;
           0           0          1 0;

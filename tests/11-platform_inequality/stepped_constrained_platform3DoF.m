@@ -1266,7 +1266,6 @@ hold off;
 % ylabel('$\theta (rad)$', 'interpreter', 'latex','fontsize',18)
 % grid
 
-
 %% Simulation
 
 % sim('base_3DoF_dynamics_sim',t(end));
