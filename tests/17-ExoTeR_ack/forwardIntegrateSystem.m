@@ -4,9 +4,18 @@ function x = forwardIntegrateSystem(x, u, dt)
     % Forward integrate system dynamics
     Jac = zeros(6,5,size(x,2));
     alphaR = zeros(size(x,2),1);
+    omegaR = zeros(size(x,2),1);
+
     for i = 2:size(x,2)
         Jac(:,:,i-1) = jacobian5(x(16:20,i-1));
         alphaR(i-1) = atan2(dfy,dfy/tan(x(42,i-1))+2*dfx);
+        while alphaR(i-1) > pi/2
+            alphaR(i-1) = alphaR(i-1) - pi;
+        end
+        while alphaR(i-1) < -pi/2
+            alphaR(i-1) = alphaR(i-1) + pi;
+        end
+        omegaR(i-1) = u(6,i-1)*sin(x(42,i-1))/sin(alphaR(i-1));
         % W2EE
         x(1,i) = cos(x(12,i-1))*x(6,i-1) - sin(x(12,i-1))*x(5,i-1) + x(10,i-1);
         x(2,i) = sin(x(12,i-1))*x(6,i-1) + cos(x(12,i-1))*x(5,i-1) + x(11,i-1);

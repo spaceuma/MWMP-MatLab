@@ -79,7 +79,7 @@ g = 9.81;
 xC0 = 2.00;
 yC0 = 2.80;
 zC0 = zGC;
-yawC0 = -pi/8;
+yawC0 = pi/6;
 
 % Initial configuration
 qi = [0.5708, -pi, +2.21, pi/2, 0];
@@ -229,7 +229,7 @@ tau5ci = 10.0; % Joint 5 inverse torque constant, 10
 
 tauWheeli = 100000.0; % Wheels joint inverse torque constant, 100000
 
-steerci = 1.0; % Steering joints position cost, 100
+steerci = 0.0; % Steering joints position cost, 100
 
 % Input costs
 ac1i = 1000000; % Arm actuation cost, 1000000
@@ -238,11 +238,11 @@ ac3i = 1000000; % Arm actuation cost, 1000000
 ac4i = 1000000; % Arm actuation cost, 1000000
 ac5i = 1000000; % Arm actuation cost, 1000000
 bci = 10000; % Base actuation cost, 10000
-sci = 1000; % Steering cost, 100
+sci = 4000; % Steering cost, 100
 
 % Extra costs
-kappa1 = 0.2; % Influence of yaw into rover pose, tune till convergence
-kappa2 = 0.01; % Influence of steering into x speed, tune till convergence
+kappa1 = 0.01; % Influence of yaw into rover pose, tune till convergence
+kappa2 = 0.000000001; % Influence of steering into x speed, tune till convergence
 kappa3 = 0.1; % Influence of steering into angular speed, tune till convergence
 
 %% Reference trajectory computation
@@ -1207,6 +1207,8 @@ toc
 
 Jac = zeros(6,5,timeSteps);
 alphaR = zeros(size(x,2),1);
+omegaR = zeros(size(x,2),1);
+
 for i = 1:timeSteps
     Jac(:,:,i) = jacobian5(x(16:20,i));
     alphaR(i) = atan2(dfy,dfy/tan(x(42,i))+2*dfx);
@@ -1216,6 +1218,8 @@ for i = 1:timeSteps
     while alphaR(i) < -pi/2
         alphaR(i) = alphaR(i) + pi;
     end
+    omegaR(i) = u(6,i)*sin(x(42,i))/sin(alphaR(i));
+
 end
     
 %% Plots
@@ -1324,12 +1328,16 @@ hold off;
 % grid 
 % 
 figure(4)
-plot(t,u(6:7,:))
+clf(4)
+plot(t,u(6,:))
+hold on
+plot(t,omegaR)
 title('Actuating wheels speed','interpreter','latex','fontsize',18)
 xlabel('t(s)','interpreter','latex','fontsize',18)
 ylabel('$\omega(rad/s$)','interpreter','latex','fontsize',18)
-legend('$\omega_r$','$\omega_l$','interpreter', ...
+legend('$\omega_l$','$\omega_r$','interpreter', ...
 'latex','fontsize',18)
+hold off
 % 
 % figure(5)
 % plot(t,x(26:30,:))
@@ -1420,33 +1428,33 @@ legend('$\omega_r$','$\omega_l$','interpreter', ...
 % 
 figure(14)
 clf(14)
-plot(t,x(42,:))
+plot(t,x(42,:)*180/pi)
 hold on
-plot(t,alphaR(:))
+plot(t,alphaR(:)*180/pi)
 title('Evolution of the steering joints position', 'interpreter', ...
 'latex','fontsize',18)
 legend('$\theta_L$','$\theta_R$', 'interpreter','latex','fontsize',18)
 xlabel('$t (s)$', 'interpreter', 'latex','fontsize',18)
-ylabel('$\theta (rad)$', 'interpreter', 'latex','fontsize',18)
+ylabel('$\theta (grados)$', 'interpreter', 'latex','fontsize',18)
 grid
 
-figure(15)
-clf(15)
-plot(t,u(8,:))
-title('Evolution of the steering joints actuation', 'interpreter', ...
-'latex','fontsize',18)
-legend('$\dot\theta$', 'interpreter','latex','fontsize',18)
-xlabel('$t (s)$', 'interpreter', 'latex','fontsize',18)
-ylabel('$\dot\theta (rad/s)$', 'interpreter', 'latex','fontsize',18)
-grid
-
-figure(16)
-plot(t,x(13,:))
-title('Evolution of the vehicle speeds', 'interpreter', ...
-'latex','fontsize',18)
-xlabel('$t (s)$', 'interpreter', 'latex','fontsize',18)
-ylabel('$\dot x (m/s)$', 'interpreter', 'latex','fontsize',18)
-grid
+% figure(15)
+% clf(15)
+% plot(t,u(8,:))
+% title('Evolution of the steering joints actuation', 'interpreter', ...
+% 'latex','fontsize',18)
+% legend('$\dot\theta$', 'interpreter','latex','fontsize',18)
+% xlabel('$t (s)$', 'interpreter', 'latex','fontsize',18)
+% ylabel('$\dot\theta (rad/s)$', 'interpreter', 'latex','fontsize',18)
+% grid
+% 
+% figure(16)
+% plot(t,x(13,:))
+% title('Evolution of the vehicle speeds', 'interpreter', ...
+% 'latex','fontsize',18)
+% xlabel('$t (s)$', 'interpreter', 'latex','fontsize',18)
+% ylabel('$\dot x (m/s)$', 'interpreter', 'latex','fontsize',18)
+% grid
 
 %% Simulation
 
@@ -1467,7 +1475,7 @@ s = 0.0;                % slip ratio
 slope = 0;              % slope
 
 
-sim('ExoTeR_steering',t(end));
+% sim('ExoTeR_steering',t(end));
 
 
 
