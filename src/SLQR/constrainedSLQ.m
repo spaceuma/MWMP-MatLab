@@ -94,6 +94,7 @@ function [x, u, I, J, converged] = constrainedSLQ(varargin)
             stateSpaceModel = varargin{6};
             costFunction = varargin{7};
             config = varargin{8};
+            first = false;
         case 9
             x = varargin{1};
             x0 = varargin{2};
@@ -106,6 +107,7 @@ function [x, u, I, J, converged] = constrainedSLQ(varargin)
             costFunction = varargin{7};
             config = varargin{8};
             map = varargin{9};
+            first = false;
         case 10
             x = varargin{1};
             x0 = varargin{2};
@@ -117,6 +119,7 @@ function [x, u, I, J, converged] = constrainedSLQ(varargin)
             stateSpaceModel = varargin{8};
             costFunction = varargin{9};
             config = varargin{10};
+            first = true;
         case 11
             x = varargin{1};
             x0 = varargin{2};
@@ -129,6 +132,7 @@ function [x, u, I, J, converged] = constrainedSLQ(varargin)
             costFunction = varargin{9};
             config = varargin{10};
             map = varargin{11};
+            first = true;
         otherwise
             cprintf('err','Wrong number of inputs. Usage:\n')
             cprintf('err','    constrainedSLQ(x, x0, u, u0, dt, stateSpaceModel, costFunction, config)\n')
@@ -200,6 +204,7 @@ function [x, u, I, J, converged] = constrainedSLQ(varargin)
     % Variable to check if the algorithm has already converged
     converged = 0;    
         
+    if ~first
     % Define the sequential state and input vectors
     xs0 = zeros(numStates,timeSteps);
     us0 = zeros(numInputs,timeSteps);
@@ -453,6 +458,7 @@ function [x, u, I, J, converged] = constrainedSLQ(varargin)
         mu(:,i) = Dh(:,:,i)*(E(:,:,i)*xs(:,i) - Dl(:,:,i)/R(:,:,i)*B(:,:,i).'*lambda(:,i+1) + rh(:,i));
         us(:,i) = -R(:,:,i)\(K(:,:,i).'*xs(:,i) + B(:,:,i).'*lambda(:,i+1) + Dl(:,:,i).'*mu(:,i) + us0(:,i));
     end
+    end
         
     step3 = true;
     if norm(us)>=controlThreshold*norm(u)
@@ -483,7 +489,7 @@ function [x, u, I, J, converged] = constrainedSLQ(varargin)
         thetak = min(-rhoi(~I & deltai>0)./deltai(~I & deltai>0));
         betak = min(-rhoj(~J & deltaj>0)./deltaj(~J & deltaj>0));
 
-        alfak = min([1 thetak betak]);      
+        alfak = min([1 thetak betak]);
         
         if alfak == 1
             step3 = true;
@@ -608,7 +614,7 @@ function [x, u, I, J, converged] = constrainedSLQ(varargin)
         convergenceCondition = norm(us) <= controlThreshold*norm(u);
         if checkingDistance
             endDist = norm(x(distIndexes,end)-x0(distIndexes,end));
-            convergenceCondition = convergenceCondition | ...
+            convergenceCondition = convergenceCondition & endDist < distThreshold | ...
                                 (norm(us) <= controlThreshold*20*norm(u) & ...
                                 endDist < distThreshold);
         end
