@@ -76,10 +76,10 @@ g = 9.81;
                
 %% Initial state and goal 
 % Initial base pose
-xC0 = 2.00;
+xC0 = 1.60;
 yC0 = 2.80;
 zC0 = zGC;
-yawC0 = pi/8;
+yawC0 = 0;
 
 % Initial configuration
 qi = [0.5708, -pi, +2.21, pi/2, 0];
@@ -102,10 +102,10 @@ pitchei = qi(2)+qi(3)+qi(4);
 yawei = qi(1);
 
 % Goal end effector pose
-xef = 3.910;
-yef = 2.80;
+xef = 3.2;
+yef = 3.2;
 zef = 0.10;
-rollef = pi/2;
+rollef = -pi/4;
 pitchef = pi/2;
 yawef = 0;
 
@@ -119,7 +119,7 @@ yawef = 0;
 obstMapFile = 'obstMap4';
 
 % Number of timesteps
-timeSteps = 160;
+timeSteps = 200;
 
 % Maximum number of iterations
 maxIter = 100;
@@ -128,7 +128,7 @@ maxIter = 100;
 % - 0 to use a not stepped, not constrained procedure using simple SLQ only
 % - 1 to activate the stepped procedure
 % - 2 to use a not stepped procedure using constrained SLQ only
-stepped = 1;
+stepped = 0;
 
 % Activate/deactivate dynamic plotting during the simulation
 dynamicPlotting = true;
@@ -138,7 +138,7 @@ vehicleSpeed = 0.05;
 
 % Percentage of the base path size (%) where to start reducing
 % progressively the vehicles speed until completely stopped
-startBaseSpeedReduction = 90;
+startBaseSpeedReduction = 100;
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %%%%%% FMM configuration %%%%%%
@@ -152,7 +152,7 @@ riskDistance = 0.30;
 safetyDistance = 1.00;
 
 % Gradient Descent Method step size, as a percentage of the map resolution
-tau = 0.5;
+tau = 0.1;
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %%%%%% SLQ algorithm configuration %%%%%%
@@ -174,12 +174,12 @@ if config.checkDistance
 end
 
 % Max acceptable dist (m)
-config.distThreshold = 0.015;
+config.distThreshold = 0.01;
 
 % Check final orientation for convergence
 config.checkOrientation = true;
 if config.checkOrientation
-    config.orientationIndexes = [16 8 20];
+    config.orientationIndexes = [43 8 9];
 end
 
 % Max acceptable final orientation euclidean distance
@@ -217,15 +217,21 @@ config.costThreshold = 5;
 % State costs
 fci = 1000000000; % Final state cost, 1000000000
 foci = 1000000000; % Final orientation cost, 1000000000
-fsci = 10000000; % Final zero speed cost, 1000000000
-rtci = 20; % Reference path max cost, 20
+fsci = 10000000; % Final zero speed cost, 10000000
+rtci = 20; % Reference path max cost, 30
 oci = 250.0; % Obstacles repulsive cost, 250.0
 
-acc1ci = 70000000.0; % Joint 1 acceleration cost, 10
-acc2ci = 70000000.0; % Joint 2 acceleration cost, 10
-acc3ci = 70000000.0; % Joint 3 acceleration cost, 10
-acc4ci = 70000000.0; % Joint 4 acceleration cost, 10
-acc5ci = 70000000.0; % Joint 5 acceleration cost, 10
+pos1ci = 00.0; % Joint 1 position cost, 100
+pos2ci = 00.0; % Joint 2 position cost, 100
+pos3ci = 200.0; % Joint 3 position cost, 100
+pos4ci = 00.0; % Joint 4 position cost, 100
+pos5ci = 00.0; % Joint 5 position cost, 100
+
+acc1ci = 100000000.0; % Joint 1 acceleration cost, 70000000
+acc2ci = 100000000.0; % Joint 2 acceleration cost, 70000000
+acc3ci = 100000000.0; % Joint 3 acceleration cost, 70000000
+acc4ci = 100000000.0; % Joint 4 acceleration cost, 70000000
+acc5ci = 100000000.0; % Joint 5 acceleration cost, 70000000
 
 tau1ci = 10.0; % Joint 1 inverse torque constant, 10
 tau2ci = 10.0; % Joint 2 inverse torque constant, 10
@@ -235,19 +241,19 @@ tau5ci = 10.0; % Joint 5 inverse torque constant, 10
 
 tauWheeli = 100000.0; % Wheels joint inverse torque constant, 100000
 
-steerci = 0.0; % Steering joints position cost, 100
+steerci = 0.0; % Steering joints position cost, 0
 
 % Input costs
-ac1i = 1500000; % Arm actuation cost, 1000000
-ac2i = 1500000; % Arm actuation cost, 1000000
-ac3i = 1500000; % Arm actuation cost, 1000000
-ac4i = 1500000; % Arm actuation cost, 1000000
-ac5i = 1500000; % Arm actuation cost, 1000000
-bci = 20000; % Base actuation cost, 10000
-sci = 150000; % Steering cost, 100
+ac1i = 100000; % Arm actuation cost, 500000
+ac2i = 100000; % Arm actuation cost, 500000
+ac3i = 100000; % Arm actuation cost, 500000
+ac4i = 100000; % Arm actuation cost, 500000
+ac5i = 100000; % Arm actuation cost, 100000
+bci = 20000; % Base actuation cost, 20000
+sci = 150000; % Steering cost, 150000
 
 % Extra costs
-kappa1 = 0.08; % Influence of yaw into rover pose, tune till convergence
+kappa1 = 0.35; % Influence of yaw into rover pose, tune till convergence
 kappa2 = 0.001; % Influence of steering into x speed, tune till convergence
 kappa3 = 0.8; % Influence of steering into angular speed, tune till convergence
 
@@ -262,7 +268,7 @@ iInit = [round(xC0/mapResolution)+1 round(yC0/mapResolution)+1];
 iGoal = [round(xef/mapResolution)+1 round(yef/mapResolution)+1];
 
 % Generating a fake obstacle on the sample to avoid stepping on it
-obstMap(iGoal(2), iGoal(1)) = 1;
+% obstMap(iGoal(2), iGoal(1)) = 1;
 
 % Dilating obstacles map to ensure rover safety
 dilatedObstMap = dilateObstMap(obstMap, riskDistance, mapResolution);
@@ -355,17 +361,23 @@ fsc = fsci/time_ratio; % Final zero speed cost
 rtc = rtci*time_ratio; % Reference path max cost
 oc = oci*time_ratio; % Obstacles repulsive cost
 
+pos1c = pos1ci/time_ratio; % Joint 1 position cost
+pos2c = pos2ci/time_ratio; % Joint 2 position cost
+pos3c = pos3ci/time_ratio; % Joint 3 position cost
+pos4c = pos4ci/time_ratio; % Joint 4 position cost
+pos5c = pos5ci/time_ratio; % Joint 5 position cost
+
 acc1c = acc1ci/time_ratio; % Joint 1 acceleration cost
 acc2c = acc2ci/time_ratio; % Joint 2 acceleration cost
 acc3c = acc3ci/time_ratio; % Joint 3 acceleration cost
-acc4c = acc4ci/time_ratio; % Joint 3 acceleration cost
-acc5c = acc5ci/time_ratio; % Joint 3 acceleration cost
+acc4c = acc4ci/time_ratio; % Joint 4 acceleration cost
+acc5c = acc5ci/time_ratio; % Joint 5 acceleration cost
 
 tau1c = tau1ci/time_ratio; % Joint 1 inverse torque constant
 tau2c = tau2ci/time_ratio; % Joint 2 inverse torque constant
 tau3c = tau3ci/time_ratio; % Joint 3 inverse torque constant
-tau4c = tau4ci/time_ratio; % Joint 3 inverse torque constant
-tau5c = tau5ci/time_ratio; % Joint 3 inverse torque constant
+tau4c = tau4ci/time_ratio; % Joint 4 inverse torque constant
+tau5c = tau5ci/time_ratio; % Joint 5 inverse torque constant
 
 tauWheel = tauWheeli/time_ratio; % Wheels joint inverse torque constant
 
@@ -401,7 +413,7 @@ trajectoryInfo.waypointSeparation = waypSeparation;
 
 %% State space model
 % State vectors
-numStates = 42;
+numStates = 43;
 x = zeros(numStates,timeSteps);
 % WTEE
 x(1,1) = xei;
@@ -457,6 +469,8 @@ x(40,1) = 0;
 x(41,1) = 0;
 % Steering joints
 x(42,1) = 0;
+% W2EE yaw
+x(43,1) = rollei + yawC0;
 
 % Initial control law
 numInputs = 7;
@@ -467,6 +481,11 @@ x0 = zeros(numStates,timeSteps);
 
 x0(10:12,1:end) = referencePath;
 
+x0(16,1:end) = 0;
+x0(17,1:end) = -2.4894;
+x0(18,1:end) = 1.5101;
+x0(19,1:end) = 2.5495;
+
 % WTEE
 x0(1,end) = xef;
 x0(2,end) = yef;
@@ -475,7 +494,7 @@ x0(3,end) = zef;
 x0(4,end) = 0;
 x0(5,end) = 0;
 x0(6,end) = 0;
-x0(7,end) = rollef;
+x0(7,end) = 0;
 x0(8,end) = pitchef;
 x0(9,end) = yawef;
 % WTB
@@ -487,11 +506,11 @@ x0(13,end) = 0;
 x0(14,end) = 0;
 x0(15,end) = 0;
 % Arm joints positions
-x0(16,end) = yawef;
+x0(16,end) = 0;
 x0(17,end) = 0;
 x0(18,end) = 0;
 x0(19,end) = 0;
-x0(20,end) = rollef;
+x0(20,end) = 0;
 % Arm joints speeds
 x0(21,end) = 0;
 x0(22,end) = 0;
@@ -521,6 +540,8 @@ x0(40,end) = 0;
 x0(41,end) = 0;
 % Steering joints
 x0(42,end) = 0;
+% W2EE yaw
+x0(43,end) = rollef;
 
 u0 = zeros(numInputs,timeSteps);
 
@@ -878,19 +899,19 @@ while 1
             Q(15,15,i) = linearCost*fsc;
         end
     end  
-    
+
+    Q(16,16,:) = pos1c;
+    Q(17,17,:) = pos2c;
+    Q(18,18,:) = pos3c;
+    Q(19,19,:) = pos4c;
+    Q(20,20,:) = pos5c;
+
     Q(26,26,:) = acc1c;
     Q(27,27,:) = acc2c;
     Q(28,28,:) = acc3c;
     Q(29,29,:) = acc4c;
     Q(30,30,:) = acc5c;
-    
-    Q(26,26,end-2:end) = acc1c*100000;
-    Q(27,27,end-2:end) = acc2c*100000;
-    Q(28,28,end-2:end) = acc3c*100000;
-    Q(29,29,end-2:end) = acc4c*100000;
-    Q(30,30,end-2:end) = acc5c*100000;
-    
+        
     Q(31,31,:) = tau1c;
     Q(32,32,:) = tau2c;
     Q(33,33,:) = tau3c;
@@ -907,9 +928,8 @@ while 1
     Q(3,3,end) = fc;
     
     Q(8,8,end) = foc;
-
-    Q(16,16,end) = foc;
-    Q(20,20,end) = foc;
+    Q(9,9,end) = foc;
+    Q(43,43,end) = foc;
     
     R = zeros(numInputs,numInputs,timeSteps);
     R(1,1,:) = ac1;
@@ -931,7 +951,13 @@ while 1
     alphaR = zeros(size(x,2),1);
     for i = 1:timeSteps
         Jac(:,:,i) = jacobian5(x(16:20,i));
-        alphaR(i) = atan(dfy/(dfy/tan(x(42,i))+2*dfx))+0.000000000000001;
+        alphaR(i) = atan2(dfy,dfy/tan(x(42,i))+2*dfx)+0.000000000000001;
+        while alphaR(i) > pi/2
+            alphaR(i) = alphaR(i) - pi;
+        end
+        while alphaR(i) < -pi/2
+            alphaR(i) = alphaR(i) + pi;
+        end
     end
     
      % State (x) matrix
@@ -951,7 +977,10 @@ while 1
     A(3,3,1) = 1;
 
     % B2EE
-    A(4:9,4:9,1) = eye(6,6);
+    A(4:6,4:6,1) = eye(3,3);
+    A(7,20,1) = 1;
+    A(8,17:19,1) = 1;
+    A(9,16,1) = 1;
 
     % W2Bx
     A(10,10,1) = 1;
@@ -1004,6 +1033,9 @@ while 1
     % Steering Joints Position
     A(42,42,1) = 1;
 
+    % W2EE yaw
+    A(43,7,1) = 1;
+    A(43,12,1) = 1;
     
     for i = 2:timeSteps
         % W2EEx
@@ -1020,7 +1052,10 @@ while 1
         A(3,3,i) = 1;
 
         % B2EE
-        A(4:9,4:9,i) = eye(6,6);
+        A(4:6,4:6,i) = eye(3,3);
+        A(7,20,i) = 1;
+        A(8,17:19,i) = 1;
+        A(9,16,i) = 1;
 
         % W2Bx
         A(10,10,i) = 1;
@@ -1072,6 +1107,10 @@ while 1
 
         % Steering Joints Position
         A(42,42,i) = 1;
+
+        % W2EE yaw
+        A(43,7,i) = 1;
+        A(43,12,i) = 1;
     end
     
     % Actuation (u) matrix
@@ -1081,7 +1120,7 @@ while 1
     B(3,1:5,1) = -dt*Jac(1,:,1);
     
     % BTEE
-    B(4:9,1:5,1) = dt*Jac(:,:,1);
+    B(4:6,1:5,1) = dt*Jac(1:3,:,1);
 
     % W2B Speed x
     B(13,6,1) = wheelRadius/2*(cos(x(42,1)) + x(42,1)*sin(x(42,1))*kappa2);
@@ -1118,7 +1157,7 @@ while 1
         B(3,1:5,i) = -dt*Jac(1,:,i-1);
         
         % BTEE
-        B(4:9,1:5,i) = dt*Jac(:,:,i-1);
+        B(4:6,1:5,i) = dt*Jac(1:3,:,i-1);
 
         % W2B Speed x
         B(13,6,i) = wheelRadius/2*(cos(x(42,i-1)) + x(42,i-1)*sin(x(42,i-1))*kappa2);
@@ -1355,20 +1394,20 @@ xlabel('$t (s)$', 'interpreter', 'latex','fontsize',18)
 ylabel('$\dot\theta (rad/s)$', 'interpreter', 'latex','fontsize',18)
 grid 
 hold off
-
-figure(4)
-clf(4)
-plot(t,u(6,:))
-hold on
-plot(t,x(37,:))
-title('Actuating wheels speed','interpreter','latex','fontsize',18)
-xlabel('t(s)','interpreter','latex','fontsize',18)
-ylabel('$\omega(rad/s$)','interpreter','latex','fontsize',18)
-legend('$\omega_l$','$\omega_r$','interpreter', ...
-'latex','fontsize',18)
-grid 
-hold off
-
+% 
+% figure(4)
+% clf(4)
+% plot(t,u(6,:))
+% hold on
+% plot(t,x(37,:))
+% title('Actuating wheels speed','interpreter','latex','fontsize',18)
+% xlabel('t(s)','interpreter','latex','fontsize',18)
+% ylabel('$\omega(rad/s$)','interpreter','latex','fontsize',18)
+% legend('$\omega_l$','$\omega_r$','interpreter', ...
+% 'latex','fontsize',18)
+% grid 
+% hold off
+% 
 % figure(5)
 % plot(t,x(26:30,:))
 % title('Evolution of the arm joints accelerations', 'interpreter', ...
@@ -1438,14 +1477,14 @@ hold off
 % ylabel('$\psi (rad)$', 'interpreter', 'latex','fontsize',18)
 % grid
 % 
-figure(12)
-plot(t,x(13:15,:))
-title('Evolution of the rover base speed', 'interpreter', ...
-'latex','fontsize',18)
-legend('$\dot x_B$','$\dot y_B$', '$\dot \theta_B$', 'interpreter','latex','fontsize',18)
-xlabel('$t (s)$', 'interpreter', 'latex','fontsize',18)
-ylabel('$Speed (m/s)$', 'interpreter', 'latex','fontsize',18)
-grid
+% figure(12)
+% plot(t,x(13:15,:))
+% title('Evolution of the rover base speed', 'interpreter', ...
+% 'latex','fontsize',18)
+% legend('$\dot x_B$','$\dot y_B$', '$\dot \theta_B$', 'interpreter','latex','fontsize',18)
+% xlabel('$t (s)$', 'interpreter', 'latex','fontsize',18)
+% ylabel('$Speed (m/s)$', 'interpreter', 'latex','fontsize',18)
+% grid
 % 
 % figure(13)
 % plot(t,x(10:12,:))
@@ -1456,17 +1495,17 @@ grid
 % ylabel('$Position (m)$', 'interpreter', 'latex','fontsize',18)
 % grid
 % 
-figure(14)
-clf(14)
-plot(t,x(42,:)*180/pi)
-hold on
-plot(t,alphaR(:)*180/pi)
-title('Evolution of the steering joints position', 'interpreter', ...
-'latex','fontsize',18)
-legend('$\theta_L$','$\theta_R$', 'interpreter','latex','fontsize',18)
-xlabel('$t (s)$', 'interpreter', 'latex','fontsize',18)
-ylabel('$\theta (^o)$', 'interpreter', 'latex','fontsize',18)
-grid
+% figure(14)
+% clf(14)
+% plot(t,x(42,:)*180/pi)
+% hold on
+% plot(t,alphaR(:)*180/pi)
+% title('Evolution of the steering joints position', 'interpreter', ...
+% 'latex','fontsize',18)
+% legend('$\theta_L$','$\theta_R$', 'interpreter','latex','fontsize',18)
+% xlabel('$t (s)$', 'interpreter', 'latex','fontsize',18)
+% ylabel('$\theta (^o)$', 'interpreter', 'latex','fontsize',18)
+% grid
 
 % figure(15)
 % clf(15)

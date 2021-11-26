@@ -18,7 +18,10 @@ function x = forwardIntegrateSystem(x, u, dt)
         x(2,i) = sin(x(12,i-1))*x(6,i-1) + cos(x(12,i-1))*x(5,i-1) + x(11,i-1);
         x(3,i) = x(3,i-1) - Jac(1,:,i-1)*u(1:5,i-1)*dt;
         % B2EE
-        x(4:9,i) = x(4:9,i-1) + Jac(:,:,i-1)*u(1:5,i-1)*dt; 
+        x(4:6,i) = x(4:6,i-1) + Jac(1:3,:,i-1)*u(1:5,i-1)*dt; 
+        x(7,i) = x(20,i-1); 
+        x(8,i) = x(17,i-1) + x(18,i-1) + x(19,i-1); 
+        x(9,i) = x(16,i-1); 
         % W2B
         x(10,i) = x(10,i-1) + cos(x(12,i-1))*x(13,i-1)*dt - sin(x(12,i-1))*x(14,i-1)*dt;
         x(11,i) = x(11,i-1) + sin(x(12,i-1))*x(13,i-1)*dt + cos(x(12,i-1))*x(14,i-1)*dt;
@@ -50,5 +53,7 @@ function x = forwardIntegrateSystem(x, u, dt)
             + rollingResistance*vehicleMass*g*wheelRadius/6;
         % Steering Joints Position
         x(42,i) = x(42,i-1) + u(7,i-1)*dt;
+        % W2EE yaw
+        x(43,i) = x(12,i-1) + x(7,i-1);
     end
 end
