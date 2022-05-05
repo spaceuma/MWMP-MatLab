@@ -16,6 +16,9 @@ a2 = 0.735;
 global d4;
 d4 = 0.695;
 
+global d6; %Dummy distance for gripper visualization
+d6 = 0.14;
+
 global armHeight;
 armHeight = 0.05;
 global armWidth;
@@ -30,7 +33,7 @@ m2 = 9;
 m3 = 9;
 
 global g;
-g = 9.81;
+g = 0;
 
 %% Constraints 
 % Initial configuration
@@ -47,33 +50,33 @@ pitchei = pi/2;
 yawei = 0;
 
 % Goal end effector pose
-xef = 0.5;
-yef = -1.0;
-zef = 0.0;
+xef = -0.5;
+yef = 0.3;
+zef = 1.5;
 rollef = 0;
 pitchef = pi;
 yawef = 0;
 
 %% Time horizon
-expectedTimeArrival = 100;
+expectedTimeArrival = 5;
 tf = expectedTimeArrival; % Time vector
-dt = tf/200;
+dt = tf/199;
 t = 0:dt:tf;
 
 %% Costs
 % State costs
-fc = 1000000000; % Final state cost, 1000000000
+fc = 10000000000000000; % Final state cost, 1000000000
 foc = 0; % Final orientation cost, 0
-fsc = 1000000000; % Final zero speed cost, 1000000000
+fsc = 0; % Final zero speed cost, 1000000000
 
 % tau1c = 0.005; % Joint 1 inverse torque constant, 2
 % tau2c = 0.005; % Joint 2 inverse torque constant, 2
 % tau3c = 0.005; % Joint 3 inverse torque constant, 2
 
 % Input costs
-ac1 = 10000000000; % Arm actuation cost
-ac2 = 10000000000; % Arm actuation cost
-ac3 = 10000000000; % Arm actuation cost
+ac1 = 1000000000; % Arm actuation cost
+ac2 = 1000000000; % Arm actuation cost
+ac3 = 1000000000; % Arm actuation cost
 
 %% Other variables
 % Minimum step actuation percentage
@@ -83,11 +86,11 @@ lineSearchStep = 0.30;
 distThreshold = 0.005;
 
 % Maximum number of iterations
-maxIter = 100;
+maxIter = 150;
 
 %% State space model
 % State vectors
-numStates = 15;
+numStates = 12;
 x = zeros(numStates,size(t,2));
 % WTEE
 x(1,1) = xei;
@@ -104,10 +107,6 @@ x(9,1) = qi(3);
 x(10,1) = 0;
 x(11,1) = 0;
 x(12,1) = 0;
-% Arm joints accelerations
-x(13,1) = 0;
-x(14,1) = 0;
-x(15,1) = 0;
 
 % Initial control law
 numInputs = 3;
@@ -131,10 +130,6 @@ x0(9,end) = 0;
 x0(10,end) = 0;
 x0(11,end) = 0;
 x0(12,end) = 0;
-% Arm joints accelerations
-x0(13,end) = 0;
-x0(14,end) = 0;
-x0(15,end) = 0;
 
 u0 = zeros(numInputs,size(t,2));
 
@@ -145,7 +140,7 @@ Jac = zeros(6,3,size(t,2));
 iter = 1;
 while 1   
     % Forward integrate system equations
-    x = forwardIntegrateSystem(x, u, dt);
+    x = forwardIntegrateSystem(x, u, dt, g);
     
     % Checking the state
     
@@ -221,17 +216,10 @@ while 1
     A(7:9,10:12,1) = dt*eye(3,3);
         
     % Arm joints velocities
-    A(10:12,10:12,1) = eye(3,3);
-    A(10:12,13:15,1) = dt*eye(3,3);
-    
-    % Arm joints accelerations
-    A(13:15,10:12,1) = - getB3(x(7,1), x(8,1), x(9,1))\...
-                               getC3(x(7,1), x(8,1), x(9,1),...
-                                     x(10,1), x(11,1), x(12,1));
-    
-%     [~,dG] = getG3(x(7,1), x(8,1), x(9,1));
-%     A(13:15,7:9,1) = - getB3(x(7,1), x(8,1), x(9,1))\dG;
-        
+    A(10:12,10:12,1) = eye(3,3) - dt*inv(getB3(x(7,1), x(8,1), x(9,1)))*...
+                                     getC3(x(7,1), x(8,1), x(9,1),...
+                                           x(10,1), x(11,1), x(12,1));
+                
     for i = 2:size(t,2)
         % W2EE
         A(1:6,1:6,i) = eye(6,6);
@@ -242,27 +230,20 @@ while 1
         A(7:9,10:12,i) = dt*eye(3,3);
 
         % Arm joints velocities
-        A(10:12,10:12,i) = eye(3,3);
-        A(10:12,13:15,i) = dt*eye(3,3);
-
-        % Arm joints accelerations
-        A(13:15,10:12,i) = - getB3(x(7,i-1), x(8,i-1), x(9,i-1))\...
-                                   getC3(x(7,i-1), x(8,i-1), x(9,i-1),...
-                                         x(10,i-1), x(11,i-1), x(12,i-1));
-
-%         [~,dG] = getG3(x(7,i-1), x(8,i-1), x(9,i-1));
-%         A(13:15,7:9,i) = - getB3(x(7,i-1), x(8,i-1), x(9,i-1))\dG;
+        A(10:12,10:12,i) = eye(3,3) - dt*inv(getB3(x(7,i-1), x(8,i-1), x(9,i-1)))*...
+                                         getC3(x(7,i-1), x(8,i-1), x(9,i-1),...
+                                               x(10,i-1), x(11,i-1), x(12,i-1));
     end
     
     % Actuation (u) matrix
     B = zeros(numStates,numInputs,size(t,2));
         
     % Arm joints acceleration
-    B(13:15,1:3,1) = inv(getB3(x(7,1), x(8,1), x(9,1)));
+    B(10:12,1:3,1) = dt*inv(getB3(x(7,1), x(8,1), x(9,1)));
     
     for i = 2:size(t,2)
         % Arm joints acceleration
-        B(13:15,1:3,i) = inv(getB3(x(7,i-1), x(8,i-1), x(9,i-1)));
+        B(10:12,1:3,i) = dt*inv(getB3(x(7,i-1), x(8,i-1), x(9,i-1)));
     end
             
     % LQ problem solution
@@ -303,7 +284,7 @@ while 1
     disp(['Iteration number ',num2str(iter-1),...
           ', distance to goal = ',num2str(endDist)]);
     
-    if (norm(uh)<=0.0001*norm(u) ||...
+    if (norm(uh)<=0.00000001*norm(u) ||...
        (norm(uh)<=0.2*norm(u))&&(endDist<distThreshold))
         disp(['SLQ found the optimal control input within ',...
               num2str(iter-1),' iterations'])
@@ -315,7 +296,7 @@ while 1
         uk = u;
         for n = 1:size(alfa,2)
             u = uk + alfa(n)*uh;
-            x = forwardIntegrateSystem(x, u, dt);
+            x = forwardIntegrateSystem(x, u, dt, g);
 
             J(n) = 1/2*(x(:,end)-x0(:,end)).'*Q(:,:,end)*(x(:,end)-x0(:,end));
             for i = 1:size(t,2)-1
@@ -346,7 +327,7 @@ end
 
 %% Plots
     
-x = forwardIntegrateSystem(x, u, dt);
+x = forwardIntegrateSystem(x, u, dt, g);
 
 toc
 iu = cumsum(abs(u(1,:))*dt);
@@ -387,46 +368,48 @@ quiver3(0, 0, 0, 0, 0, 1/4, 'Color', 'c', 'LineWidth', 2, 'MaxHeadSize', 0.7)
 hold off;
 
 
-figure(2)
-plot(t,x(7:9,:))
-title('Evolution of the arm joints position', 'interpreter', ...
-'latex','fontsize',18)
-legend('$\theta_1$','$\theta_2$','$\theta_3$', 'interpreter', ...
-       'latex','fontsize',18)
-xlabel('$t (s)$', 'interpreter', 'latex','fontsize',18)
-ylabel('$\theta (rad)$', 'interpreter', 'latex','fontsize',18)
-grid
+% figure(2)
+% plot(t,x(7:9,:))
+% title('Evolution of the arm joints position', 'interpreter', ...
+% 'latex','fontsize',18)
+% legend('$\theta_1$','$\theta_2$','$\theta_3$', 'interpreter', ...
+%        'latex','fontsize',18)
+% xlabel('$t (s)$', 'interpreter', 'latex','fontsize',18)
+% ylabel('$\theta (rad)$', 'interpreter', 'latex','fontsize',18)
+% grid
+% 
+% figure(3)
+% plot(t,x(10:12,:))
+% title('Evolution of the arm joints speed','interpreter','latex')
+% xlabel('t(s)','interpreter','latex','fontsize',18)
+% ylabel('$\dot\theta(rad/s$)','interpreter','latex','fontsize',18)
+% legend('$\dot\theta_1$','$\dot\theta_2$',...
+%        '$\dot\theta_3$','interpreter', ...
+%        'latex','fontsize',18)
 
-figure(3)
-plot(t,x(10:12,:))
-title('Evolution of the arm joints speed','interpreter','latex')
-xlabel('t(s)','interpreter','latex','fontsize',18)
-ylabel('$\dot\theta(rad/s$)','interpreter','latex','fontsize',18)
-legend('$\dot\theta_1$','$\dot\theta_2$',...
-       '$\dot\theta_3$','interpreter', ...
-       'latex','fontsize',18)
+% figure(4)
+% plot(t,x(13:15,:))
+% title('Evolution of the arm joints accelerations', 'interpreter', ...
+% 'latex','fontsize',18)
+% legend('$\ddot\theta_1$','$\ddot\theta_2$','$\ddot\theta_3$', 'interpreter', ...
+%        'latex','fontsize',18)
+% xlabel('$t (s)$', 'interpreter', 'latex','fontsize',18)
+% ylabel('$\ddot\theta (rad/s^2)$', 'interpreter', 'latex','fontsize',18)
+% grid
 
-figure(4)
-plot(t,x(13:15,:))
-title('Evolution of the arm joints accelerations', 'interpreter', ...
-'latex','fontsize',18)
-legend('$\ddot\theta_1$','$\ddot\theta_2$','$\ddot\theta_3$', 'interpreter', ...
-       'latex','fontsize',18)
-xlabel('$t (s)$', 'interpreter', 'latex','fontsize',18)
-ylabel('$\ddot\theta (rad/s^2)$', 'interpreter', 'latex','fontsize',18)
-grid
-
-figure(5)
-plot(t,u(1:3,:))
-title('Evolution of the applied arm torques', 'interpreter', ...
-'latex','fontsize',18)
-legend('$\tau_1$','$\tau_2$','$\tau_3$', 'interpreter', ...
-       'latex','fontsize',18)
-xlabel('$t (s)$', 'interpreter', 'latex','fontsize',18)
-ylabel('$\tau (Nm)$', 'interpreter', 'latex','fontsize',18)
-grid
+% figure(5)
+% plot(t,u(1:3,:))
+% title('Evolution of the applied arm torques', 'interpreter', ...
+% 'latex','fontsize',18)
+% legend('$\tau_1$','$\tau_2$','$\tau_3$', 'interpreter', ...
+%        'latex','fontsize',18)
+% xlabel('$t (s)$', 'interpreter', 'latex','fontsize',18)
+% ylabel('$\tau (Nm)$', 'interpreter', 'latex','fontsize',18)
+% grid
 
 
 %% Simulation
+% sim('manipulator3DoF_torques',t(end));
 % sim('manipulator3DoF',t(end));
+
 
