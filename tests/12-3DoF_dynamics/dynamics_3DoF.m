@@ -30,7 +30,7 @@ m2 = 9;
 m3 = 9;
 
 global g;
-g = 9.81;
+g = 0;
 
 %% Constraints 
 % Initial configuration
@@ -63,13 +63,11 @@ timeSteps = 200;
 maxIter = 100;
 
 % Activate/deactivate dynamic plotting during the simulation
-dynamicPlotting = 0;
+dynamicPlotting = 1;
 
 % Minimum step actuation percentage
 config.lineSearchStep = 0.30; 
 
-% Max acceptable dist
-config.distThreshold = 0.005;
 
 % Percentage of step actuation to consider convergence
 config.controlThreshold = 1e-3;
@@ -78,6 +76,16 @@ config.controlThreshold = 1e-3;
 config.checkDistance = 1;
 if config.checkDistance
     config.distIndexes = [1 2 3];
+    % Max acceptable dist
+    config.distThreshold = 0.005;
+end
+
+% Check orientation to goal for convergence
+config.checkOrientation = 0;
+if config.checkOrientation
+    config.distIndexes = [1 2 3];
+    % Max acceptable dist
+    config.distThreshold = 0.005;
 end
 
 % Check constraints compliance for convergence
@@ -100,9 +108,9 @@ fc = 1000000000/time_ratio; % Final state cost, 1000000000
 foc = 0/time_ratio; % Final orientation cost, 0
 fsc = 1000000000/time_ratio; % Final zero speed cost, 1000000000
 
-tau1c = 0.005/time_ratio; % Joint 1 inverse torque constant, 2
-tau2c = 0.005/time_ratio; % Joint 2 inverse torque constant, 2
-tau3c = 0.005/time_ratio; % Joint 3 inverse torque constant, 2
+tau1c = 0.5/time_ratio; % Joint 1 inverse torque constant, 2
+tau2c = 0.5/time_ratio; % Joint 2 inverse torque constant, 2
+tau3c = 0.5/time_ratio; % Joint 3 inverse torque constant, 2
 
 % Input costs
 ac1 = 100*time_ratio; % Arm actuation cost
@@ -399,24 +407,24 @@ set(h8,'XData',x(1,:),'YData',x(2,:),'ZData',x(3,:),...
 
 hold off;        
         
-% figure(2)
-% plot(t,x(7:9,:))
-% title('Evolution of the arm joints position', 'interpreter', ...
-% 'latex','fontsize',18)
-% legend('$\theta_1$','$\theta_2$','$\theta_3$', 'interpreter', ...
-%        'latex','fontsize',18)
-% xlabel('$t (s)$', 'interpreter', 'latex','fontsize',18)
-% ylabel('$\theta (rad)$', 'interpreter', 'latex','fontsize',18)
-% grid
-% 
-% figure(3)
-% plot(t,u(1:3,:))
-% title('Actuating arm joints speed','interpreter','latex')
-% xlabel('t(s)','interpreter','latex','fontsize',18)
-% ylabel('$\dot\theta(rad/s$)','interpreter','latex','fontsize',18)
-% legend('$\dot\theta_1$','$\dot\theta_2$',...
-%        '$\dot\theta_3$','interpreter', ...
-%        'latex','fontsize',18)
+figure(2)
+plot(t,x(7:9,:))
+title('Evolution of the arm joints position', 'interpreter', ...
+'latex','fontsize',18)
+legend('$\theta_1$','$\theta_2$','$\theta_3$', 'interpreter', ...
+       'latex','fontsize',18)
+xlabel('$t (s)$', 'interpreter', 'latex','fontsize',18)
+ylabel('$\theta (rad)$', 'interpreter', 'latex','fontsize',18)
+grid
+
+figure(3)
+plot(t,u(1:3,:))
+title('Actuating arm joints speed','interpreter','latex')
+xlabel('t(s)','interpreter','latex','fontsize',18)
+ylabel('$\dot\theta(rad/s$)','interpreter','latex','fontsize',18)
+legend('$\dot\theta_1$','$\dot\theta_2$',...
+       '$\dot\theta_3$','interpreter', ...
+       'latex','fontsize',18)
 % 
 % figure(4)
 % plot(t,x(13:15,:))
@@ -428,17 +436,17 @@ hold off;
 % ylabel('$\ddot\theta (rad/s^2)$', 'interpreter', 'latex','fontsize',18)
 % grid
 % 
-% figure(5)
-% plot(t,x(16:18,:))
-% title('Evolution of the applied arm torques', 'interpreter', ...
-% 'latex','fontsize',18)
-% legend('$\tau_1$','$\tau_2$','$\tau_3$', 'interpreter', ...
-%        'latex','fontsize',18)
-% xlabel('$t (s)$', 'interpreter', 'latex','fontsize',18)
-% ylabel('$\tau (Nm)$', 'interpreter', 'latex','fontsize',18)
-% grid
+figure(5)
+plot(t,x(16:18,:))
+title('Evolution of the applied arm torques', 'interpreter', ...
+'latex','fontsize',18)
+legend('$\tau_1$','$\tau_2$','$\tau_3$', 'interpreter', ...
+       'latex','fontsize',18)
+xlabel('$t (s)$', 'interpreter', 'latex','fontsize',18)
+ylabel('$\tau (Nm)$', 'interpreter', 'latex','fontsize',18)
+grid
 
 
 %% Simulation
-% sim('manipulator3DoF',t(end));
+sim('manipulator3DoF',t(end));
 
