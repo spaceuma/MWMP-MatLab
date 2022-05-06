@@ -13,6 +13,6 @@ function x = forwardIntegrateSystem(x, u, dt)
         % Arm torques        
         x(16:18,i) = getB3(x(7,i-1), x(8,i-1), x(9,i-1))*x(13:15,i-1) +...
                      getC3(x(7,i-1), x(8,i-1), x(9,i-1), u(1,i-1), u(2,i-1), u(3,i-1))*u(1:3,i-1) +...
-                     getG3(x(7,i-1), x(8,i-1), x(9,i-1),g);
+                     g*getG3(x(7,i-1), x(8,i-1), x(9,i-1));
     end
 end
