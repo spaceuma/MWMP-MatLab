@@ -1,4 +1,4 @@
-function [G, dG] = getG3(theta1, theta2, theta3)
+function G = getG3(theta1, theta2, theta3)
     global m1 m2 m3;
     global a2 d4;
 
