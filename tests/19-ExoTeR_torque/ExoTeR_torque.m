@@ -66,11 +66,14 @@ m4 = 0.3;
 m5 = 0.2;
 
 global rollingResistance;
-rollingResistance = 0.0036;
+rollingResistance = 0.0; % 0.0036
+
+global armReduction;
+armReduction = 83200; % 83200
 
 global g;
-g = 0.0;
-               
+g = 9.81; % 9.81
+
 %% Initial state and goal 
 % Initial base pose
 xC0 = 1.60;
@@ -102,7 +105,7 @@ yawei = qi(1);
 xef = 4.2;
 yef = 3.2;
 zef = 0.10;
-rollef = -pi/4;
+rollef = 0;
 pitchef = pi/2;
 yawef = 0;
 
@@ -116,7 +119,7 @@ yawef = 0;
 obstMapFile = 'obstMap4';
 
 % Number of timesteps
-timeSteps = 1000;
+timeSteps = 200;
 
 % Maximum number of iterations
 maxIter = 100;
@@ -216,22 +219,22 @@ fci = 100000000000; % Final state cost, 100000000000
 foci = 100000000000; % Final orientation cost, 100000000000
 fsci = 1000000; % Final zero speed cost, 1000000
 rtci = 1; % Reference path max cost, 1
-oci = 200.0; % Obstacles repulsive cost, 200.0
+oci = 200; % Obstacles repulsive cost, 200.0
 
-vel1ci = 10000.0; % Joint 1 velocity cost, 10000
-vel2ci = 10000.0; % Joint 2 velocity cost, 10000
-vel3ci = 10000.0; % Joint 3 velocity cost, 10000
-vel4ci = 10000.0; % Joint 4 velocity cost, 10000
-vel5ci = 10000.0; % Joint 5 velocity cost, 10000
+vel1ci = 100000; % Joint 1 velocity cost, 10000
+vel2ci = 100000; % Joint 2 velocity cost, 10000
+vel3ci = 100000; % Joint 3 velocity cost, 10000
+vel4ci = 100000; % Joint 4 velocity cost, 10000
+vel5ci = 100000; % Joint 5 velocity cost, 10000
 
-acc1ci = 1000.0; % Joint 1 acceleration cost, 1000
-acc2ci = 1000.0; % Joint 2 acceleration cost, 1000
-acc3ci = 1000.0; % Joint 3 acceleration cost, 1000
-acc4ci = 1000.0; % Joint 4 acceleration cost, 1000
-acc5ci = 1000.0; % Joint 5 acceleration cost, 1000
+acc1ci = 10000; % Joint 1 acceleration cost, 1000
+acc2ci = 10000; % Joint 2 acceleration cost, 1000
+acc3ci = 10000; % Joint 3 acceleration cost, 1000
+acc4ci = 10000; % Joint 4 acceleration cost, 1000
+acc5ci = 10000; % Joint 5 acceleration cost, 1000
 
-velwci = 100.0; % Wheels velocity cost, 100
-accwci = 10000.0; % Wheels acceleration cost, 10000
+velwci = 100; % Wheels velocity cost, 100
+accwci = 10000; % Wheels acceleration cost, 10000
 
 
 steerci = 0.0; % Steering joints position cost, 0
@@ -242,9 +245,9 @@ ac2i = 100000000000; % Arm actuation cost, 100000000000
 ac3i = 100000000000; % Arm actuation cost, 100000000000
 ac4i = 100000000000; % Arm actuation cost, 100000000000
 ac5i = 100000000000; % Arm actuation cost, 100000000000
-bci = 80000; % Base actuation cost, 80000
+bci = 80000; % Base actuation cost, 200000
 sci = 80000; % Steering actuation cost, 80000
-gcci = 99999999999999; % Constant gravity cost 99999999999999
+gcci = 99999999999999999; % Constant gravity cost 99999999999999
 
 % Extra costs
 kappa1 = 0.35; % Influence of yaw into rover pose, tune till convergence 0.35
@@ -298,17 +301,18 @@ referencePath = (referencePath-1)*mapResolution;
 
 %% Time horizon estimation
 pathLength = getLength(referencePath.');
-expectedTimeArrival = pathLength/vehicleSpeed;
-if pathLength > 10
-    warning(['The objective is too far for an efficient motion plan ',...
-            'computation, the results may be unaccurate']);
-elseif pathLength < reachabilityDistance*5
-    warning(['The objective is already close to the rover, ',...
-             'the expected time horizon will be set to 160 seconds']);
-    expectedTimeArrival = 160;
-end
+% expectedTimeArrival = pathLength/vehicleSpeed;
+% if pathLength > 10
+%     warning(['The objective is too far for an efficient motion plan ',...
+%             'computation, the results may be unaccurate']);
+% elseif pathLength < reachabilityDistance*5
+%     warning(['The objective is already close to the rover, ',...
+%              'the expected time horizon will be set to 160 seconds']);
+%     expectedTimeArrival = 160;
+% end
 
 % Time vector
+expectedTimeArrival = 160;
 tf = expectedTimeArrival; 
 dt = tf/(timeSteps-1);
 t = 0:dt:tf;
@@ -405,7 +409,7 @@ trajectoryInfo.waypointSeparation = waypSeparation;
 
 %% State space model
 % State vectors
-numStates = 36;
+numStates = 41;
 x = zeros(numStates,timeSteps);
 % WTEE
 x(1,1) = xei;
@@ -459,6 +463,9 @@ x(36,1) = rollei + yawC0;
 numInputs = 8;
 u = zeros(numInputs,timeSteps);
 
+% Residual gravity initial compensation
+% u(1:5,:) = getG5(x(16:20,1))*g/armReduction.*ones(5,size(u,2));
+
 % Constant gravity perturbation
 u(8,:) = g;
 
@@ -466,11 +473,6 @@ u(8,:) = g;
 x0 = zeros(numStates,timeSteps);
 
 x0(10:12,1:end) = referencePath;
-
-x0(16,1:end) = 0;
-x0(17,1:end) = -2.4894;
-x0(18,1:end) = 1.5101;
-x0(19,1:end) = 2.5495;
 
 % WTEE
 x0(1,end) = xef;
@@ -912,11 +914,11 @@ while 1
     Q(14,14,end) = fsc;
     Q(15,15,end) = fsc;
 
-    Q(21,21,end) = fsc;
-    Q(22,22,end) = fsc;
-    Q(23,23,end) = fsc;
-    Q(24,24,end) = fsc;
-    Q(25,25,end) = fsc;
+%     Q(21,21,end) = fsc;
+%     Q(22,22,end) = fsc;
+%     Q(23,23,end) = fsc;
+%     Q(24,24,end) = fsc;
+%     Q(25,25,end) = fsc;
 
     R = zeros(numInputs,numInputs,timeSteps);
     R(1,1,:) = ac1;
@@ -1011,7 +1013,7 @@ while 1
 
     % Arm joints acceleration
     A(26:30,21:25,1) = - inv(getB5(x(16:20,1)))*...
-                                 getC5(x(16:20,1),x(21:25,1));
+                         getC5(x(16:20,1),x(21:25,1));
     
     % Wheels speeds
     A(31,31,1) = 1;
@@ -1086,7 +1088,7 @@ while 1
                                      getC5(x(16:20,i-1),x(21:25,i-1));
         % Arm joints acceleration
         A(26:30,21:25,i) = - inv(getB5(x(16:20,i-1)))*...
-                                 getC5(x(16:20,i-1),x(21:25,i-1));
+                             getC5(x(16:20,i-1),x(21:25,i-1));
         
         % Wheels speeds
         A(31,31,i) = 1;
@@ -1119,11 +1121,11 @@ while 1
     
     % Arm joints speed
     B(21:25,1:5,1) = dt*inv(getB5(x(16:20,1)));
-    B(21:25,8,1) = -dt*inv(getB5(x(16:20,1)))*getG5(x(16:20,1));
+%     B(21:25,8,1) = -dt*inv(getB5(x(16:20,1)))*getG5(x(16:20,1));
     
     % Arm joints acceleration
     B(26:30,1:5,1) = inv(getB5(x(16:20,1)));
-    B(26:30,8,1) = -inv(getB5(x(16:20,1)))*getG5(x(16:20,1));
+%     B(26:30,8,1) = -inv(getB5(x(16:20,1)))*getG5(x(16:20,1));
    
     % Wheels speeds
     B(31,6,1) = dt/(getWheelInertia(wheelMass,wheelRadius)+vehicleMass/6*wheelRadius*wheelRadius);
@@ -1161,11 +1163,11 @@ while 1
 
         % Arm joints speed
         B(21:25,1:5,i) = dt*inv(getB5(x(16:20,i-1)));
-        B(21:25,8,i) = -dt*inv(getB5(x(16:20,i-1)))*getG5(x(16:20,i-1));
+%         B(21:25,8,i) = -dt*inv(getB5(x(16:20,i-1)))*getG5(x(16:20,i-1));
 
         % Arm joints acceleration
         B(26:30,1:5,i) = inv(getB5(x(16:20,i-1)));
-        B(26:30,8,i) = -inv(getB5(x(16:20,i-1)))*getG5(x(16:20,i-1));
+%         B(26:30,8,i) = -inv(getB5(x(16:20,i-1)))*getG5(x(16:20,i-1));
 
         % Wheels speeds
         B(31,6,i) = dt/(getWheelInertia(wheelMass,wheelRadius)+vehicleMass/6*wheelRadius*wheelRadius);
@@ -1376,7 +1378,7 @@ hold off;
 % xlabel('$t (s)$', 'interpreter', 'latex','fontsize',18)
 % ylabel('$\theta (rad)$', 'interpreter', 'latex','fontsize',18)
 % grid 
-
+% 
 figure(3)
 clf(3)
 plot(t,x(21:25,:))
@@ -1391,19 +1393,19 @@ xlabel('$t (s)$', 'interpreter', 'latex','fontsize',18)
 ylabel('$\dot\theta (rad/s)$', 'interpreter', 'latex','fontsize',18)
 grid 
 hold off
-
-figure(4)
-clf(4)
-plot(t,x(31,:))
-hold on
-plot(t,x(32,:))
-title('Actuating wheels speed','interpreter','latex','fontsize',18)
-xlabel('t(s)','interpreter','latex','fontsize',18)
-ylabel('$\omega(rad/s$)','interpreter','latex','fontsize',18)
-legend('$\omega_l$','$\omega_r$','interpreter', ...
-'latex','fontsize',18)
-grid 
-hold off
+% 
+% figure(4)
+% clf(4)
+% plot(t,x(31,:))
+% hold on
+% plot(t,x(32,:))
+% title('Actuating wheels speed','interpreter','latex','fontsize',18)
+% xlabel('t(s)','interpreter','latex','fontsize',18)
+% ylabel('$\omega(rad/s$)','interpreter','latex','fontsize',18)
+% legend('$\omega_l$','$\omega_r$','interpreter', ...
+% 'latex','fontsize',18)
+% grid 
+% hold off
 % 
 % figure(5)
 % plot(t,x(26:30,:))
@@ -1416,14 +1418,30 @@ hold off
 % grid
 % 
 figure(6)
-plot(t,u(1:5,:))
-title('Evolution of the applied arm torques', 'interpreter', ...
+plot(t,(u(1:5,:) - x(37:41,:))/armReduction)
+title('Evolution of the applied arm torques (considering reduction)', 'interpreter', ...
 'latex','fontsize',18)
 legend('$\tau_1$','$\tau_2$','$\tau_3$','$\tau_4$','$\tau_5$', 'interpreter', ...
 'latex','fontsize',18)
 xlabel('$t (s)$', 'interpreter', 'latex','fontsize',18)
 ylabel('$\tau (Nm)$', 'interpreter', 'latex','fontsize',18)
 grid
+% 
+% totalTorque = zeros(5,size(x,2));
+% for i = 1:size(x,2)
+%     totalTorque(:,i) = u(1:5,i)*armReduction - getC5(x(16:20,i),x(21:25,i)) * x(21:25,i)...
+%                        - u(8,i)*getG5(x(16:20,i));
+% end
+% 
+% figure(7)
+% plot(t,totalTorque)
+% title('Evolution of the total arm torques (actuation + coriolis + gravity)', 'interpreter', ...
+% 'latex','fontsize',18)
+% legend('$\tau_1$','$\tau_2$','$\tau_3$','$\tau_4$','$\tau_5$', 'interpreter', ...
+% 'latex','fontsize',18)
+% xlabel('$t (s)$', 'interpreter', 'latex','fontsize',18)
+% ylabel('$\tau (Nm)$', 'interpreter', 'latex','fontsize',18)
+% grid
 % 
 % figure(8)
 % plot(t,x(33:34,:))
@@ -1504,6 +1522,7 @@ grid
 % xlabel('$t (s)$', 'interpreter', 'latex','fontsize',18)
 % ylabel('$\dot\theta (rad/s)$', 'interpreter', 'latex','fontsize',18)
 % grid
+
 
 %% Simulation
 

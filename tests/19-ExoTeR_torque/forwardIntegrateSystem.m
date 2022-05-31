@@ -41,14 +41,12 @@ function x = forwardIntegrateSystem(x, u, dt)
         % Arm velocities
         x(21:25,i) = x(21:25,i-1) + dt * inv(getB5(x(16:20,i-1)))*...
                              (u(1:5,i-1) - ...
-                             getC5(x(16:20,i-1),x(21:25,i-1)) * x(21:25,i-1) - ...
-                             u(8,i-1)*getG5(x(16:20,i-1)));
+                             getC5(x(16:20,i-1),x(21:25,i-1)) * x(21:25,i-1));
 
         % Arm accelerations
         x(26:30,i) = inv(getB5(x(16:20,i-1)))*...
                      (u(1:5,i-1) - ...
-                     getC5(x(16:20,i-1),x(21:25,i-1)) * x(21:25,i-1) - ...
-                     u(8,i-1)*getG5(x(16:20,i-1)));
+                     getC5(x(16:20,i-1),x(21:25,i-1)) * x(21:25,i-1));
 
         % Wheels speeds
         x(31,i) = x(31,i-1) + dt*(u(6,i-1) - u(8,i-1)*rollingResistance*vehicleMass*wheelRadius/6)/...
@@ -67,5 +65,8 @@ function x = forwardIntegrateSystem(x, u, dt)
 
         % W2EE yaw
         x(36,i) = x(12,i-1) + x(7,i-1);
+
+        % Arm gravity torque compensation
+        x(37:41,i) = -u(8,i-1)*getG5(x(16:20,i-1));
     end
 end
