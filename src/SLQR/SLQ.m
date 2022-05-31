@@ -167,7 +167,11 @@ function [x, u, converged] = SLQ(varargin)
         
     % Solve backward
     for i = timeSteps-1:-1:1
-        M(:,:,i) = inv(eye(numStates) + B(:,:,i)/R(:,:,i)*B(:,:,i).'*P(:,:,i+1));
+        try
+            M(:,:,i) = inv(eye(numStates) + B(:,:,i)/R(:,:,i)*B(:,:,i).'*P(:,:,i+1));
+        catch
+            M(:,:,i) = pinv(eye(numStates) + B(:,:,i)/R(:,:,i)*B(:,:,i).'*P(:,:,i+1));
+        end
         P(:,:,i) = Q(:,:,i) + A(:,:,i).'*P(:,:,i+1)*M(:,:,i)*A(:,:,i);
         s(:,:,i) = A(:,:,i).'*(eye(size(Q,1)) - ...
                    P(:,:,i+1)*M(:,:,i)*B(:,:,i)/R(:,:,i)*B(:,:,i).')*s(:,:,i+1)+...
