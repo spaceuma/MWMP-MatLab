@@ -33,7 +33,7 @@ m2 = 9;
 m3 = 9;
 
 global g;
-g = 10;
+g = 9.81;
 
 %% Constraints 
 % Initial configuration
@@ -58,7 +58,7 @@ pitchef = pi;
 yawef = 0;
 
 %% Time horizon
-expectedTimeArrival = 1.8;
+expectedTimeArrival = 5;
 tf = expectedTimeArrival; % Time vector
 dt = tf/199;
 t = 0:dt:tf;
@@ -67,11 +67,12 @@ t = 0:dt:tf;
 time_ratio = tf; % Ratio for the costs to ensure convergence
 
 % State costs
-fc = 10000000000/time_ratio; % Final state cost, 100000000000
+fc = 1000000000; % Final state cost, 100000000000
 foc = 0; % Final orientation cost, 0
-fsc = 10000000000/time_ratio; % Final zero speed cost, 100000000000
+fsc = 1000000; % Final zero speed cost, 100000000000
 
-zac = 100*time_ratio^10; % Zero acceleration cost, 10000
+zvc = 1000; % Zero acceleration cost, 10000
+zac = 100; % Zero acceleration cost, 10000
 zgc = 0; % Zero gravity torque cost, 0
 
 % tau1c = 0.005; % Joint 1 inverse torque constant, 0.005
@@ -79,11 +80,11 @@ zgc = 0; % Zero gravity torque cost, 0
 % tau3c = 0.005; % Joint 3 inverse torque constant, 0.005
 
 % Input costs
-ac1 = 0.1*time_ratio; % Arm actuation cost 10
-ac2 = 0.1*time_ratio; % Arm actuation cost 10
-ac3 = 0.1*time_ratio; % Arm actuation cost 10
+ac1 = 100000; % Arm actuation cost 10
+ac2 = 100000; % Arm actuation cost 10
+ac3 = 100000; % Arm actuation cost 10
 
-gc = 99999999999999*time_ratio; % Gravity fixed cost
+gc = 99999999999999; % Gravity fixed cost
 
 %% Other variables
 % Minimum step actuation percentage
@@ -93,7 +94,7 @@ lineSearchStep = 0.30;
 distThreshold = 0.005;
 
 % Maximum number of iterations
-maxIter = 150;
+maxIter = 50;
 
 %% State space model
 % State vectors
@@ -122,12 +123,9 @@ u = zeros(numInputs,size(t,2));
 % Gravity constant perturbation
 u(4,:) = g;
 
-initialGravityTorque = u(1:3,1) - ...
-                     getC3(x(7,1), x(8,1), x(9,1),...
-                           x(10,1), x(11,1), x(12,1))*x(10:12,1) - ...
-                     u(4,1)*getG3(x(7,1), x(8,1), x(9,1));
-
-u(1:3,:) = -initialGravityTorque*ones(1,200);
+% initialGravityTorque = g*getG3(x(7,1), x(8,1), x(9,1));
+% 
+% u(1:3,:) = initialGravityTorque*ones(1,200);
 
 % Forward integrate system equations
 x = forwardIntegrateSystem(x, u, dt);
@@ -157,7 +155,7 @@ u0 = zeros(numInputs,size(t,2));
 Jac = zeros(6,3,size(t,2));
 
 % Gravity constant perturbation
-% u0(1:3,:) = x(16:18,:);
+% u0(1:3,:) = initialGravityTorque*ones(1,200);
 u0(4,:) = g;
 
 %% SLQR algorithm
@@ -197,8 +195,14 @@ while 1
     quiver3(0, 0, 0, 0, 0, 1/4, 'Color', 'c', 'LineWidth', 2, 'MaxHeadSize', 0.7) 
 
     hold off;   
+
+    for i = 2:size(t,2)
+        Jac(:,:,i-1) = jacobian3(x(7:9,i-1));
+%         u0(1:3,i-1) = g*getG3(x(7,i-1), x(8,i-1), x(9,i-1));
+    end
     
-    
+
+
     % Update reference trajectories    
     xh0 = x0 - x;
     uh0 = u0 - u;    
@@ -218,6 +222,10 @@ while 1
     Q(11,11,end) = fsc;
     Q(12,12,end) = fsc;
 
+    Q(10,10,:) = zvc;
+    Q(11,11,:) = zvc;
+    Q(12,12,:) = zvc;
+
     Q(13,13,:) = zac;
     Q(14,14,:) = zac;
     Q(15,15,:) = zac;
@@ -233,10 +241,6 @@ while 1
     R(4,4) = gc;
     
     % Linearize the system dynamics and constraints along the trajectory  
-    for i = 2:size(t,2)
-        Jac(:,:,i-1) = jacobian3(x(7:9,i-1));
-    end
-    
     % State (x) matrix
     A = zeros(numStates,numStates,size(t,2));
 
@@ -291,11 +295,11 @@ while 1
         
     % Arm joints velocity
     B(10:12,1:3,1) = dt*inv(getB3(x(7,1), x(8,1), x(9,1)));
-    B(10:12,4,1) = -dt*inv(getB3(x(7,i-1), x(8,i-1), x(9,i-1)))*getG3(x(7,1), x(8,1), x(9,1));
+%     B(10:12,4,1) = -dt*inv(getB3(x(7,i-1), x(8,i-1), x(9,i-1)))*getG3(x(7,1), x(8,1), x(9,1));
 
     % Arm joints acceleration
     B(13:15,1:3,1) = inv(getB3(x(7,1), x(8,1), x(9,1)));
-    B(13:15,4,1) = -inv(getB3(x(7,i-1), x(8,i-1), x(9,i-1)))*getG3(x(7,1), x(8,1), x(9,1));
+%     B(13:15,4,1) = -inv(getB3(x(7,i-1), x(8,i-1), x(9,i-1)))*getG3(x(7,1), x(8,1), x(9,1));
 
     % Arm joints gravity torques compensation
 %     B(16:18,1:3,1) = eye(3,3);
@@ -304,11 +308,11 @@ while 1
     for i = 2:size(t,2)
         % Arm joints velocity
         B(10:12,1:3,i) = dt*inv(getB3(x(7,i-1), x(8,i-1), x(9,i-1)));
-        B(10:12,4,i) = -dt*inv(getB3(x(7,i-1), x(8,i-1), x(9,i-1)))*getG3(x(7,i-1), x(8,i-1), x(9,i-1));
+%         B(10:12,4,i) = -dt*inv(getB3(x(7,i-1), x(8,i-1), x(9,i-1)))*getG3(x(7,i-1), x(8,i-1), x(9,i-1));
 
         % Arm joints acceleration
         B(13:15,1:3,i) = inv(getB3(x(7,i-1), x(8,i-1), x(9,i-1)));
-        B(13:15,4,i) = -inv(getB3(x(7,i-1), x(8,i-1), x(9,i-1)))*getG3(x(7,i-1), x(8,i-1), x(9,i-1));
+%         B(13:15,4,i) = -inv(getB3(x(7,i-1), x(8,i-1), x(9,i-1)))*getG3(x(7,i-1), x(8,i-1), x(9,i-1));
 
         % Arm joints gravity torques compensation
 %         B(16:18,1:3,i) = eye(3,3);
@@ -467,7 +471,7 @@ hold off;
 % grid
 % 
 figure(5)
-plot(t,u(1:3,:))
+plot(t,u(1:3,:)-x(16:18,:))
 title('Evolution of the applied arm torques', 'interpreter', ...
 'latex','fontsize',18)
 legend('$\tau_1$','$\tau_2$','$\tau_3$', 'interpreter', ...
