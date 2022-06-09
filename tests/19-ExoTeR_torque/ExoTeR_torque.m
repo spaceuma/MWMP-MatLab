@@ -72,7 +72,7 @@ global armReduction;
 armReduction = 83200; % 83200
 
 global g;
-g = 9.81; % 9.81
+g = 0.01; % 9.81
 
 %% Initial state and goal 
 % Initial base pose
@@ -174,7 +174,7 @@ if config.checkDistance
 end
 
 % Max acceptable dist (m)
-config.distThreshold = 0.04;
+config.distThreshold = 0.05;
 
 % Check final orientation for convergence
 config.checkOrientation = true;
@@ -221,17 +221,24 @@ fsci = 1000000; % Final zero speed cost, 1000000
 rtci = 1; % Reference path max cost, 1
 oci = 200; % Obstacles repulsive cost, 200.0
 
-vel1ci = 100000; % Joint 1 velocity cost, 10000
-vel2ci = 100000; % Joint 2 velocity cost, 10000
-vel3ci = 100000; % Joint 3 velocity cost, 10000
-vel4ci = 100000; % Joint 4 velocity cost, 10000
-vel5ci = 100000; % Joint 5 velocity cost, 10000
+pos1ci = 10000000; % Joint 1 position cost, 0
+pos2ci = 10000000; % Joint 2 position cost, 0
+pos3ci = 10000000; % Joint 3 position cost, 0
+pos4ci = 10000000; % Joint 4 position cost, 0
+pos5ci = 10000000; % Joint 5 position cost, 0
 
-acc1ci = 10000; % Joint 1 acceleration cost, 1000
-acc2ci = 10000; % Joint 2 acceleration cost, 1000
-acc3ci = 10000; % Joint 3 acceleration cost, 1000
-acc4ci = 10000; % Joint 4 acceleration cost, 1000
-acc5ci = 10000; % Joint 5 acceleration cost, 1000
+
+vel1ci = 1000; % Joint 1 velocity cost, 10000
+vel2ci = 1000; % Joint 2 velocity cost, 10000
+vel3ci = 1000; % Joint 3 velocity cost, 10000
+vel4ci = 1000; % Joint 4 velocity cost, 10000
+vel5ci = 1000; % Joint 5 velocity cost, 10000
+
+acc1ci = 1000000; % Joint 1 acceleration cost, 1000
+acc2ci = 1000000; % Joint 2 acceleration cost, 1000
+acc3ci = 1000000; % Joint 3 acceleration cost, 1000
+acc4ci = 1000000; % Joint 4 acceleration cost, 1000
+acc5ci = 1000000; % Joint 5 acceleration cost, 1000
 
 velwci = 100; % Wheels velocity cost, 100
 accwci = 10000; % Wheels acceleration cost, 10000
@@ -240,14 +247,14 @@ accwci = 10000; % Wheels acceleration cost, 10000
 steerci = 0.0; % Steering joints position cost, 0
 
 % Input costs
-ac1i = 100000000000; % Arm actuation cost, 100000000000
-ac2i = 100000000000; % Arm actuation cost, 100000000000
-ac3i = 100000000000; % Arm actuation cost, 100000000000
-ac4i = 100000000000; % Arm actuation cost, 100000000000
-ac5i = 100000000000; % Arm actuation cost, 100000000000
-bci = 80000; % Base actuation cost, 200000
-sci = 80000; % Steering actuation cost, 80000
-gcci = 99999999999999999; % Constant gravity cost 99999999999999
+ac1i = 1000000000; % Arm actuation cost, 100000000000
+ac2i = 1000000000; % Arm actuation cost, 100000000000
+ac3i = 1000000000; % Arm actuation cost, 100000000000
+ac4i = 1000000000; % Arm actuation cost, 100000000000
+ac5i = 1000000000; % Arm actuation cost, 100000000000
+bci = 300000000000; % Base actuation cost, 200000
+sci = 150000; % Steering actuation cost, 80000
+gcci = 99999999999999; % Constant gravity cost 99999999999999
 
 % Extra costs
 kappa1 = 0.35; % Influence of yaw into rover pose, tune till convergence 0.35
@@ -359,11 +366,17 @@ fsc = fsci/time_ratio; % Final zero speed cost
 rtc = rtci*time_ratio; % Reference path max cost
 oc = oci*time_ratio; % Obstacles repulsive cost
 
-vel1c = vel1ci/time_ratio; % Joint 1 position cost
-vel2c = vel2ci/time_ratio; % Joint 2 position cost
-vel3c = vel3ci/time_ratio; % Joint 3 position cost
-vel4c = vel4ci/time_ratio; % Joint 4 position cost
-vel5c = vel5ci/time_ratio; % Joint 5 position cost
+pos1c = pos1ci/time_ratio; % Joint 1 position cost
+pos2c = pos2ci/time_ratio; % Joint 2 position cost
+pos3c = pos3ci/time_ratio; % Joint 3 position cost
+pos4c = pos4ci/time_ratio; % Joint 4 position cost
+pos5c = pos5ci/time_ratio; % Joint 5 position cost
+
+vel1c = vel1ci/time_ratio; % Joint 1 velocity cost
+vel2c = vel2ci/time_ratio; % Joint 2 velocity cost
+vel3c = vel3ci/time_ratio; % Joint 3 velocity cost
+vel4c = vel4ci/time_ratio; % Joint 4 velocity cost
+vel5c = vel5ci/time_ratio; % Joint 5 velocity cost
 
 acc1c = acc1ci/time_ratio; % Joint 1 acceleration cost
 acc2c = acc2ci/time_ratio; % Joint 2 acceleration cost
@@ -464,7 +477,8 @@ numInputs = 8;
 u = zeros(numInputs,timeSteps);
 
 % Residual gravity initial compensation
-% u(1:5,:) = getG5(x(16:20,1))*g/armReduction.*ones(5,size(u,2));
+initialGravityTorque = g*getG5(x(16:20,1));
+u(1:5,:) = initialGravityTorque*ones(1,timeSteps);
 
 % Constant gravity perturbation
 u(8,:) = g;
@@ -499,6 +513,12 @@ x0(17,end) = 0;
 x0(18,end) = 0;
 x0(19,end) = 0;
 x0(20,end) = 0;
+
+x0(16,:) = x(16,1);
+x0(17,:) = x(17,1);
+x0(18,:) = x(18,1);
+x0(19,:) = x(19,1);
+x0(20,:) = x(20,1);
 % Arm joints speeds
 x0(21,end) = 0;
 x0(22,end) = 0;
@@ -881,6 +901,11 @@ while 1
             Q(15,15,i) = linearCost*fsc;
         end
     end  
+    Q(16,16,:) = pos1c;
+    Q(17,17,:) = pos2c;
+    Q(18,18,:) = pos3c;
+    Q(19,19,:) = pos4c;
+    Q(20,20,:) = pos5c;
 
     Q(21,21,:) = vel1c;
     Q(22,22,:) = vel2c;
@@ -1121,11 +1146,11 @@ while 1
     
     % Arm joints speed
     B(21:25,1:5,1) = dt*inv(getB5(x(16:20,1)));
-%     B(21:25,8,1) = -dt*inv(getB5(x(16:20,1)))*getG5(x(16:20,1));
+    B(21:25,8,1) = -dt*inv(getB5(x(16:20,1)))*getG5(x(16:20,1));
     
     % Arm joints acceleration
     B(26:30,1:5,1) = inv(getB5(x(16:20,1)));
-%     B(26:30,8,1) = -inv(getB5(x(16:20,1)))*getG5(x(16:20,1));
+    B(26:30,8,1) = -inv(getB5(x(16:20,1)))*getG5(x(16:20,1));
    
     % Wheels speeds
     B(31,6,1) = dt/(getWheelInertia(wheelMass,wheelRadius)+vehicleMass/6*wheelRadius*wheelRadius);
@@ -1163,11 +1188,11 @@ while 1
 
         % Arm joints speed
         B(21:25,1:5,i) = dt*inv(getB5(x(16:20,i-1)));
-%         B(21:25,8,i) = -dt*inv(getB5(x(16:20,i-1)))*getG5(x(16:20,i-1));
+        B(21:25,8,i) = -dt*inv(getB5(x(16:20,i-1)))*getG5(x(16:20,i-1));
 
         % Arm joints acceleration
         B(26:30,1:5,i) = inv(getB5(x(16:20,i-1)));
-%         B(26:30,8,i) = -inv(getB5(x(16:20,i-1)))*getG5(x(16:20,i-1));
+        B(26:30,8,i) = -inv(getB5(x(16:20,i-1)))*getG5(x(16:20,i-1));
 
         % Wheels speeds
         B(31,6,i) = dt/(getWheelInertia(wheelMass,wheelRadius)+vehicleMass/6*wheelRadius*wheelRadius);
@@ -1418,7 +1443,7 @@ hold off
 % grid
 % 
 figure(6)
-plot(t,(u(1:5,:) - x(37:41,:))/armReduction)
+plot(t,u(1:5,:)/armReduction)
 title('Evolution of the applied arm torques (considering reduction)', 'interpreter', ...
 'latex','fontsize',18)
 legend('$\tau_1$','$\tau_2$','$\tau_3$','$\tau_4$','$\tau_5$', 'interpreter', ...
@@ -1543,7 +1568,7 @@ s = 0.0;                % slip ratio
 slope = 0;              % slope
 
 
-sim('ExoTeR_steering',t(end));
+% sim('ExoTeR_steering',t(end));
 % sim('sim_ExoTeR_torque',t(end));
 
 
