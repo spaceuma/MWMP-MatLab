@@ -72,7 +72,7 @@ global armReduction;
 armReduction = 83200; % 83200
 
 global g;
-g = 0.01; % 9.81
+g = 0.0; % 9.81
 
 %% Initial state and goal 
 % Initial base pose
@@ -102,7 +102,7 @@ pitchei = qi(2)+qi(3)+qi(4);
 yawei = qi(1);
 
 % Goal end effector pose
-xef = 4.2;
+xef = 4.0;
 yef = 3.2;
 zef = 0.10;
 rollef = 0;
@@ -218,27 +218,27 @@ config.costThreshold = 5;
 fci = 100000000000; % Final state cost, 100000000000
 foci = 100000000000; % Final orientation cost, 100000000000
 fsci = 1000000; % Final zero speed cost, 1000000
-rtci = 1; % Reference path max cost, 1
+rtci = 200; % Reference path max cost, 1
 oci = 200; % Obstacles repulsive cost, 200.0
 
-pos1ci = 10000000; % Joint 1 position cost, 0
-pos2ci = 10000000; % Joint 2 position cost, 0
-pos3ci = 10000000; % Joint 3 position cost, 0
-pos4ci = 10000000; % Joint 4 position cost, 0
-pos5ci = 10000000; % Joint 5 position cost, 0
+pos1ci = 0; % Joint 1 position cost, 0
+pos2ci = 0; % Joint 2 position cost, 0
+pos3ci = 0; % Joint 3 position cost, 0
+pos4ci = 0; % Joint 4 position cost, 0
+pos5ci = 0; % Joint 5 position cost, 0
 
 
-vel1ci = 1000; % Joint 1 velocity cost, 10000
-vel2ci = 1000; % Joint 2 velocity cost, 10000
-vel3ci = 1000; % Joint 3 velocity cost, 10000
-vel4ci = 1000; % Joint 4 velocity cost, 10000
-vel5ci = 1000; % Joint 5 velocity cost, 10000
+vel1ci = 100000; % Joint 1 velocity cost, 10000
+vel2ci = 100000; % Joint 2 velocity cost, 10000
+vel3ci = 100000; % Joint 3 velocity cost, 10000
+vel4ci = 100000; % Joint 4 velocity cost, 10000
+vel5ci = 100000; % Joint 5 velocity cost, 10000
 
-acc1ci = 1000000; % Joint 1 acceleration cost, 1000
-acc2ci = 1000000; % Joint 2 acceleration cost, 1000
-acc3ci = 1000000; % Joint 3 acceleration cost, 1000
-acc4ci = 1000000; % Joint 4 acceleration cost, 1000
-acc5ci = 1000000; % Joint 5 acceleration cost, 1000
+acc1ci = 100000; % Joint 1 acceleration cost, 1000
+acc2ci = 100000; % Joint 2 acceleration cost, 1000
+acc3ci = 100000; % Joint 3 acceleration cost, 1000
+acc4ci = 100000; % Joint 4 acceleration cost, 1000
+acc5ci = 100000; % Joint 5 acceleration cost, 1000
 
 velwci = 100; % Wheels velocity cost, 100
 accwci = 10000; % Wheels acceleration cost, 10000
@@ -247,13 +247,13 @@ accwci = 10000; % Wheels acceleration cost, 10000
 steerci = 0.0; % Steering joints position cost, 0
 
 % Input costs
-ac1i = 1000000000; % Arm actuation cost, 100000000000
-ac2i = 1000000000; % Arm actuation cost, 100000000000
-ac3i = 1000000000; % Arm actuation cost, 100000000000
-ac4i = 1000000000; % Arm actuation cost, 100000000000
-ac5i = 1000000000; % Arm actuation cost, 100000000000
-bci = 300000000000; % Base actuation cost, 200000
-sci = 150000; % Steering actuation cost, 80000
+ac1i = 100000000000; % Arm actuation cost, 100000000000
+ac2i = 100000000000; % Arm actuation cost, 100000000000
+ac3i = 100000000000; % Arm actuation cost, 100000000000
+ac4i = 100000000000; % Arm actuation cost, 100000000000
+ac5i = 100000000000; % Arm actuation cost, 100000000000
+bci = 100000; % Base actuation cost, 200000
+sci = 80000; % Steering actuation cost, 80000
 gcci = 99999999999999; % Constant gravity cost 99999999999999
 
 % Extra costs
