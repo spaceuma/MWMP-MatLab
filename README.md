@@ -1,8 +1,15 @@
-# MP-FB_SLQ -> Motion Planning for the Full robot Body, using Sequential Linear Quadratic regulator
-Using SLQ (Sequential Linear Quadratic) control algorithm to plan the optimal joint positions and trajectory of a mobile manipulator when trying to reach a certain end effector final pose
+# MWMP-MatLab
+Multi-staged Warm started Motion Planner (MWMP) MatLab library.
 
-Author: Gonzalo J. Paz Delgado
+[Get to the C++ version](https://github.com/spaceuma/MWMP-Cpp)
 
-Supervisor: Carlos J. Pérez del Pulgar Mancebo
+Space Robotics Lab, University of Malaga
 
-13/01/2020
+Author: Gonzalo Jesús Paz Delgado, gonzalopd96@uma.es
+
+Supervisor: Carlos J. Pérez del Pulgar, carlosperez@uma.es
+
+Motion planning library that uses Sequential Linear Quadratic regulator (SLQ) in a Multi-staged Warm-Started manner to plan the movements of a mobile platform. Given the platform kinematic and dynamics model, a description of the scenario, an initial state and a goal, this algorithm plans the motion sequentially:
+  - First, Fast Marching Methid (FMM) is used to generate a warm starting trajectory for the mobile base.
+  - Second, the unconstrained solution of the motion planning problem is found using Unconstrained SLQ.
+  - Third, the unconstrained solution is used to initialize the Constrained SLQ algorithm to find the complete constraints compliant, global motion plan.
