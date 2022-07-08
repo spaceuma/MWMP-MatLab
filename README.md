@@ -1,5 +1,9 @@
-# MWMP-MatLab
-Multi-staged Warm started Motion Planner (MWMP) MatLab library
+  <h1 align="center">MWMP-MatLab</h1>
+  <h4 align="center">Multi-staged Warm started Motion Planner (MWMP) MatLab library</h4>
+  
+<p align="center">
+  <img src="https://user-images.githubusercontent.com/37618448/177983996-1da1c67d-8037-4b8b-8187-737a8adeee1d.png" width="200">
+</p>
 
 ![image](https://user-images.githubusercontent.com/37618448/177952812-e9e866cc-04f3-4659-b53b-97cf3950598f.png)
 
@@ -21,4 +25,4 @@ Motion planning library that uses Sequential Linear Quadratic regulator (SLQ) in
 
 [Go to the C++ version](https://github.com/spaceuma/MWMP-Cpp)               
 [<img src="https://user-images.githubusercontent.com/37618448/177987095-dc7dba1f-7879-4f9e-a723-b7c4c3780e14.png" width="200">
-](https://github.com/spaceuma/MWMP-MatLab)
+](https://github.com/spaceuma/MWMP-Cpp)
