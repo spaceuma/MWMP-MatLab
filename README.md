@@ -21,6 +21,28 @@ Motion planning library that uses Sequential Linear Quadratic regulator (SLQ) in
   - Second, the unconstrained solution of the motion planning problem is found using Unconstrained SLQ.
   - Third, the unconstrained solution is used to initialize the Constrained SLQ algorithm to find the complete constraints compliant, global motion plan.
   
+## Testing and visualization
+
+In the tests/ folder several examples of different systems and models are included. Each test usually includes, first, a "forwardIntegrateSystem.m" function, which basically includes the model, i.e. the discrete differential equations, that define the system, and propagates a given actuation using those equations. Second, each test includes a script (i.e. 19-ExoTeR_torque/ExoTeR_torque-m) that makes use of the library and the system model to generate the motion plan for a platform to reach a goal.
+
+These scripts usually include the following aspects:
+- **Initialization**: prepare the workspace for the execution.
+- **Initial state and goal**: define the initial and goal states of the platform.
+- **Configuration variables**: configure different parameters of the execution (number of timesteps, max iterations, approach to be used, dynamic plotting during the computation...).
+- **Reference trajectory computation**: use of FMM to generate the warm start trajectory.
+- **Time horizon estimation**: the time horizon is preestimated in function of the length of the warm start path.
+- **Initial reference path adaptation to the state space model**: slightly modifying the trajectory to fit the state space model requirements.
+- **Definitive costs**: the costs are modified in function of the time horizon.
+- **Generate map info**: fill the structs required by MWMP to use a map of the environment.
+- **Generate state space model info**: fill the structs required by MWMP about particular state indexes.
+- **Generate trajectory info**: fill the structs required by MWMP about the trajectory.
+- **State space model**: generate the x, x0, u and u0 for SLQ with the config.
+- **Constraints matrices definition**: generate the constraints matrices C, D, r, G, h.
+- **Visualization**: prepare the figures if the dynamic plotting is enabled.
+- **SLQR algorithm**: generate the A, B, Q, R matrices and call the SLQ solver iteratively.
+- **Plots**: depict information about the motion plan into some figures.
+- **Simulation**: run the generated motion plan in a simulation with Simscape SimMechanics.
+  
 ## File tree
 ```bash
 MWMP-MatLab/
