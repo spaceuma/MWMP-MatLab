@@ -28,7 +28,7 @@ In the tests/ folder several examples of different systems and models are includ
 These scripts usually include the following aspects:
 - **Initialization**: prepare the workspace for the execution.
 - **Initial state and goal**: define the initial and goal states of the platform.
-- **Configuration variables**: configure different parameters of the execution (number of timesteps, max iterations, approach to be used, dynamic plotting during the computation...).
+- **Configuration variables**: configure different parameters of the execution (number of timesteps, max iterations, approach to be used, dynamic plotting during the computation...). 
 - **Reference trajectory computation**: use of FMM to generate the warm start trajectory.
 - **Time horizon estimation**: the time horizon is preestimated in function of the length of the warm start path.
 - **Initial reference path adaptation to the state space model**: slightly modifying the trajectory to fit the state space model requirements.
@@ -40,7 +40,7 @@ These scripts usually include the following aspects:
 - **Constraints matrices definition**: generate the constraints matrices C, D, r, G, h.
 - **Visualization**: prepare the figures if the dynamic plotting is enabled.
 - **SLQR algorithm**: generate the A, B, Q, R matrices and call the SLQ solver iteratively.
-- **Plots**: depict information about the motion plan into some figures.
+- **Plots**: display information about the motion plan into some figures.
 - **Simulation**: run the generated motion plan in a simulation with Simscape SimMechanics.
   
 ## File tree
