@@ -94,6 +94,17 @@ MWMP-MatLab/
 └── README.md
 ```
 
+## Citation
+
+If this work was helpful for your research, please consider citing the following BibTeX entry:
+
+@article{author = {G. J. Paz-Delgado and C. J. Pérez-del-Pulgar and M. Azkarate and F. Kirchner and A. García-Cerezo},
+   title = {Multi-stage warm started optimal motion planning for over-actuated mobile platforms},
+   url = {http://arxiv.org/abs/2207.14659},
+   year = {2022},
+}
+
+
 ## Versions
 
 [Go to the C++ version](https://github.com/spaceuma/MWMP-Cpp)               
