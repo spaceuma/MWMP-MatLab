@@ -12,7 +12,7 @@
 
 *Supervisor*: [Carlos J. Pérez del Pulgar](https://github.com/carlibiri), carlosperez@uma.es
 
-[Space Robotics Lab, University of Malaga](https://www.uma.es/space-robotics)
+*Organization*: [Space Robotics Lab, University of Malaga](https://www.uma.es/space-robotics)
 
 ## Description
 
@@ -20,6 +20,9 @@ Motion planning library that uses Sequential Linear Quadratic regulator (SLQ) in
   - First, Fast Marching Methid (FMM) is used to generate a warm starting trajectory for the mobile base.
   - Second, the unconstrained solution of the motion planning problem is found using Unconstrained SLQ.
   - Third, the unconstrained solution is used to initialize the Constrained SLQ algorithm to find the complete constraints compliant, global motion plan.
+
+Check the [Simulation and field tests video](https://youtu.be/xDFv4Ho4KZs).
+
   
 ## Testing and visualization
 
@@ -101,7 +104,7 @@ If this work was helpful for your research, please consider citing the following
 @article{author = {G. J. Paz-Delgado and C. J. Pérez-del-Pulgar and M. Azkarate and F. Kirchner and A. García-Cerezo},
    title = {Multi-stage warm started optimal motion planning for over-actuated mobile platforms},
    url = {http://arxiv.org/abs/2207.14659},
-   year = {2022},
+   year = {2022}
 }
 
 
