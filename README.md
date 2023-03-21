@@ -12,7 +12,7 @@
 
 *Supervisor*: [Carlos J. Pérez del Pulgar](https://github.com/carlibiri), carlosperez@uma.es
 
-[Space Robotics Lab, University of Malaga](https://www.uma.es/robotics-and-mechatronics/info/107542/robotica-espacial/)
+[Space Robotics Lab, University of Malaga](https://www.uma.es/space-robotics)
 
 ## Description
 
