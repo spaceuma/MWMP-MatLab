@@ -109,10 +109,15 @@ MWMP-MatLab/
 
 If this work was helpful for your research, please consider citing the following BibTeX entry:
 
-@article{author = {G. J. Paz-Delgado and C. J. Pérez-del-Pulgar and M. Azkarate and F. Kirchner and A. García-Cerezo},
-   title = {Multi-stage warm started optimal motion planning for over-actuated mobile platforms},
-   url = {http://arxiv.org/abs/2207.14659},
-   year = {2022}
+@article{author = {Paz-Delgado, Gonzalo J. and Pérez-del-Pulgar, Carlos J. and Azkarate, Martin and Kirchner, Frank and García-Cerezo, Alfonso},
+doi = {10.1007/S11370-023-00461-X},
+issn = {1861-2784},
+journal = {Intelligent Service Robotics 2023},
+month = {apr},
+pages = {1--17},
+publisher = {Springer},
+title = {Multi-stage warm started optimal motion planning for over-actuated mobile platforms},
+year = {2023}
 }
 
 
